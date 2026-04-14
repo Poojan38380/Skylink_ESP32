@@ -2,8 +2,8 @@
 #define CONFIG_H
 
 // WiFi Configuration
-extern const char* WIFI_SSID;
-extern const char* WIFI_PASSWORD;
+extern const char *WIFI_SSID;
+extern const char *WIFI_PASSWORD;
 
 // Pin Definitions
 extern const int LED_BUILTIN_PIN;

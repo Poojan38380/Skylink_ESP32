@@ -19,19 +19,22 @@ bool ConfigManager::saveWiFiCredentials(const String& ssid, const String& passwo
 
 String ConfigManager::getWiFiSSID() {
     char buffer[64];
-    preferences.getString("wifi_ssid", buffer, sizeof(buffer));
-    return String(buffer);
+    size_t len = preferences.getString("wifi_ssid", buffer, sizeof(buffer));
+    return (len > 0) ? String(buffer) : "";
 }
 
 String ConfigManager::getWiFiPassword() {
     char buffer[64];
-    preferences.getString("wifi_pass", buffer, sizeof(buffer));
-    return String(buffer);
+    size_t len = preferences.getString("wifi_pass", buffer, sizeof(buffer));
+    return (len > 0) ? String(buffer) : "";
 }
 
 bool ConfigManager::hasWiFiCredentials() {
     String ssid = getWiFiSSID();
-    return ssid.length() > 0 && ssid != "YOUR_WIFI_SSID";
+    bool hasRealCreds = ssid.length() > 0 && 
+                        ssid != "YOUR_WIFI_SSID" && 
+                        ssid.indexOf("\xFF") == -1;  // Check for corrupted data
+    return hasRealCreds;
 }
 
 bool ConfigManager::saveLEDState(bool state) {

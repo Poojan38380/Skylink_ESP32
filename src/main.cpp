@@ -1,27 +1,38 @@
 #include <Arduino.h>
+#include "config.h"
+#include "logger.h"
+#include "wifi_manager.h"
 
-// Pin definitions
-#define LED_BUILTIN 2  // Built-in LED on most ESP32 boards
+unsigned long lastHeartbeat = 0;
+bool ledState = false;
 
 void setup() {
-  // Initialize serial communication
-  Serial.begin(115200);
-
-  // Configure LED pin as output
-  pinMode(LED_BUILTIN, OUTPUT);
-
-  // Startup message
-  Serial.println("Skylink ESP32 Started");
-  Serial.println("----------------------");
+    Serial.begin(115200);
+    
+    logger.info("================================");
+    logger.info("Skylink ESP32 Starting");
+    logger.info("================================");
+    
+    pinMode(LED_BUILTIN_PIN, OUTPUT);
+    digitalWrite(LED_BUILTIN_PIN, LOW);
+    
+    wifiManager.begin();
+    
+    logger.info("Setup complete");
 }
 
 void loop() {
-  // Toggle built-in LED
-  digitalWrite(LED_BUILTIN, HIGH);
-  delay(1000);
-  digitalWrite(LED_BUILTIN, LOW);
-  delay(1000);
-
-  // Heartbeat message
-  Serial.println("Heartbeat: ESP32 is running...");
+    wifiManager.handle();
+    
+    unsigned long now = millis();
+    if (now - lastHeartbeat >= HEARTBEAT_INTERVAL) {
+        lastHeartbeat = now;
+        
+        ledState = !ledState;
+        digitalWrite(LED_BUILTIN_PIN, ledState ? HIGH : LOW);
+        
+        logger.info("Heartbeat | WiFi: " + wifiManager.getSSID() + 
+                   " | IP: " + wifiManager.getIPAddress() + 
+                   " | Signal: " + String(wifiManager.getSignalStrength()) + " dBm");
+    }
 }

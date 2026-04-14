@@ -3,6 +3,7 @@
 #include "wifi_manager.h"
 #include "config.h"
 #include "config_manager.h"
+#include "time_sync.h"
 
 WebServerModule::WebServerModule(int port) : server(port), port(port) {
 }
@@ -54,6 +55,7 @@ String WebServerModule::generateDashboardHTML() {
     html += "<div class='info-box'>\n";
     html += "<p><span class='label'>Chip Model:</span><span class='value'>ESP32</span></p>\n";
     html += "<p><span class='label'>CPU Frequency:</span><span class='value'>240 MHz</span></p>\n";
+    html += "<p><span class='label'>Current Time:</span><span class='value'>" + timeSync.getTimestamp() + "</span></p>\n";
     html += "<p><span class='label'>Uptime:</span><span class='value' id='uptime'>" + String(millis() / 1000) + " seconds</span></p>\n";
     html += "<p><span class='label'>Free Heap:</span><span class='value'>" + String(ESP.getFreeHeap()) + " bytes</span></p>\n";
     html += "</div>\n";

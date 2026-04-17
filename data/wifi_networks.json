@@ -1,0 +1,14 @@
+{
+  "networks": [
+    {
+      "ssid": "Pixel 6",
+      "password": "123456785",
+      "priority": 1
+    },
+    {
+      "ssid": "Poojan's AsusVivobook",
+      "password": "qwertyuio",
+      "priority": 2
+    }
+  ]
+}

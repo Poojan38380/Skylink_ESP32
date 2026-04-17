@@ -2,8 +2,7 @@
 #define CONFIG_H
 
 // WiFi Configuration
-extern const char *WIFI_SSID;
-extern const char *WIFI_PASSWORD;
+// Now loaded from data/wifi_networks.json
 
 // Pin Definitions
 extern const int LED_BUILTIN_PIN;

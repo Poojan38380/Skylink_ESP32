@@ -4,18 +4,30 @@
 #include <Arduino.h>
 #include <WiFi.h>
 
+#include <vector>
+#include <LittleFS.h>
+#include <ArduinoJson.h>
+
+struct WiFiNetwork {
+    String ssid;
+    String password;
+    int priority;
+};
+
 class WiFiManager {
 private:
-    const char* ssid;
-    const char* password;
+    std::vector<WiFiNetwork> savedNetworks;
     unsigned long lastReconnectAttempt;
     unsigned long reconnectInterval;
+    String currentSSID;
     
-    bool connectToWiFi();
+    bool loadNetworksFromJson();
+    bool connectToWiFi();      // Full scan + match (used on first boot)
+    bool reconnectDirect();    // No scan, try saved list directly (used on reconnects)
     bool isWiFiConnected();
 
 public:
-    WiFiManager(const char* ssid, const char* password, unsigned long reconnectInterval = 10000);
+    WiFiManager(unsigned long reconnectInterval = 10000);
     
     void begin();
     void handle();

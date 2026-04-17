@@ -1,8 +1,7 @@
 #include "config.h"
 
 // WiFi Configuration
-const char *WIFI_SSID = "Poojan's AsusVivobook";
-const char *WIFI_PASSWORD = "qwertyuio";
+// Loaded from data/wifi_networks.json in WiFiManager
 
 // Pin Definitions
 const int LED_BUILTIN_PIN = 2;

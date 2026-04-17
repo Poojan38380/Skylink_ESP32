@@ -6,10 +6,11 @@
 #include "config_manager.h"
 #include "ota_updater.h"
 #include "time_sync.h"
+#include "led_controller.h"
 
 unsigned long lastHeartbeat = 0;
+unsigned long lastWSHeartbeat = 0;
 unsigned long lastTimeSync = 0;
-bool ledState = false;
 
 void setup() {
     Serial.begin(115200);
@@ -18,21 +19,10 @@ void setup() {
     logger.info("Skylink ESP32 Starting");
     logger.info("================================");
     
-    pinMode(LED_BUILTIN_PIN, OUTPUT);
-    digitalWrite(LED_BUILTIN_PIN, LOW);
+    ledController.begin();
     
     // Initialize ConfigManager
     configManager.begin();
-    
-    // Load WiFi credentials from EEPROM
-    String ssid = configManager.getWiFiSSID();
-    String password = configManager.getWiFiPassword();
-    
-    if (configManager.hasWiFiCredentials()) {
-        logger.info("Using saved WiFi credentials: " + ssid);
-    } else {
-        logger.info("Using default WiFi credentials from config.h");
-    }
     
     // Initialize WiFi
     wifiManager.begin();
@@ -44,9 +34,7 @@ void setup() {
     timeSync.begin();
     
     // Initialize Web Server
-    if (wifiManager.isConnected()) {
-        webServerModule.begin();
-    }
+    webServerModule.begin(); // Async server can start before WiFi is fully up
     
     logger.info("Setup complete");
 }
@@ -55,23 +43,25 @@ void loop() {
     wifiManager.handle();
     otaUpdater.handle();
     
-    // Handle time sync periodically
+    // Note: webServerModule.handle() is NOT needed for AsyncWebServer
+    
     unsigned long now = millis();
+    
+    // Handle time sync periodically
     if (now - lastTimeSync >= 60000) { // Check every minute
         lastTimeSync = now;
         timeSync.handle();
     }
     
-    // Handle web server requests
-    if (wifiManager.isConnected()) {
-        webServerModule.handle();
+    // Send WebSocket Heartbeat (Telemetric demo)
+    if (wifiManager.isConnected() && (now - lastWSHeartbeat >= 3000)) {
+        lastWSHeartbeat = now;
+        webServerModule.sendHeartbeat();
     }
     
+    // Serial Heartbeat
     if (now - lastHeartbeat >= HEARTBEAT_INTERVAL) {
         lastHeartbeat = now;
-        
-        ledState = !ledState;
-        digitalWrite(LED_BUILTIN_PIN, ledState ? HIGH : LOW);
         
         String timeStr = timeSync.isTimeSynced() ? timeSync.getTimestamp() : "Syncing...";
         

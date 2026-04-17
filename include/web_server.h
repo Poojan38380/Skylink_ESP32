@@ -1,33 +1,25 @@
 #ifndef WEB_SERVER_H
 #define WEB_SERVER_H
 
-#include <WebServer.h>
-#include <Arduino.h>
+#include <ESPAsyncWebServer.h>
+#include <ArduinoJson.h>
 
 class WebServerModule {
 private:
-    WebServer server;
-    const int port;
+    AsyncWebServer server;
+    AsyncWebSocket ws;
     
-    void handleRoot();
-    void handleConfigPage();
-    void handleNotFound();
-    void handleDeviceInfo();
-    void handleWiFiStatus();
-    void handleSystemStatus();
-    void handleLEDControl();
-    void handleWiFiConfig();
+    void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len);
+    void handleWebSocketMessage(void *arg, uint8_t *data, size_t len, AsyncWebSocketClient *client);
     
     String generateDashboardHTML();
-    String generateConfigHTML();
-    
-    void updateLED(bool state);
+    void sendAppState();
 
 public:
     WebServerModule(int port = 80);
-    
     void begin();
-    void handle();
+    void broadcastEvent(const String& eventName, JsonDocument& payload);
+    void sendHeartbeat();
 };
 
 extern WebServerModule webServerModule;

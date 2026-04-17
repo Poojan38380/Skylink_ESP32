@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Skylink WebSocket Test</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Courier New', monospace; background: #0d1117; color: #c9d1d9; min-height: 100vh; padding: 24px; }
+    h1 { color: #00d4ff; margin-bottom: 4px; font-size: 20px; }
+    .subtitle { color: #8b949e; font-size: 13px; margin-bottom: 24px; }
+
+    .status-bar {
+      display: flex; align-items: center; gap: 10px;
+      background: #161b22; border: 1px solid #30363d; border-radius: 8px;
+      padding: 12px 16px; margin-bottom: 20px;
+    }
+    .dot { width: 10px; height: 10px; border-radius: 50%; background: #f85149; flex-shrink: 0; transition: background 0.4s; }
+    .dot.connected { background: #3fb950; box-shadow: 0 0 8px #3fb950; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+    #status-text { font-size: 14px; }
+
+    .controls { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+    button {
+      padding: 10px 22px; border-radius: 6px; border: none;
+      font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.15s;
+    }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+    #btn-on  { background: #3fb950; color: #0d1117; }
+    #btn-off { background: #f85149; color: #fff; }
+    #btn-toggle { background: #1f6feb; color: #fff; }
+    #btn-ping   { background: #388bfd; color: #fff; }
+    button:hover:not(:disabled) { filter: brightness(1.15); transform: translateY(-1px); }
+
+    .led-indicator {
+      display: flex; align-items: center; gap: 10px;
+      background: #161b22; border: 1px solid #30363d; border-radius: 8px;
+      padding: 14px 16px; margin-bottom: 20px; font-size: 15px;
+    }
+    .led-dot { width: 22px; height: 22px; border-radius: 50%; background: #444; transition: all 0.3s; }
+    .led-dot.on { background: #ffd700; box-shadow: 0 0 16px #ffd700; }
+
+    .log-box {
+      background: #161b22; border: 1px solid #30363d; border-radius: 8px;
+      padding: 12px; height: 280px; overflow-y: auto; font-size: 12px; line-height: 1.7;
+    }
+    .log-entry { border-bottom: 1px solid #21262d; padding: 2px 0; }
+    .log-entry .ts { color: #8b949e; margin-right: 8px; }
+    .log-entry .tag-hb  { color: #d29922; }
+    .log-entry .tag-led { color: #3fb950; }
+    .log-entry .tag-sys { color: #58a6ff; }
+    .log-entry .tag-err { color: #f85149; }
+  </style>
+</head>
+<body>
+  <h1>🛰 Skylink — WebSocket Test Console</h1>
+  <p class="subtitle">Phase 2 Verification Tool — connect to /ws and send commands</p>
+
+  <div class="status-bar">
+    <div class="dot" id="ws-dot"></div>
+    <span id="status-text">Connecting…</span>
+  </div>
+
+  <div class="led-indicator">
+    <div class="led-dot" id="led-dot"></div>
+    <span>Built-in LED: <strong id="led-label">Unknown</strong></span>
+  </div>
+
+  <div class="controls">
+    <button id="btn-on"     disabled onclick="send('LED_SET',   {value: true})">💡 LED ON</button>
+    <button id="btn-off"    disabled onclick="send('LED_SET',   {value: false})">🔴 LED OFF</button>
+    <button id="btn-toggle" disabled onclick="send('LED_TOGGLE')">🔄 TOGGLE</button>
+    <button id="btn-ping"   disabled onclick="send('PING')">📡 PING</button>
+  </div>
+
+  <div class="log-box" id="log"></div>
+
+  <script>
+    let ws;
+    let reconnectDelay = 1000;
+
+    function log(tag, tagClass, msg) {
+      const box = document.getElementById('log');
+      const ts = new Date().toLocaleTimeString();
+      box.insertAdjacentHTML('afterbegin',
+        `<div class="log-entry"><span class="ts">[${ts}]</span><span class="${tagClass}">[${tag}]</span> ${msg}</div>`
+      );
+      // Keep max 60 entries
+      while (box.children.length > 60) box.removeChild(box.lastChild);
+    }
+
+    function setConnected(connected) {
+      document.getElementById('ws-dot').className = 'dot' + (connected ? ' connected' : '');
+      document.getElementById('status-text').textContent = connected ? '● Connected to ws://' + location.host + '/ws' : '● Disconnected — retrying…';
+      ['btn-on','btn-off','btn-toggle','btn-ping'].forEach(id => {
+        document.getElementById(id).disabled = !connected;
+      });
+    }
+
+    function setLED(state) {
+      document.getElementById('led-dot').className = 'led-dot' + (state ? ' on' : '');
+      document.getElementById('led-label').textContent = state ? 'ON ✅' : 'OFF ⭕';
+    }
+
+    function send(command, extra) {
+      if (!ws || ws.readyState !== WebSocket.OPEN) return;
+      const msg = { type: 'command', command, ...extra };
+      ws.send(JSON.stringify(msg));
+      log('TX', 'tag-sys', JSON.stringify(msg));
+    }
+
+    function connect() {
+      ws = new WebSocket('ws://' + location.host + '/ws');
+
+      ws.onopen = () => {
+        reconnectDelay = 1000; // reset backoff
+        setConnected(true);
+        log('SYS', 'tag-sys', 'WebSocket connected');
+      };
+
+      ws.onmessage = (e) => {
+        const data = JSON.parse(e.data);
+        if (data.event === 'HEARTBEAT') {
+          log('HB', 'tag-hb',
+            `uptime=${data.uptime}s | alt=${data.altitude?.toFixed(1)}m | bat=${data.battery}% | GPS=${data.lat},${data.lng}`);
+        } else if (data.event === 'LED_STATE') {
+          setLED(data.value);
+          log('LED', 'tag-led', 'State → ' + (data.value ? 'ON' : 'OFF'));
+        } else if (data.event === 'PONG') {
+          log('PONG', 'tag-sys', '← received (latency: see timestamp)');
+        } else if (data.event === 'ERROR') {
+          log('ERR', 'tag-err', data.message);
+        } else {
+          log('RX', 'tag-sys', JSON.stringify(data));
+        }
+      };
+
+      ws.onclose = () => {
+        setConnected(false);
+        log('SYS', 'tag-err', 'Connection closed. Retrying in ' + (reconnectDelay/1000) + 's…');
+        setTimeout(connect, reconnectDelay);
+        reconnectDelay = Math.min(reconnectDelay * 2, 16000); // exponential backoff, cap 16s
+      };
+
+      ws.onerror = (err) => {
+        log('ERR', 'tag-err', 'WebSocket error');
+      };
+    }
+
+    connect();
+  </script>
+</body>
+</html>

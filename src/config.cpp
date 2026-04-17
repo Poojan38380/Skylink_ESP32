@@ -1,8 +1,8 @@
 #include "config.h"
 
 // WiFi Configuration
-const char *WIFI_SSID = "Piyush’s iPhone";
-const char *WIFI_PASSWORD = "88888888";
+const char *WIFI_SSID = "Poojan's AsusVivobook";
+const char *WIFI_PASSWORD = "qwertyuio";
 
 // Pin Definitions
 const int LED_BUILTIN_PIN = 2;

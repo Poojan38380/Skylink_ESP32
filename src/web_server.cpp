@@ -57,18 +57,16 @@ String WebServerModule::generateDashboardHTML() {
     html += "<p><span class='label'>CPU Frequency:</span><span class='value'>240 MHz</span></p>\n";
     html += "<p><span class='label'>Current Time:</span><span class='value'>" + timeSync.getTimestamp() + "</span></p>\n";
     html += "<p><span class='label'>Uptime:</span><span class='value' id='uptime'>" + String(millis() / 1000) + " seconds</span></p>\n";
-    html += "<p><span class='label'>Free Heap:</span><span class='value'>" + String(ESP.getFreeHeap()) + " bytes</span></p>\n";
+    html += "<p><span class='label'>Free Heap:</span><span class='value' id='free-heap'>" + String(ESP.getFreeHeap()) + " bytes</span></p>\n";
     html += "</div>\n";
     
     // WiFi Status Section
     html += "<h2>📡 WiFi Status</h2>\n";
     html += "<div class='info-box'>\n";
-    html += "<p><span class='label'>Status:</span><span class='value ";
-    html += wifiManager.isConnected() ? "status-online'>✅ Connected" : "status-offline'>❌ Disconnected";
-    html += "</span></p>\n";
-    html += "<p><span class='label'>SSID:</span><span class='value'>" + wifiManager.getSSID() + "</span></p>\n";
-    html += "<p><span class='label'>IP Address:</span><span class='value'>" + wifiManager.getIPAddress() + "</span></p>\n";
-    html += "<p><span class='label'>Signal Strength:</span><span class='value'>" + String(wifiManager.getSignalStrength()) + " dBm</span></p>\n";
+    html += "<p><span class='label'>Status:</span><span class='value status-online' id='wifi-status'>✅ Connected</span></p>\n";
+    html += "<p><span class='label'>SSID:</span><span class='value' id='wifi-ssid'>" + wifiManager.getSSID() + "</span></p>\n";
+    html += "<p><span class='label'>IP Address:</span><span class='value' id='wifi-ip'>" + wifiManager.getIPAddress() + "</span></p>\n";
+    html += "<p><span class='label'>Signal Strength:</span><span class='value' id='wifi-signal'>" + String(wifiManager.getSignalStrength()) + " dBm</span></p>\n";
     html += "</div>\n";
     
     html += "<footer>\n";
@@ -82,7 +80,21 @@ String WebServerModule::generateDashboardHTML() {
     html += "    document.getElementById('led-status').textContent = state ? 'ON' : 'OFF';\n";
     html += "  });\n";
     html += "}\n";
-    html += "setInterval(() => { location.reload(); }, 5000);\n";
+    html += "function updateData() {\n";
+    html += "  fetch('/api/wifi').then(r => r.json()).then(d => {\n";
+    html += "    document.getElementById('wifi-ssid').textContent = d.ssid;\n";
+    html += "    document.getElementById('wifi-ip').textContent = d.ip_address;\n";
+    html += "    document.getElementById('wifi-signal').textContent = d.signal_strength_dbm + ' dBm';\n";
+    html += "    document.getElementById('wifi-status').textContent = d.connected ? '✅ Connected' : '❌ Disconnected';\n";
+    html += "    document.getElementById('wifi-status').className = d.connected ? 'value status-online' : 'value status-offline';\n";
+    html += "  });\n";
+    html += "  fetch('/api/device').then(r => r.json()).then(d => {\n";
+    html += "    document.getElementById('uptime').textContent = d.uptime_seconds + ' seconds';\n";
+    html += "    document.getElementById('free-heap').textContent = d.free_heap_bytes + ' bytes';\n";
+    html += "  });\n";
+    html += "}\n";
+    html += "setInterval(updateData, 3000);\n";
+    html += "updateData();\n";
     html += "</script>\n";
     
     html += "</body>\n</html>\n";

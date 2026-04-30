@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,23 +8,30 @@
   <link rel="icon" href="/favicon.ico" type="image/x-icon">
   <link rel="apple-touch-icon" href="/apple-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&display=swap"
+    rel="stylesheet">
   <style>
     :root {
-      --bg:       #0d1117;
-      --surface:  #161b22;
-      --border:   #21262d;
-      --border2:  #30363d;
-      --accent:   #00d4ff;
-      --green:    #3fb950;
-      --red:      #f85149;
-      --orange:   #d29922;
-      --muted:    #8b949e;
-      --text:     #e6edf3;
-      --font:     'JetBrains Mono', 'Courier New', monospace;
+      --bg: #0d1117;
+      --surface: #161b22;
+      --border: #21262d;
+      --border2: #30363d;
+      --accent: #00d4ff;
+      --green: #3fb950;
+      --red: #f85149;
+      --orange: #d29922;
+      --muted: #8b949e;
+      --text: #e6edf3;
+      --font: 'JetBrains Mono', 'Courier New', monospace;
     }
 
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
 
     body {
       font-family: var(--font);
@@ -45,11 +53,13 @@
       flex-wrap: wrap;
       gap: 8px;
     }
+
     .logo {
       display: flex;
       align-items: center;
       gap: 12px;
     }
+
     .logo .icon {
       width: 32px;
       height: 32px;
@@ -61,30 +71,36 @@
       font-size: 18px;
       flex-shrink: 0;
     }
+
     .logo-text {
       line-height: 1.15;
     }
+
     .logo-text .brand {
       font-size: 15px;
       font-weight: 700;
       color: var(--accent);
       letter-spacing: 2px;
     }
+
     .logo-text .sub {
       font-size: 10px;
       color: var(--muted);
       letter-spacing: 1px;
     }
+
     .header-right {
       display: flex;
       align-items: center;
       gap: 20px;
     }
+
     #sys-time {
       font-size: 13px;
       color: var(--muted);
       letter-spacing: 1px;
     }
+
     .link-badge {
       display: flex;
       align-items: center;
@@ -97,18 +113,45 @@
       letter-spacing: 1px;
       transition: all 0.4s;
     }
-    .link-badge.connected    { border-color: var(--green); color: var(--green); }
-    .link-badge.disconnected { border-color: var(--red);   color: var(--red);   }
-    .link-badge.connecting   { border-color: var(--orange); color: var(--orange); }
+
+    .link-badge.connected {
+      border-color: var(--green);
+      color: var(--green);
+    }
+
+    .link-badge.disconnected {
+      border-color: var(--red);
+      color: var(--red);
+    }
+
+    .link-badge.connecting {
+      border-color: var(--orange);
+      color: var(--orange);
+    }
+
     .badge-dot {
-      width: 8px; height: 8px;
+      width: 8px;
+      height: 8px;
       border-radius: 50%;
       background: currentColor;
     }
-    .badge-dot.pulse { animation: pulse 1.5s ease-in-out infinite; }
+
+    .badge-dot.pulse {
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+
     @keyframes pulse {
-      0%, 100% { opacity: 1; box-shadow: 0 0 0 0 currentColor; }
-      50%       { opacity: 0.7; box-shadow: 0 0 0 4px transparent; }
+
+      0%,
+      100% {
+        opacity: 1;
+        box-shadow: 0 0 0 0 currentColor;
+      }
+
+      50% {
+        opacity: 0.7;
+        box-shadow: 0 0 0 4px transparent;
+      }
     }
 
     /* ── MAIN GRID ───────────────────────────────────────── */
@@ -131,6 +174,7 @@
       border-radius: 10px;
       overflow: hidden;
     }
+
     .card-header {
       display: flex;
       align-items: center;
@@ -143,12 +187,17 @@
       color: var(--muted);
       text-transform: uppercase;
     }
+
     .card-header .dot-indicator {
-      width: 6px; height: 6px;
+      width: 6px;
+      height: 6px;
       border-radius: 50%;
       background: var(--accent);
     }
-    .card-body { padding: 14px; }
+
+    .card-body {
+      padding: 14px;
+    }
 
     /* ── LEFT COLUMN ─────────────────────────────────────── */
     .left-col {
@@ -167,12 +216,31 @@
       border-bottom: 1px solid var(--border);
       font-size: 12px;
     }
-    .stat-row:last-child { border-bottom: none; }
-    .stat-label { color: var(--muted); }
-    .stat-value { color: var(--text); font-weight: 600; }
-    .stat-value.good { color: var(--green); }
-    .stat-value.warn { color: var(--orange); }
-    .stat-value.bad  { color: var(--red); }
+
+    .stat-row:last-child {
+      border-bottom: none;
+    }
+
+    .stat-label {
+      color: var(--muted);
+    }
+
+    .stat-value {
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    .stat-value.good {
+      color: var(--green);
+    }
+
+    .stat-value.warn {
+      color: var(--orange);
+    }
+
+    .stat-value.bad {
+      color: var(--red);
+    }
 
     /* SIGNAL BARS */
     .signal-bars {
@@ -181,30 +249,63 @@
       gap: 3px;
       height: 16px;
     }
+
     .signal-bars span {
       width: 4px;
       background: var(--border2);
       border-radius: 2px;
       transition: background 0.5s;
     }
-    .signal-bars span:nth-child(1) { height: 4px; }
-    .signal-bars span:nth-child(2) { height: 7px; }
-    .signal-bars span:nth-child(3) { height: 10px; }
-    .signal-bars span:nth-child(4) { height: 13px; }
-    .signal-bars span:nth-child(5) { height: 16px; }
-    .signal-bars.s5 span            { background: var(--green); }
-    .signal-bars.s4 span:nth-child(-n+4) { background: var(--green); }
-    .signal-bars.s3 span:nth-child(-n+3) { background: var(--orange); }
-    .signal-bars.s2 span:nth-child(-n+2) { background: var(--orange); }
-    .signal-bars.s1 span:nth-child(1)    { background: var(--red); }
+
+    .signal-bars span:nth-child(1) {
+      height: 4px;
+    }
+
+    .signal-bars span:nth-child(2) {
+      height: 7px;
+    }
+
+    .signal-bars span:nth-child(3) {
+      height: 10px;
+    }
+
+    .signal-bars span:nth-child(4) {
+      height: 13px;
+    }
+
+    .signal-bars span:nth-child(5) {
+      height: 16px;
+    }
+
+    .signal-bars.s5 span {
+      background: var(--green);
+    }
+
+    .signal-bars.s4 span:nth-child(-n+4) {
+      background: var(--green);
+    }
+
+    .signal-bars.s3 span:nth-child(-n+3) {
+      background: var(--orange);
+    }
+
+    .signal-bars.s2 span:nth-child(-n+2) {
+      background: var(--orange);
+    }
+
+    .signal-bars.s1 span:nth-child(1) {
+      background: var(--red);
+    }
 
     /* LED ACTUATOR */
     .led-panel {
       text-align: center;
       padding: 10px 0 4px;
     }
+
     .led-orb {
-      width: 60px; height: 60px;
+      width: 60px;
+      height: 60px;
       border-radius: 50%;
       margin: 0 auto 12px;
       background: #1a1a1a;
@@ -212,11 +313,13 @@
       transition: all 0.3s;
       position: relative;
     }
+
     .led-orb.on {
       background: radial-gradient(circle at 35% 35%, #fffde7, #ffd700 50%, #e6a800);
       border-color: #ffd700;
-      box-shadow: 0 0 20px 8px rgba(255,215,0,0.35), 0 0 50px rgba(255,215,0,0.15);
+      box-shadow: 0 0 20px 8px rgba(255, 215, 0, 0.35), 0 0 50px rgba(255, 215, 0, 0.15);
     }
+
     .led-status-text {
       font-size: 13px;
       font-weight: 700;
@@ -225,7 +328,10 @@
       margin-bottom: 14px;
       transition: color 0.3s;
     }
-    .led-status-text.on { color: #ffd700; }
+
+    .led-status-text.on {
+      color: #ffd700;
+    }
 
     .btn-row {
       display: grid;
@@ -233,7 +339,11 @@
       gap: 8px;
       margin-bottom: 8px;
     }
-    .btn-row.wide { grid-template-columns: 1fr 1fr; }
+
+    .btn-row.wide {
+      grid-template-columns: 1fr 1fr;
+    }
+
     button {
       font-family: var(--font);
       font-size: 11px;
@@ -245,13 +355,46 @@
       cursor: pointer;
       transition: all 0.15s;
     }
-    button:disabled { opacity: 0.35; cursor: not-allowed; }
-    button:not(:disabled):hover { filter: brightness(1.2); transform: translateY(-1px); }
-    button:not(:disabled):active { transform: translateY(0); }
-    .btn-on     { background: rgba(63,185,80,0.12);  border-color: var(--green);  color: var(--green); }
-    .btn-off    { background: rgba(248,81,73,0.12);  border-color: var(--red);    color: var(--red);   }
-    .btn-toggle { background: rgba(0,212,255,0.12);  border-color: var(--accent); color: var(--accent); grid-column: 1 / -1; }
-    .btn-ping   { background: rgba(139,148,158,0.1); border-color: var(--border2);color: var(--muted); grid-column: 1 / -1; }
+
+    button:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+
+    button:not(:disabled):hover {
+      filter: brightness(1.2);
+      transform: translateY(-1px);
+    }
+
+    button:not(:disabled):active {
+      transform: translateY(0);
+    }
+
+    .btn-on {
+      background: rgba(63, 185, 80, 0.12);
+      border-color: var(--green);
+      color: var(--green);
+    }
+
+    .btn-off {
+      background: rgba(248, 81, 73, 0.12);
+      border-color: var(--red);
+      color: var(--red);
+    }
+
+    .btn-toggle {
+      background: rgba(0, 212, 255, 0.12);
+      border-color: var(--accent);
+      color: var(--accent);
+      grid-column: 1 / -1;
+    }
+
+    .btn-ping {
+      background: rgba(139, 148, 158, 0.1);
+      border-color: var(--border2);
+      color: var(--muted);
+      grid-column: 1 / -1;
+    }
 
     /* ── RIGHT COLUMN ────────────────────────────────────── */
     .right-col {
@@ -267,12 +410,14 @@
       grid-template-columns: 1fr 1fr;
       gap: 12px;
     }
+
     .telem-card {
-      background: rgba(0,0,0,0.2);
+      background: rgba(0, 0, 0, 0.2);
       border: 1px solid var(--border);
       border-radius: 8px;
       padding: 12px 14px;
     }
+
     .telem-label {
       font-size: 10px;
       letter-spacing: 2px;
@@ -280,12 +425,14 @@
       text-transform: uppercase;
       margin-bottom: 6px;
     }
+
     .telem-value {
       font-size: 26px;
       font-weight: 700;
       color: var(--accent);
       line-height: 1;
     }
+
     .telem-unit {
       font-size: 12px;
       color: var(--muted);
@@ -301,6 +448,7 @@
       border-radius: 3px;
       overflow: hidden;
     }
+
     .battery-bar {
       height: 100%;
       border-radius: 3px;
@@ -315,7 +463,10 @@
       margin-top: 4px;
       color: var(--muted);
     }
-    .gps-coord { color: var(--text); }
+
+    .gps-coord {
+      color: var(--text);
+    }
 
     /* RADAR DECORATION */
     .radar-wrap {
@@ -324,24 +475,36 @@
       justify-content: center;
       padding: 10px;
     }
+
     .radar {
       width: 90px;
       height: 90px;
       border-radius: 50%;
-      border: 1px solid rgba(0,212,255,0.25);
+      border: 1px solid rgba(0, 212, 255, 0.25);
       position: relative;
       display: flex;
       align-items: center;
       justify-content: center;
     }
-    .radar::before, .radar::after {
+
+    .radar::before,
+    .radar::after {
       content: '';
       position: absolute;
       border-radius: 50%;
-      border: 1px solid rgba(0,212,255,0.15);
+      border: 1px solid rgba(0, 212, 255, 0.15);
     }
-    .radar::before { width: 60%; height: 60%; }
-    .radar::after  { width: 30%; height: 30%; }
+
+    .radar::before {
+      width: 60%;
+      height: 60%;
+    }
+
+    .radar::after {
+      width: 30%;
+      height: 30%;
+    }
+
     .radar-sweep {
       position: absolute;
       width: 50%;
@@ -352,26 +515,61 @@
       top: 50%;
       animation: sweep 3s linear infinite;
     }
-    @keyframes sweep { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+    @keyframes sweep {
+      from {
+        transform: rotate(0deg);
+      }
+
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
     .radar-blip {
-      width: 6px; height: 6px;
+      width: 6px;
+      height: 6px;
       border-radius: 50%;
       background: var(--green);
       box-shadow: 0 0 6px var(--green);
       animation: blip 3s ease-in-out infinite;
     }
-    @keyframes blip { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+    @keyframes blip {
+
+      0%,
+      100% {
+        opacity: 1
+      }
+
+      50% {
+        opacity: 0.3
+      }
+    }
 
     /* LOG */
-    .log-card { grid-column: 1 / -1; }
+    .log-card {
+      grid-column: 1 / -1;
+    }
+
     .log-body {
       padding: 0;
       height: 190px;
       overflow-y: auto;
     }
-    .log-body::-webkit-scrollbar { width: 4px; }
-    .log-body::-webkit-scrollbar-track { background: transparent; }
-    .log-body::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+    .log-body::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .log-body::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .log-body::-webkit-scrollbar-thumb {
+      background: var(--border2);
+      border-radius: 2px;
+    }
 
     .log-entry {
       display: grid;
@@ -382,22 +580,51 @@
       border-bottom: 1px solid var(--border);
       align-items: start;
     }
-    .log-entry:first-child { background: rgba(0,212,255,0.04); }
-    .log-ts   { color: var(--muted); }
-    .log-tag  { font-weight: 700; letter-spacing: 1px; }
-    .log-msg  { color: #cdd9e5; word-break: break-word; }
-    .tag-hb   { color: var(--orange); }
-    .tag-led  { color: var(--green); }
-    .tag-sys  { color: var(--accent); }
-    .tag-ping { color: #a371f7; }
-    .tag-err  { color: var(--red); }
+
+    .log-entry:first-child {
+      background: rgba(0, 212, 255, 0.04);
+    }
+
+    .log-ts {
+      color: var(--muted);
+    }
+
+    .log-tag {
+      font-weight: 700;
+      letter-spacing: 1px;
+    }
+
+    .log-msg {
+      color: #cdd9e5;
+      word-break: break-word;
+    }
+
+    .tag-hb {
+      color: var(--orange);
+    }
+
+    .tag-led {
+      color: var(--green);
+    }
+
+    .tag-sys {
+      color: var(--accent);
+    }
+
+    .tag-ping {
+      color: #a371f7;
+    }
+
+    .tag-err {
+      color: var(--red);
+    }
 
     /* RECONNECT OVERLAY */
     #reconnect-overlay {
       display: none;
       position: fixed;
       inset: 0;
-      background: rgba(13,17,23,0.85);
+      background: rgba(13, 17, 23, 0.85);
       z-index: 100;
       align-items: center;
       justify-content: center;
@@ -405,11 +632,36 @@
       gap: 16px;
       backdrop-filter: blur(4px);
     }
-    #reconnect-overlay.show { display: flex; }
-    .reconnect-icon { font-size: 48px; animation: spin 2s linear infinite; }
-    @keyframes spin { from{transform: rotate(0)} to{transform: rotate(360deg)} }
-    .reconnect-text { font-size: 15px; color: var(--orange); font-weight: 600; }
-    .reconnect-sub  { font-size: 12px; color: var(--muted); }
+
+    #reconnect-overlay.show {
+      display: flex;
+    }
+
+    .reconnect-icon {
+      font-size: 48px;
+      animation: spin 2s linear infinite;
+    }
+
+    @keyframes spin {
+      from {
+        transform: rotate(0)
+      }
+
+      to {
+        transform: rotate(360deg)
+      }
+    }
+
+    .reconnect-text {
+      font-size: 15px;
+      color: var(--orange);
+      font-weight: 600;
+    }
+
+    .reconnect-sub {
+      font-size: 12px;
+      color: var(--muted);
+    }
 
     /* RESPONSIVE */
     @media (max-width: 768px) {
@@ -417,375 +669,388 @@
         grid-template-columns: 1fr;
         padding: 12px;
       }
-      .left-col, .right-col { grid-column: 1; }
-      .telemetry-grid { grid-template-columns: 1fr 1fr; }
-      .radar-wrap { display: none; }
+
+      .left-col,
+      .right-col {
+        grid-column: 1;
+      }
+
+      .telemetry-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .radar-wrap {
+        display: none;
+      }
     }
   </style>
 </head>
+
 <body>
 
-<!-- RECONNECT OVERLAY -->
-<div id="reconnect-overlay">
-  <div class="reconnect-icon">📡</div>
-  <div class="reconnect-text">LINK LOST</div>
-  <div class="reconnect-sub" id="reconnect-sub">Reconnecting in <span id="countdown">5</span>s…</div>
-</div>
-
-<!-- HEADER -->
-<header>
-  <div class="logo">
-    <div class="icon">🛰</div>
-    <div class="logo-text">
-      <div class="brand">SKYLINK GCS</div>
-      <div class="sub">GROUND CONTROL STATION · v2.0</div>
-    </div>
+  <!-- RECONNECT OVERLAY -->
+  <div id="reconnect-overlay">
+    <div class="reconnect-icon">📡</div>
+    <div class="reconnect-text">LINK LOST</div>
+    <div class="reconnect-sub" id="reconnect-sub">Reconnecting in <span id="countdown">5</span>s…</div>
   </div>
-  <div class="header-right">
-    <div id="sys-time">--:--:--</div>
-    <div class="link-badge connecting" id="link-badge">
-      <div class="badge-dot pulse" id="badge-dot"></div>
-      <span id="badge-text">CONNECTING</span>
-    </div>
-  </div>
-</header>
 
-<!-- MAIN -->
-<main>
-  <!-- LEFT COLUMN -->
-  <div class="left-col">
-
-    <!-- LINK STATUS -->
-    <div class="card">
-      <div class="card-header">
-        <div class="dot-indicator"></div>
-        LINK STATUS
+  <!-- HEADER -->
+  <header>
+    <div class="logo">
+      <div class="icon">🛰</div>
+      <div class="logo-text">
+        <div class="brand">SKYLINK GCS</div>
+        <div class="sub">GROUND CONTROL STATION · v2.0</div>
       </div>
-      <div class="card-body">
-        <div class="stat-row">
-          <span class="stat-label">STATE</span>
-          <span class="stat-value" id="lnk-state">—</span>
+    </div>
+    <div class="header-right">
+      <div id="sys-time">--:--:--</div>
+      <div class="link-badge connecting" id="link-badge">
+        <div class="badge-dot pulse" id="badge-dot"></div>
+        <span id="badge-text">CONNECTING</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN -->
+  <main>
+    <!-- LEFT COLUMN -->
+    <div class="left-col">
+
+      <!-- LINK STATUS -->
+      <div class="card">
+        <div class="card-header">
+          <div class="dot-indicator"></div>
+          LINK STATUS
         </div>
-        <div class="stat-row">
-          <span class="stat-label">IP ADDRESS</span>
-          <span class="stat-value" id="lnk-ip">—</span>
-        </div>
-        <div class="stat-row">
-          <span class="stat-label">SIGNAL</span>
-          <div class="signal-bars" id="signal-bars">
-            <span></span><span></span><span></span><span></span><span></span>
+        <div class="card-body">
+          <div class="stat-row">
+            <span class="stat-label">STATE</span>
+            <span class="stat-value" id="lnk-state">—</span>
           </div>
-        </div>
-        <div class="stat-row">
-          <span class="stat-label">UPTIME</span>
-          <span class="stat-value" id="lnk-uptime">—</span>
-        </div>
-        <div class="stat-row">
-          <span class="stat-label">DEVICE</span>
-          <span class="stat-value" style="color:var(--muted)">ESP32-SKYLINK</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- LED ACTUATOR -->
-    <div class="card">
-      <div class="card-header">
-        <div class="dot-indicator" style="background:var(--orange)"></div>
-        DEMO ACTUATOR · BUILT-IN LED
-      </div>
-      <div class="card-body">
-        <div class="led-panel">
-          <div class="led-orb" id="led-orb"></div>
-          <div class="led-status-text" id="led-status-text">UNKNOWN</div>
-        </div>
-
-        <div class="btn-row">
-          <button class="btn-on"  id="btn-on"  disabled onclick="sendCmd('LED_SET', {value:true})">▶ ON</button>
-          <button class="btn-off" id="btn-off" disabled onclick="sendCmd('LED_SET', {value:false})">■ OFF</button>
-        </div>
-        <div class="btn-row">
-          <button class="btn-toggle" id="btn-toggle" disabled onclick="sendCmd('LED_TOGGLE')">⇄ TOGGLE</button>
-        </div>
-        <div class="btn-row" style="margin-top:4px">
-          <button class="btn-ping" id="btn-ping" disabled onclick="sendPing()">◈ PING DEVICE</button>
-        </div>
-      </div>
-    </div>
-
-  </div><!-- /left-col -->
-
-  <!-- RIGHT COLUMN -->
-  <div class="right-col">
-
-    <!-- TELEMETRY -->
-    <div class="card">
-      <div class="card-header">
-        <div class="dot-indicator" style="background:var(--green)"></div>
-        TELEMETRY · REAL-TIME
-        <span style="margin-left:auto;font-size:10px;color:var(--muted)" id="last-hb-text">No data yet</span>
-      </div>
-      <div class="card-body">
-        <div class="telemetry-grid">
-
-          <div class="telem-card">
-            <div class="telem-label">🛩 ALTITUDE</div>
-            <div><span class="telem-value" id="tl-alt">—</span><span class="telem-unit">m</span></div>
+          <div class="stat-row">
+            <span class="stat-label">IP ADDRESS</span>
+            <span class="stat-value" id="lnk-ip">—</span>
           </div>
-
-          <div class="telem-card">
-            <div class="telem-label">⚡ BATTERY</div>
-            <div><span class="telem-value" id="tl-bat">—</span><span class="telem-unit">%</span></div>
-            <div class="battery-bar-wrap">
-              <div class="battery-bar" id="bat-bar" style="width:0%"></div>
+          <div class="stat-row">
+            <span class="stat-label">SIGNAL</span>
+            <div class="signal-bars" id="signal-bars">
+              <span></span><span></span><span></span><span></span><span></span>
             </div>
           </div>
+          <div class="stat-row">
+            <span class="stat-label">UPTIME</span>
+            <span class="stat-value" id="lnk-uptime">—</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">DEVICE</span>
+            <span class="stat-value" style="color:var(--muted)">ESP32-SKYLINK</span>
+          </div>
+        </div>
+      </div>
 
-          <div class="telem-card">
-            <div class="telem-label">💨 SPEED</div>
-            <div><span class="telem-value" id="tl-speed">—</span><span class="telem-unit">m/s</span></div>
+      <!-- LED ACTUATOR -->
+      <div class="card">
+        <div class="card-header">
+          <div class="dot-indicator" style="background:var(--orange)"></div>
+          DEMO ACTUATOR · BUILT-IN LED
+        </div>
+        <div class="card-body">
+          <div class="led-panel">
+            <div class="led-orb" id="led-orb"></div>
+            <div class="led-status-text" id="led-status-text">UNKNOWN</div>
           </div>
 
-          <div class="telem-card" style="grid-column: 1 / -1">
-            <div class="telem-label">📍 GPS COORDINATES</div>
-            <div class="gps-row">
-              <span>LAT:</span><span class="gps-coord" id="tl-lat">—</span>
-              <span style="margin-left:12px">LNG:</span><span class="gps-coord" id="tl-lng">—</span>
+          <div class="btn-row">
+            <button class="btn-on" id="btn-on" disabled onclick="sendCmd('LED_SET', {value:true})">▶ ON</button>
+            <button class="btn-off" id="btn-off" disabled onclick="sendCmd('LED_SET', {value:false})">■ OFF</button>
+          </div>
+          <div class="btn-row">
+            <button class="btn-toggle" id="btn-toggle" disabled onclick="sendCmd('LED_TOGGLE')">⇄ TOGGLE</button>
+          </div>
+          <div class="btn-row" style="margin-top:4px">
+            <button class="btn-ping" id="btn-ping" disabled onclick="sendPing()">◈ PING DEVICE</button>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /left-col -->
+
+    <!-- RIGHT COLUMN -->
+    <div class="right-col">
+
+      <!-- TELEMETRY -->
+      <div class="card">
+        <div class="card-header">
+          <div class="dot-indicator" style="background:var(--green)"></div>
+          TELEMETRY · REAL-TIME
+          <span style="margin-left:auto;font-size:10px;color:var(--muted)" id="last-hb-text">No data yet</span>
+        </div>
+        <div class="card-body">
+          <div class="telemetry-grid">
+
+            <div class="telem-card">
+              <div class="telem-label">🛩 ALTITUDE</div>
+              <div><span class="telem-value" id="tl-alt">—</span><span class="telem-unit">m</span></div>
+            </div>
+
+            <div class="telem-card">
+              <div class="telem-label">⚡ BATTERY</div>
+              <div><span class="telem-value" id="tl-bat">—</span><span class="telem-unit">%</span></div>
+              <div class="battery-bar-wrap">
+                <div class="battery-bar" id="bat-bar" style="width:0%"></div>
+              </div>
+            </div>
+
+            <div class="telem-card">
+              <div class="telem-label">💨 SPEED</div>
+              <div><span class="telem-value" id="tl-speed">—</span><span class="telem-unit">m/s</span></div>
+            </div>
+
+            <div class="telem-card" style="grid-column: 1 / -1">
+              <div class="telem-label">📍 GPS COORDINATES</div>
+              <div class="gps-row">
+                <span>LAT:</span><span class="gps-coord" id="tl-lat">—</span>
+                <span style="margin-left:12px">LNG:</span><span class="gps-coord" id="tl-lng">—</span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- RADAR + PHASE INFO -->
+      <div class="card">
+        <div class="card-header">
+          <div class="dot-indicator" style="background:#a371f7"></div>
+          RF LINK VISUALIZER · DEMO MODE
+        </div>
+        <div class="card-body" style="display:flex;align-items:center;gap:20px">
+          <div class="radar-wrap">
+            <div class="radar">
+              <div class="radar-sweep"></div>
+              <div class="radar-blip"></div>
             </div>
           </div>
-
-        </div>
-      </div>
-    </div>
-
-    <!-- RADAR + PHASE INFO -->
-    <div class="card">
-      <div class="card-header">
-        <div class="dot-indicator" style="background:#a371f7"></div>
-        RF LINK VISUALIZER · DEMO MODE
-      </div>
-      <div class="card-body" style="display:flex;align-items:center;gap:20px">
-        <div class="radar-wrap">
-          <div class="radar">
-            <div class="radar-sweep"></div>
-            <div class="radar-blip"></div>
+          <div style="font-size:11px;line-height:2;color:var(--muted)">
+            <div>PHASE: <span style="color:var(--accent)">1 — LOCAL LAN</span></div>
+            <div>PROTOCOL: <span style="color:var(--text)">WebSocket / JSON</span></div>
+            <div>TRANSPORT: <span style="color:var(--text)">TCP · 802.11 2.4GHz</span></div>
+            <div>PHASE 2: <span style="color:var(--border2)">Cloud Backend (future)</span></div>
+            <div>PHASE 3: <span style="color:var(--border2)">MAVLink FC Bridge (future)</span></div>
           </div>
         </div>
-        <div style="font-size:11px;line-height:2;color:var(--muted)">
-          <div>PHASE: <span style="color:var(--accent)">1 — LOCAL LAN</span></div>
-          <div>PROTOCOL: <span style="color:var(--text)">WebSocket / JSON</span></div>
-          <div>TRANSPORT: <span style="color:var(--text)">TCP · 802.11 2.4GHz</span></div>
-          <div>PHASE 2: <span style="color:var(--border2)">Cloud Backend (future)</span></div>
-          <div>PHASE 3: <span style="color:var(--border2)">MAVLink FC Bridge (future)</span></div>
-        </div>
       </div>
+
+    </div><!-- /right-col -->
+
+    <!-- COMMS LOG (full width) -->
+    <div class="card log-card">
+      <div class="card-header">
+        <div class="dot-indicator" style="background:var(--red)"></div>
+        COMMUNICATION LOG
+        <span style="margin-left:auto;font-size:10px;color:var(--muted)">LAST 40 MESSAGES</span>
+      </div>
+      <div class="log-body" id="log"></div>
     </div>
 
-  </div><!-- /right-col -->
+  </main>
 
-  <!-- COMMS LOG (full width) -->
-  <div class="card log-card">
-    <div class="card-header">
-      <div class="dot-indicator" style="background:var(--red)"></div>
-      COMMUNICATION LOG
-      <span style="margin-left:auto;font-size:10px;color:var(--muted)">LAST 40 MESSAGES</span>
-    </div>
-    <div class="log-body" id="log"></div>
-  </div>
+  <script>
+    // ── STATE ──────────────────────────────────────────────────────────
+    let ws;
+    let reconnectDelay = 1500;
+    let countdownTimer;
+    let pingTimestamp = 0;
+    let connectedIP = location.hostname;
 
-</main>
-
-<script>
-  // ── STATE ──────────────────────────────────────────────────────────
-  let ws;
-  let reconnectDelay = 1500;
-  let countdownTimer;
-  let pingTimestamp = 0;
-  let connectedIP = location.hostname;
-
-  // ── CLOCK ──────────────────────────────────────────────────────────
-  function updateClock() {
-    document.getElementById('sys-time').textContent = new Date().toLocaleTimeString('en-GB', {hour12: false});
-  }
-  setInterval(updateClock, 1000);
-  updateClock();
-
-  // ── UPTIME FORMAT ──────────────────────────────────────────────────
-  function fmtUptime(s) {
-    const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), ss = s % 60;
-    return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;
-  }
-
-  // ── SIGNAL CLASS ───────────────────────────────────────────────────
-  function signalClass(dbm) {
-    if (dbm >= -55) return 's5';
-    if (dbm >= -65) return 's4';
-    if (dbm >= -75) return 's3';
-    if (dbm >= -85) return 's2';
-    return 's1';
-  }
-
-  // ── CONNECTION UI ──────────────────────────────────────────────────
-  function setLinkState(state) {
-    const badge    = document.getElementById('link-badge');
-    const dot      = document.getElementById('badge-dot');
-    const lnkState = document.getElementById('lnk-state');
-    const btns     = ['btn-on','btn-off','btn-toggle','btn-ping'];
-    const overlay  = document.getElementById('reconnect-overlay');
-
-    if (state === 'connected') {
-      badge.className = 'link-badge connected';
-      document.getElementById('badge-text').textContent = 'LINK ACTIVE';
-      dot.className = 'badge-dot pulse';
-      lnkState.textContent = '● CONNECTED';
-      lnkState.className = 'stat-value good';
-      btns.forEach(id => document.getElementById(id).disabled = false);
-      overlay.classList.remove('show');
-    } else if (state === 'disconnected') {
-      badge.className = 'link-badge disconnected';
-      document.getElementById('badge-text').textContent = 'LINK LOST';
-      dot.className = 'badge-dot';
-      lnkState.textContent = '○ DISCONNECTED';
-      lnkState.className = 'stat-value bad';
-      btns.forEach(id => document.getElementById(id).disabled = true);
-      overlay.classList.add('show');
-    } else {
-      badge.className = 'link-badge connecting';
-      document.getElementById('badge-text').textContent = 'CONNECTING…';
-      dot.className = 'badge-dot pulse';
-      lnkState.textContent = '◌ CONNECTING';
-      lnkState.className = 'stat-value warn';
+    // ── CLOCK ──────────────────────────────────────────────────────────
+    function updateClock() {
+      document.getElementById('sys-time').textContent = new Date().toLocaleTimeString('en-GB', { hour12: false });
     }
-  }
+    setInterval(updateClock, 1000);
+    updateClock();
 
-  // ── LED UI ─────────────────────────────────────────────────────────
-  function setLED(on) {
-    const orb   = document.getElementById('led-orb');
-    const label = document.getElementById('led-status-text');
-    orb.className   = 'led-orb' + (on ? ' on' : '');
-    label.className = 'led-status-text' + (on ? ' on' : '');
-    label.textContent = on ? 'ARMED / ON' : 'DISARMED / OFF';
-  }
+    // ── UPTIME FORMAT ──────────────────────────────────────────────────
+    function fmtUptime(s) {
+      const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), ss = s % 60;
+      return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(ss).padStart(2, '0')}`;
+    }
 
-  // ── TELEMETRY UI ───────────────────────────────────────────────────
-  function updateTelemetry(d) {
-    document.getElementById('tl-alt').textContent   = d.altitude.toFixed(1);
-    document.getElementById('tl-speed').textContent = d.speed.toFixed(1);
-    document.getElementById('tl-lat').textContent   = d.lat.toFixed(6) + '°N';
-    document.getElementById('tl-lng').textContent   = d.lng.toFixed(6) + '°E';
-    document.getElementById('lnk-ip').textContent   = connectedIP;
-    document.getElementById('lnk-uptime').textContent = fmtUptime(d.uptime);
+    // ── SIGNAL CLASS ───────────────────────────────────────────────────
+    function signalClass(dbm) {
+      if (dbm >= -55) return 's5';
+      if (dbm >= -65) return 's4';
+      if (dbm >= -75) return 's3';
+      if (dbm >= -85) return 's2';
+      return 's1';
+    }
 
-    // Battery
-    const bat = d.battery;
-    document.getElementById('tl-bat').textContent = bat;
-    const bar = document.getElementById('bat-bar');
-    bar.style.width = bat + '%';
-    bar.style.background = bat > 50 ? 'var(--green)' : bat > 20 ? 'var(--orange)' : 'var(--red)';
+    // ── CONNECTION UI ──────────────────────────────────────────────────
+    function setLinkState(state) {
+      const badge = document.getElementById('link-badge');
+      const dot = document.getElementById('badge-dot');
+      const lnkState = document.getElementById('lnk-state');
+      const btns = ['btn-on', 'btn-off', 'btn-toggle', 'btn-ping'];
+      const overlay = document.getElementById('reconnect-overlay');
 
-    // Signal bars (simulate from battery since firmware doesn't send RSSI in HB)
-    const sb = document.getElementById('signal-bars');
-    sb.className = 'signal-bars s4'; // default good
-
-    // Last HB timestamp
-    document.getElementById('last-hb-text').textContent =
-      'Updated ' + new Date().toLocaleTimeString('en-GB', {hour12:false});
-  }
-
-  // ── LOG ────────────────────────────────────────────────────────────
-  function log(tag, tagClass, msg) {
-    const box = document.getElementById('log');
-    const ts  = new Date().toLocaleTimeString('en-GB', {hour12:false});
-    const el  = document.createElement('div');
-    el.className = 'log-entry';
-    el.innerHTML =
-      `<span class="log-ts">${ts}</span>` +
-      `<span class="log-tag ${tagClass}">${tag}</span>` +
-      `<span class="log-msg">${msg}</span>`;
-    box.prepend(el);
-    while (box.children.length > 40) box.removeChild(box.lastChild);
-  }
-
-  // ── COMMANDS ───────────────────────────────────────────────────────
-  function sendCmd(command, extra) {
-    if (!ws || ws.readyState !== WebSocket.OPEN) return;
-    const msg = { type: 'command', command, ...(extra||{}) };
-    ws.send(JSON.stringify(msg));
-    log('TX', 'tag-sys', command + (extra ? ' → ' + JSON.stringify(extra) : ''));
-  }
-
-  function sendPing() {
-    pingTimestamp = performance.now();
-    sendCmd('PING');
-  }
-
-  // ── RECONNECT COUNTDOWN ────────────────────────────────────────────
-  function startCountdown(seconds) {
-    clearInterval(countdownTimer);
-    let t = seconds;
-    document.getElementById('countdown').textContent = t;
-    countdownTimer = setInterval(() => {
-      t--;
-      document.getElementById('countdown').textContent = t;
-      if (t <= 0) clearInterval(countdownTimer);
-    }, 1000);
-  }
-
-  // ── WEBSOCKET ──────────────────────────────────────────────────────
-  function connect() {
-    setLinkState('connecting');
-    ws = new WebSocket('ws://' + location.host + '/ws');
-
-    ws.onopen = () => {
-      reconnectDelay = 1500;
-      setLinkState('connected');
-      log('SYS', 'tag-sys', 'WebSocket link established → ws://' + location.host + '/ws');
-    };
-
-    ws.onmessage = (e) => {
-      try {
-        const d = JSON.parse(e.data);
-        switch (d.event) {
-          case 'HEARTBEAT':
-            updateTelemetry(d);
-            log('HB', 'tag-hb',
-              `alt=${d.altitude.toFixed(1)}m  bat=${d.battery}%  ` +
-              `speed=${d.speed.toFixed(1)}m/s  lat=${d.lat.toFixed(4)}  lng=${d.lng.toFixed(4)}`);
-            break;
-          case 'LED_STATE':
-            setLED(d.value);
-            log('LED', 'tag-led', 'State changed → ' + (d.value ? 'ON ✔' : 'OFF ✖'));
-            break;
-          case 'PONG': {
-            const latency = pingTimestamp ? Math.round(performance.now() - pingTimestamp) : '?';
-            log('PING', 'tag-ping', `PONG ← round-trip ${latency}ms`);
-            break;
-          }
-          case 'ERROR':
-            log('ERR', 'tag-err', d.message || 'Unknown error from device');
-            break;
-          default:
-            log('RX', 'tag-sys', JSON.stringify(d));
-        }
-      } catch (err) {
-        log('ERR', 'tag-err', 'Bad JSON from device: ' + e.data);
+      if (state === 'connected') {
+        badge.className = 'link-badge connected';
+        document.getElementById('badge-text').textContent = 'LINK ACTIVE';
+        dot.className = 'badge-dot pulse';
+        lnkState.textContent = '● CONNECTED';
+        lnkState.className = 'stat-value good';
+        btns.forEach(id => document.getElementById(id).disabled = false);
+        overlay.classList.remove('show');
+      } else if (state === 'disconnected') {
+        badge.className = 'link-badge disconnected';
+        document.getElementById('badge-text').textContent = 'LINK LOST';
+        dot.className = 'badge-dot';
+        lnkState.textContent = '○ DISCONNECTED';
+        lnkState.className = 'stat-value bad';
+        btns.forEach(id => document.getElementById(id).disabled = true);
+        overlay.classList.add('show');
+      } else {
+        badge.className = 'link-badge connecting';
+        document.getElementById('badge-text').textContent = 'CONNECTING…';
+        dot.className = 'badge-dot pulse';
+        lnkState.textContent = '◌ CONNECTING';
+        lnkState.className = 'stat-value warn';
       }
-    };
+    }
 
-    ws.onclose = () => {
-      setLinkState('disconnected');
-      const delay = reconnectDelay;
-      log('SYS', 'tag-err', `Link closed. Reconnecting in ${Math.round(delay/1000)}s…`);
-      startCountdown(Math.round(delay / 1000));
-      setTimeout(connect, delay);
-      reconnectDelay = Math.min(reconnectDelay * 1.5, 20000);
-    };
+    // ── LED UI ─────────────────────────────────────────────────────────
+    function setLED(on) {
+      const orb = document.getElementById('led-orb');
+      const label = document.getElementById('led-status-text');
+      orb.className = 'led-orb' + (on ? ' on' : '');
+      label.className = 'led-status-text' + (on ? ' on' : '');
+      label.textContent = on ? 'ARMED / ON' : 'DISARMED / OFF';
+    }
 
-    ws.onerror = () => {
-      log('ERR', 'tag-err', 'WebSocket transport error — check device power and network');
-    };
-  }
+    // ── TELEMETRY UI ───────────────────────────────────────────────────
+    function updateTelemetry(d) {
+      document.getElementById('tl-alt').textContent = d.altitude.toFixed(1);
+      document.getElementById('tl-speed').textContent = d.speed.toFixed(1);
+      document.getElementById('tl-lat').textContent = d.lat.toFixed(6) + '°N';
+      document.getElementById('tl-lng').textContent = d.lng.toFixed(6) + '°E';
+      document.getElementById('lnk-ip').textContent = connectedIP;
+      document.getElementById('lnk-uptime').textContent = fmtUptime(d.uptime);
 
-  connect();
-</script>
+      // Battery
+      const bat = d.battery;
+      document.getElementById('tl-bat').textContent = bat;
+      const bar = document.getElementById('bat-bar');
+      bar.style.width = bat + '%';
+      bar.style.background = bat > 50 ? 'var(--green)' : bat > 20 ? 'var(--orange)' : 'var(--red)';
+
+      // Signal bars (simulate from battery since firmware doesn't send RSSI in HB)
+      const sb = document.getElementById('signal-bars');
+      sb.className = 'signal-bars s4'; // default good
+
+      // Last HB timestamp
+      document.getElementById('last-hb-text').textContent =
+        'Updated ' + new Date().toLocaleTimeString('en-GB', { hour12: false });
+    }
+
+    // ── LOG ────────────────────────────────────────────────────────────
+    function log(tag, tagClass, msg) {
+      const box = document.getElementById('log');
+      const ts = new Date().toLocaleTimeString('en-GB', { hour12: false });
+      const el = document.createElement('div');
+      el.className = 'log-entry';
+      el.innerHTML =
+        `<span class="log-ts">${ts}</span>` +
+        `<span class="log-tag ${tagClass}">${tag}</span>` +
+        `<span class="log-msg">${msg}</span>`;
+      box.prepend(el);
+      while (box.children.length > 40) box.removeChild(box.lastChild);
+    }
+
+    // ── COMMANDS ───────────────────────────────────────────────────────
+    function sendCmd(command, extra) {
+      if (!ws || ws.readyState !== WebSocket.OPEN) return;
+      const msg = { type: 'command', command, ...(extra || {}) };
+      ws.send(JSON.stringify(msg));
+      log('TX', 'tag-sys', command + (extra ? ' → ' + JSON.stringify(extra) : ''));
+    }
+
+    function sendPing() {
+      pingTimestamp = performance.now();
+      sendCmd('PING');
+    }
+
+    // ── RECONNECT COUNTDOWN ────────────────────────────────────────────
+    function startCountdown(seconds) {
+      clearInterval(countdownTimer);
+      let t = seconds;
+      document.getElementById('countdown').textContent = t;
+      countdownTimer = setInterval(() => {
+        t--;
+        document.getElementById('countdown').textContent = t;
+        if (t <= 0) clearInterval(countdownTimer);
+      }, 1000);
+    }
+
+    // ── WEBSOCKET ──────────────────────────────────────────────────────
+    function connect() {
+      setLinkState('connecting');
+      const wsProtocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+      ws = new WebSocket(wsProtocol + window.location.host + '/ws');
+
+      ws.onopen = () => {
+        reconnectDelay = 1500;
+        setLinkState('connected');
+        log('SYS', 'tag-sys', 'WebSocket link established → ws://' + location.host + '/ws');
+      };
+
+      ws.onmessage = (e) => {
+        try {
+          const d = JSON.parse(e.data);
+          switch (d.event) {
+            case 'HEARTBEAT':
+              updateTelemetry(d);
+              log('HB', 'tag-hb',
+                `alt=${d.altitude.toFixed(1)}m  bat=${d.battery}%  ` +
+                `speed=${d.speed.toFixed(1)}m/s  lat=${d.lat.toFixed(4)}  lng=${d.lng.toFixed(4)}`);
+              break;
+            case 'LED_STATE':
+              setLED(d.value);
+              log('LED', 'tag-led', 'State changed → ' + (d.value ? 'ON ✔' : 'OFF ✖'));
+              break;
+            case 'PONG': {
+              const latency = pingTimestamp ? Math.round(performance.now() - pingTimestamp) : '?';
+              log('PING', 'tag-ping', `PONG ← round-trip ${latency}ms`);
+              break;
+            }
+            case 'ERROR':
+              log('ERR', 'tag-err', d.message || 'Unknown error from device');
+              break;
+            default:
+              log('RX', 'tag-sys', JSON.stringify(d));
+          }
+        } catch (err) {
+          log('ERR', 'tag-err', 'Bad JSON from device: ' + e.data);
+        }
+      };
+
+      ws.onclose = () => {
+        setLinkState('disconnected');
+        const delay = reconnectDelay;
+        log('SYS', 'tag-err', `Link closed. Reconnecting in ${Math.round(delay / 1000)}s…`);
+        startCountdown(Math.round(delay / 1000));
+        setTimeout(connect, delay);
+        reconnectDelay = Math.min(reconnectDelay * 1.5, 20000);
+      };
+
+      ws.onerror = () => {
+        log('ERR', 'tag-err', 'WebSocket transport error — check device power and network');
+      };
+    }
+
+    connect();
+  </script>
 </body>
+
 </html>

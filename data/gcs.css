@@ -792,3 +792,9 @@ body {
   .map-dock { padding: 20px 16px 28px; }
   .map-dock-controls { grid-template-columns: 1fr; }
 }
+
+/* ── Map feature markers (added May 15) ── */
+.drone-marker-wrap {
+  background: none !important;
+  border: none !important;
+}

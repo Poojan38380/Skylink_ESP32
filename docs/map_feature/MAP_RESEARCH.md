@@ -23,3 +23,11 @@ Evaluating mapping libraries for the Skylink GCS web dashboard.
 - Click-to-fly (GOTO) interaction
 - Geofence visualization
 - Attitude overlay (roll/pitch bubble)
+
+## Default Config Values
+- mapDefaultLat: -35.363261 (SITL home)
+- mapDefaultLng: 149.16523
+- mapDefaultZoom: 17
+- mapFollowDrone: true
+- mapTrailMaxPoints: 60
+- geofenceRadiusM: 1000

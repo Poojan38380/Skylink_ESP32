@@ -1,0 +1,39 @@
+# Map Feature Changelog
+
+## May 19 — Module Skeleton
+- Created gcs_map.js IIFE module
+- Leaflet map init with OSM tiles
+- Default view set to SITL home coordinates
+
+## May 20 — Drone Marker
+- Custom divIcon with CSS arrow (▲)
+- Heading rotation via transform
+- droneIcon() factory function
+
+## May 21 — Trail & Home
+- Polyline trail with max 60 points
+- Home marker (H) with tooltip
+- pushTrail() deduplication
+
+## May 22 — Follow & Center
+- Follow drone toggle button
+- Center on drone button
+- panTo with smooth animation
+
+## May 23 — Geofence Circle
+- L.circle overlay around home
+- Configurable radius (default 1000m)
+- Dashed stroke, low-opacity fill
+
+## May 24 — Click-to-Fly (GOTO)
+- Map click handler → openGotoSheet()
+- Distance validation against geofence
+- Altitude input with min/max bounds
+- Confirm/cancel bottom sheet
+
+## May 25 — Waypoint Movement & Polish
+- Body-frame move controls below map
+- Keyboard arrow bindings
+- Distance presets (1/3/5/10m)
+- Attitude bubble overlay
+- Live strip (mode/arm/alt/speed)

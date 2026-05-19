@@ -37,3 +37,7 @@
 - Distance presets (1/3/5/10m)
 - Attitude bubble overlay
 - Live strip (mode/arm/alt/speed)
+
+## Implementation Notes
+- Drone icon uses CSS transform for zero-dependency rotation
+- Trail polyline color: #00d4ff (cyan accent)

@@ -10,3 +10,4 @@
 - Color: #00d4ff (matches geofence accent)
 - Weight: 2px
 - Opacity: 0.75
+<!-- home marker notes -->

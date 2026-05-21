@@ -41,3 +41,4 @@
 ## Implementation Notes
 - Drone icon uses CSS transform for zero-dependency rotation
 - Trail polyline color: #00d4ff (cyan accent)
+- Attitude bubble uses CSS transform for roll indication

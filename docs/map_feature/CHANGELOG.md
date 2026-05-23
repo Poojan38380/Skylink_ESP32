@@ -44,3 +44,4 @@
 - Attitude bubble uses CSS transform for roll indication
 - Live strip shows mode, arm status, altitude, speed in real-time
 - GOTO sheet validates target is within geofence radius
+- Move controls use body-frame reference (forward/back/left/right)

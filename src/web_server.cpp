@@ -3,6 +3,7 @@
 #include "wifi_manager.h"
 #include "led_controller.h"
 #include "time_sync.h"
+#include "flight_controller.h"
 #include <LittleFS.h>
 
 WebServerModule::WebServerModule(int port) : server(port), ws("/ws") {
@@ -50,6 +51,19 @@ void WebServerModule::handleWebSocketMessage(void *arg, uint8_t *data, size_t le
                 ledController.toggle();
                 sendAppState();
             }
+            else if (command == "ARM_DRONE") {
+                flightController.arm(true);
+            }
+            else if (command == "DISARM_DRONE") {
+                flightController.arm(false);
+            }
+            else if (command == "RC_OVERRIDE") {
+                uint16_t r = doc["roll"] | 1500;
+                uint16_t p = doc["pitch"] | 1500;
+                uint16_t t = doc["throttle"] | 1000;
+                uint16_t y = doc["yaw"] | 1500;
+                flightController.sendRCOverride(r, p, t, y);
+            }
             else if (command == "PING") {
                 JsonDocument response;
                 response["type"] = "event";
@@ -88,19 +102,25 @@ void WebServerModule::sendAppState() {
 
 void WebServerModule::sendHeartbeat() {
     JsonDocument doc;
+    FCTelemetry fc = flightController.getTelemetry();
+
     doc["type"] = "event";
     doc["event"] = "HEARTBEAT";
     doc["uptime"] = millis() / 1000;
     doc["timestamp"] = timeSync.getCurrentTime();
     
-    // Simulate UAV telemetry
-    float baseAlt = 12.0;
-    float noise = (float)(random(-50, 50)) / 100.0;
-    doc["altitude"] = baseAlt + noise;
-    doc["battery"] = 87; // Constant for now
-    doc["speed"] = 0.0;
-    doc["lat"] = 19.0760;
-    doc["lng"] = 72.8777;
+    // Real telemetry from Flight Controller SITL/Pixhawk!
+    doc["armed"] = fc.armed;
+    doc["altitude"] = fc.altitude;
+    doc["battery"] = fc.battery_remaining;
+    doc["battery_v"] = fc.battery_voltage;
+    doc["speed"] = fc.speed;
+    doc["lat"] = fc.latitude;
+    doc["lng"] = fc.longitude;
+    doc["sats"] = fc.gps_sats;
+    doc["gps_fix"] = fc.gps_fix;
+    doc["roll"] = fc.roll;
+    doc["pitch"] = fc.pitch;
     
     String output;
     serializeJson(doc, output);

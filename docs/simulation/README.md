@@ -14,6 +14,7 @@ This folder is the **single source of truth** for starting, operating, and exten
 | 2 | [agent_handoff.md](./agent_handoff.md) | Architecture lessons, pitfalls, code conventions |
 | 3 | [start_simulation.md](./start_simulation.md) | Short Vivobook-specific quick start |
 | 4 | [simulation_test_plan.md](./simulation_test_plan.md) | Full integration spec, WSL mirrored networking setup, Pixhawk migration |
+| — | **[upgrade/](./upgrade/)** | **Post-MVP GCS roadmap** (map-first, relative controls, LED) |
 
 ---
 

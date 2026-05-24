@@ -11,14 +11,11 @@ private:
     
     void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len);
     void handleWebSocketMessage(void *arg, uint8_t *data, size_t len, AsyncWebSocketClient *client);
-    
-    String generateDashboardHTML();
-    void sendAppState();
 
 public:
     WebServerModule(int port = 80);
     void begin();
-    void broadcastEvent(const String& eventName, JsonDocument& payload);
+    void sendAppState();
     void sendHeartbeat();
 };
 

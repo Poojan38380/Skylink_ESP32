@@ -1,23 +1,18 @@
-# Open Decisions — Confirm Before Coding
+# Open Decisions — Locked Defaults
 
-Defaults are proposed below. Change any row before starting Phase 4+.
+**Status:** Approved May 2026. Implemented in `include/skylink_config.h` and `data/gcs_config.js`.
 
-| # | Question | Proposed default | Your answer |
-|---|----------|------------------|-------------|
-| 1 | Max single relative move (forward/strafe) | **20 m** per command | |
-| 2 | Max yaw step per command | **90°** (allow 45° / 90° / 180° presets only) | |
-| 3 | Min altitude for relative moves (AGL) | **2 m** — reject if below | |
-| 4 | Map tile source | **OpenStreetMap** via Leaflet (no API key) | |
-| 5 | Home position on map | First **3D GPS fix** after SITL connect | |
-| 6 | Click-to-fly max radius from home | **100 m** in SITL (config constant) | |
-| 7 | Command rate limit (ESP32) | **2 commands / second** per client | |
-| 8 | Split `index.html` into multiple LittleFS files? | **Yes** — `index.html` + `gcs.css` + `gcs.js` | |
-| 9 | Arm confirmation | **Hold 1.5 s** on ARM button | |
-| 10 | LED: MAVLink lost while WiFi up | **Slow blink** (500 ms) | |
+| # | Decision | Value |
+|---|----------|-------|
+| 1 | Max single relative move | **20 m** |
+| 2 | Max yaw step | **90°** (presets 45 / 90 / 180) |
+| 3 | Min altitude for moves | **2 m** AGL |
+| 4 | Map tiles | **OpenStreetMap** + Leaflet |
+| 5 | Home position | First **3D GPS fix** |
+| 6 | Click-to-fly radius | **100 m** |
+| 7 | Command rate limit | **2 / s** |
+| 8 | Split dashboard assets | **Yes** (`index.html`, `gcs.css`, `gcs.js`, `gcs_config.js`) |
+| 9 | Arm confirmation | **Hold 1.5 s** (Phase 6 UI) |
+| 10 | LED MAVLink lost | **Slow blink 500 ms** (Phase 1) |
 
----
-
-## No further blockers
-
-With defaults accepted, implementation can proceed without more product questions.  
-Technical choices are fixed in [ARCHITECTURE.md](./ARCHITECTURE.md).
+See [CONFIG_REFERENCE.md](./CONFIG_REFERENCE.md) for file paths.

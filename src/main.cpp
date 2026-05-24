@@ -8,6 +8,7 @@
 #include "time_sync.h"
 #include "led_controller.h"
 #include "flight_controller.h"
+#include "skylink_config.h"
 
 unsigned long lastHeartbeat = 0;
 unsigned long lastWSHeartbeat = 0;
@@ -59,7 +60,7 @@ void loop() {
     }
     
     // Send WebSocket Heartbeat (Telemetric demo)
-    if (wifiManager.isConnected() && (now - lastWSHeartbeat >= 3000)) {
+    if (wifiManager.isConnected() && (now - lastWSHeartbeat >= SKYLINK_WS_TELEMETRY_INTERVAL_MS)) {
         lastWSHeartbeat = now;
         webServerModule.sendHeartbeat();
     }

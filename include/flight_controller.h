@@ -5,6 +5,7 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
 #include <mavlink.h>
+#include "skylink_config.h"
 
 #ifdef SITL_MODE
 #include <WiFiClient.h>
@@ -50,7 +51,7 @@ private:
     WiFiClient sitlClient;
     String sitlHost;
     bool sitlHostConfigured = false;
-    static const uint16_t sitlPort = 5763;  // SERIAL2 — Mission Planner uses 5762 (SERIAL1)
+    static const uint16_t sitlPort = SKYLINK_SITL_TCP_PORT;
 #else
     HardwareSerial& fcSerial;
 #endif

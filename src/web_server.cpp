@@ -4,7 +4,118 @@
 #include "led_controller.h"
 #include "time_sync.h"
 #include "flight_controller.h"
+#include "skylink_config.h"
+#include "ws_json.h"
 #include <LittleFS.h>
+
+namespace {
+
+uint8_t parseFlightMode(const String& modeName) {
+    if (modeName == "GUIDED") return COPTER_MODE_GUIDED;
+    if (modeName == "RTL") return COPTER_MODE_RTL;
+    if (modeName == "LAND") return COPTER_MODE_LAND;
+    return COPTER_MODE_STABILIZE;
+}
+
+using WsCommandHandler = void (*)(JsonDocument&, AsyncWebSocketClient*);
+
+void handleLedSet(JsonDocument& doc, AsyncWebSocketClient* client) {
+    (void)client;
+    ledController.set(doc["value"] | false);
+    webServerModule.sendAppState();
+}
+
+void handleLedToggle(JsonDocument& doc, AsyncWebSocketClient* client) {
+    (void)doc;
+    (void)client;
+    ledController.toggle();
+    webServerModule.sendAppState();
+}
+
+void handleSetFlightMode(JsonDocument& doc, AsyncWebSocketClient* client) {
+    (void)client;
+    String mode = doc["mode"] | "GUIDED";
+    flightController.setFlightMode(parseFlightMode(mode));
+}
+
+void handleArm(JsonDocument& doc, AsyncWebSocketClient* client) {
+    (void)doc;
+    (void)client;
+    flightController.arm(true);
+}
+
+void handleDisarm(JsonDocument& doc, AsyncWebSocketClient* client) {
+    (void)doc;
+    (void)client;
+    flightController.arm(false);
+}
+
+void handleTakeoff(JsonDocument& doc, AsyncWebSocketClient* client) {
+    (void)client;
+    float alt = doc["altitude"] | 5.0f;
+    flightController.takeoff(alt);
+}
+
+void handleLand(JsonDocument& doc, AsyncWebSocketClient* client) {
+    (void)doc;
+    (void)client;
+    flightController.land();
+}
+
+void handleRtl(JsonDocument& doc, AsyncWebSocketClient* client) {
+    (void)doc;
+    (void)client;
+    flightController.returnToLaunch();
+}
+
+void handleRcOverride(JsonDocument& doc, AsyncWebSocketClient* client) {
+    (void)client;
+    uint16_t r = doc["roll"] | 1500;
+    uint16_t p = doc["pitch"] | 1500;
+    uint16_t t = doc["throttle"] | 1000;
+    uint16_t y = doc["yaw"] | 1500;
+    flightController.sendRCOverride(r, p, t, y);
+}
+
+void handlePing(JsonDocument& doc, AsyncWebSocketClient* client) {
+    (void)doc;
+    JsonDocument response;
+    response["v"] = SKYLINK_PROTOCOL_VERSION;
+    response["type"] = "event";
+    response["event"] = "PONG";
+    response["timestamp"] = timeSync.getCurrentTime();
+    wsSendJson(client, response);
+}
+
+struct WsCommandEntry {
+    const char* name;
+    WsCommandHandler handler;
+};
+
+const WsCommandEntry kCommands[] = {
+    {"LED_SET", handleLedSet},
+    {"LED_TOGGLE", handleLedToggle},
+    {"SET_FLIGHT_MODE", handleSetFlightMode},
+    {"ARM_DRONE", handleArm},
+    {"DISARM_DRONE", handleDisarm},
+    {"TAKEOFF", handleTakeoff},
+    {"LAND", handleLand},
+    {"RTL", handleRtl},
+    {"RC_OVERRIDE", handleRcOverride},
+    {"PING", handlePing},
+};
+
+bool dispatchCommand(const String& command, JsonDocument& doc, AsyncWebSocketClient* client) {
+    for (const auto& entry : kCommands) {
+        if (command == entry.name) {
+            entry.handler(doc, client);
+            return true;
+        }
+    }
+    return false;
+}
+
+}  // namespace
 
 WebServerModule::WebServerModule(int port) : server(port), ws("/ws") {
 }
@@ -30,108 +141,57 @@ void WebServerModule::onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *cl
     }
 }
 
-static uint8_t parseFlightMode(const String& modeName) {
-    if (modeName == "GUIDED") return COPTER_MODE_GUIDED;
-    if (modeName == "RTL") return COPTER_MODE_RTL;
-    if (modeName == "LAND") return COPTER_MODE_LAND;
-    return COPTER_MODE_STABILIZE;
-}
-
 void WebServerModule::handleWebSocketMessage(void *arg, uint8_t *data, size_t len, AsyncWebSocketClient *client) {
     AwsFrameInfo *info = (AwsFrameInfo*)arg;
-    if (info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT) {
-        JsonDocument doc;
-        DeserializationError error = deserializeJson(doc, data, len);
-
-        if (error) {
-            logger.error("WebSocket JSON parse error: " + String(error.c_str()));
-            return;
-        }
-
-        String type = doc["type"] | "";
-        if (type == "command") {
-            String command = doc["command"] | "";
-
-            if (command == "LED_SET") {
-                bool value = doc["value"] | false;
-                ledController.set(value);
-                sendAppState();
-            }
-            else if (command == "LED_TOGGLE") {
-                ledController.toggle();
-                sendAppState();
-            }
-            else if (command == "SET_FLIGHT_MODE") {
-                String mode = doc["mode"] | "GUIDED";
-                flightController.setFlightMode(parseFlightMode(mode));
-            }
-            else if (command == "ARM_DRONE") {
-                flightController.arm(true);
-            }
-            else if (command == "DISARM_DRONE") {
-                flightController.arm(false);
-            }
-            else if (command == "TAKEOFF") {
-                float alt = doc["altitude"] | 5.0f;
-                flightController.takeoff(alt);
-            }
-            else if (command == "LAND") {
-                flightController.land();
-            }
-            else if (command == "RTL") {
-                flightController.returnToLaunch();
-            }
-            else if (command == "RC_OVERRIDE") {
-                uint16_t r = doc["roll"] | 1500;
-                uint16_t p = doc["pitch"] | 1500;
-                uint16_t t = doc["throttle"] | 1000;
-                uint16_t y = doc["yaw"] | 1500;
-                flightController.sendRCOverride(r, p, t, y);
-            }
-            else if (command == "PING") {
-                JsonDocument response;
-                response["type"] = "event";
-                response["event"] = "PONG";
-                response["timestamp"] = timeSync.getCurrentTime();
-
-                String output;
-                serializeJson(response, output);
-                client->text(output);
-            }
-            else {
-                logger.warning("Unknown WebSocket command: " + command);
-                JsonDocument err;
-                err["type"] = "event";
-                err["event"] = "ERROR";
-                err["message"] = "Unknown command: " + command;
-                String output;
-                serializeJson(err, output);
-                client->text(output);
-            }
-        }
+    if (!(info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT)) {
+        return;
     }
+
+    JsonDocument doc;
+    if (deserializeJson(doc, data, len)) {
+        logger.error("WebSocket JSON parse error");
+        return;
+    }
+
+    const String type = doc["type"] | "";
+    if (type != "command") {
+        return;
+    }
+
+    const String command = doc["command"] | "";
+    if (dispatchCommand(command, doc, client)) {
+        return;
+    }
+
+    logger.warning("Unknown WebSocket command: " + command);
+    JsonDocument err;
+    err["v"] = SKYLINK_PROTOCOL_VERSION;
+    err["type"] = "event";
+    err["event"] = "ERROR";
+    err["message"] = "Unknown command: " + command;
+    wsSendJson(client, err);
 }
 
 void WebServerModule::sendAppState() {
     JsonDocument doc;
+    doc["v"] = SKYLINK_PROTOCOL_VERSION;
     doc["type"] = "event";
     doc["event"] = "LED_STATE";
     doc["value"] = ledController.getState();
     doc["timestamp"] = timeSync.getCurrentTime();
-
-    String output;
-    serializeJson(doc, output);
-    ws.textAll(output);
+    wsBroadcastJson(ws, doc);
 }
 
 void WebServerModule::sendHeartbeat() {
     JsonDocument doc;
-    FCTelemetry fc = flightController.getTelemetry();
+    const FCTelemetry fc = flightController.getTelemetry();
 
+    doc["v"] = SKYLINK_PROTOCOL_VERSION;
     doc["type"] = "event";
     doc["event"] = "HEARTBEAT";
     doc["uptime"] = millis() / 1000;
     doc["timestamp"] = timeSync.getCurrentTime();
+    doc["simulation"] = SKYLINK_SIMULATION;
 
     doc["armed"] = fc.armed;
     doc["altitude"] = fc.altitude;
@@ -152,9 +212,7 @@ void WebServerModule::sendHeartbeat() {
     doc["sitl_host_ready"] = flightController.isSitlHostConfigured();
 #endif
 
-    String output;
-    serializeJson(doc, output);
-    ws.textAll(output);
+    wsBroadcastJson(ws, doc);
 }
 
 void WebServerModule::begin() {
@@ -167,8 +225,13 @@ void WebServerModule::begin() {
 
     server.serveStatic("/", LittleFS, "/").setDefaultFile("index.html");
 
-    server.on("/health", HTTP_GET, [](AsyncWebServerRequest *request){
-        request->send(200, "application/json", "{\"status\":\"ok\"}");
+    server.on("/health", HTTP_GET, [](AsyncWebServerRequest *request) {
+        char buf[128];
+        snprintf(buf, sizeof(buf),
+            "{\"status\":\"ok\",\"v\":%d,\"simulation\":%s}",
+            SKYLINK_PROTOCOL_VERSION,
+            SKYLINK_SIMULATION ? "true" : "false");
+        request->send(200, "application/json", buf);
     });
 
     server.begin();

@@ -37,18 +37,18 @@
 
 ---
 
-## Phase 0 — Code foundation
+## Phase 0 — Code foundation ✅
 
 **Goal:** Make future phases fast to implement; no major UI features yet.
 
 ### Deliverables
 
-- [ ] Split `data/index.html` → `data/index.html` + `data/gcs.css` + `data/gcs.js`
-- [ ] `web_server.cpp`: command router table (map string → handler) instead of long if-chain
-- [ ] Optional split: `mavlink_telemetry.cpp`, `mavlink_commands.cpp` (see ARCHITECTURE)
-- [ ] JSON protocol `"v": 1` on all messages
-- [ ] Throttle serial logging in `flight_controller::handle()` (no log per packet)
-- [ ] Static JSON buffer for `sendHeartbeat()` (no heap `String` build)
+- [x] Split `data/index.html` → `index.html` + `gcs.css` + `gcs.js` + `gcs_config.js`
+- [x] `include/skylink_config.h` — all firmware tunables
+- [x] `web_server.cpp`: command dispatch table
+- [x] JSON protocol `"v": 1` on messages
+- [x] Static JSON buffer for WS (`ws_json.h`, no heap `String` in heartbeat)
+- [ ] Optional split: `mavlink_telemetry.cpp`, `mavlink_commands.cpp` (deferred)
 
 ### Files
 

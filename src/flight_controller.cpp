@@ -1,10 +1,6 @@
 #include "flight_controller.h"
 #include "logger.h"
-
-static const uint32_t RECONNECT_INTERVAL_MS = 5000;
-static const uint32_t GCS_HEARTBEAT_MS = 1000;
-static const uint32_t STREAM_REQUEST_MS = 10000;
-static const uint32_t MAVLINK_TIMEOUT_MS = 5000;
+#include "skylink_config.h"
 
 #ifdef SITL_MODE
 FlightController::FlightController() {}
@@ -39,7 +35,7 @@ void FlightController::begin() {
 
 #ifdef SITL_MODE
     logger.info("Initializing FlightController in [SITL MODE] via TCP port " + String(sitlPort));
-    sitlClient.setTimeout(3000);
+    sitlClient.setTimeout(SKYLINK_SITL_CONNECT_TIMEOUT_MS);
 #else
     logger.info("Initializing FlightController in [HARDWARE MODE] via UART2");
     fcSerial.begin(115200, SERIAL_8N1, 16, 17);
@@ -264,7 +260,7 @@ void FlightController::maintainSitlConnection(uint32_t now) {
 
     if (!sitlClient.connected()) {
         mavlinkActive = false;
-        if (now - lastReconnectAttempt < RECONNECT_INTERVAL_MS) return;
+        if (now - lastReconnectAttempt < SKYLINK_SITL_RECONNECT_INTERVAL_MS) return;
 
         lastReconnectAttempt = now;
         logger.info("Attempting connection to SITL at " + sitlHost + ":" + String(sitlPort));
@@ -281,7 +277,7 @@ void FlightController::maintainSitlConnection(uint32_t now) {
         return;
     }
 
-    if (mavlinkActive && (now - lastMavlinkRx > MAVLINK_TIMEOUT_MS)) {
+    if (mavlinkActive && (now - lastMavlinkRx > SKYLINK_MAVLINK_TIMEOUT_MS)) {
         logger.warning("MAVLink link timed out — reconnecting");
         sitlClient.stop();
         mavlinkActive = false;
@@ -299,12 +295,12 @@ void FlightController::handle() {
 
     if (!takeMutex(0)) return;
 
-    if (mavlinkActive && (now - lastGcsHeartbeat >= GCS_HEARTBEAT_MS)) {
+    if (mavlinkActive && (now - lastGcsHeartbeat >= SKYLINK_MAVLINK_GCS_HEARTBEAT_MS)) {
         lastGcsHeartbeat = now;
         sendHeartbeat();
     }
 
-    if (mavlinkActive && (now - lastStreamRequest >= STREAM_REQUEST_MS)) {
+    if (mavlinkActive && (now - lastStreamRequest >= SKYLINK_MAVLINK_STREAM_REQUEST_MS)) {
         lastStreamRequest = now;
         requestDataStreams();
     }

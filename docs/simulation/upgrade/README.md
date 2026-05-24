@@ -22,7 +22,9 @@ Post-MVP roadmap to evolve the web dashboard into a **map-first, tap-to-fly GCS*
 | [GCS_UPGRADE_ROADMAP.md](./GCS_UPGRADE_ROADMAP.md) | **Main plan** — phases, deliverables, acceptance tests, file map |
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | Modular code layout, performance rules, WebSocket protocol |
 | [MAVLINK_COMMANDS.md](./MAVLINK_COMMANDS.md) | Per-feature MAVLink messages and safety caps |
-| [OPEN_DECISIONS.md](./OPEN_DECISIONS.md) | Items to confirm before implementation |
+| [CONFIG_REFERENCE.md](./CONFIG_REFERENCE.md) | All tunable constants (firmware + browser) |
+| [TESTING_STRATEGY.md](./TESTING_STRATEGY.md) | **Testing pyramid & phased test plan** |
+| [OPEN_DECISIONS.md](./OPEN_DECISIONS.md) | Locked product defaults |
 
 ---
 

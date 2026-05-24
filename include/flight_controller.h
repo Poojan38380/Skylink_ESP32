@@ -2,7 +2,7 @@
 #define FLIGHT_CONTROLLER_H
 
 #include <Arduino.h>
-#include <MAVLink.h>
+#include <mavlink.h>
 
 #ifdef SITL_MODE
 #include <WiFiClient.h>

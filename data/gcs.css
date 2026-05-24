@@ -76,6 +76,11 @@ header {
   letter-spacing: 1px;
 }
 
+#build-tag.build-mismatch {
+  color: var(--red);
+  font-weight: 700;
+}
+
 .header-right {
   display: flex;
   align-items: center;

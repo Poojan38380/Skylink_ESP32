@@ -4,10 +4,27 @@ All user-tunable values in one place. Change constants here — not scattered in
 
 ---
 
+## Build numbers (flash verification)
+
+| What changed | Bump | File(s) | Flash command |
+|--------------|------|---------|---------------|
+| C++ firmware | `SKYLINK_FIRMWARE_BUILD` | `include/skylink_config.h` | `pio run --target upload` |
+| Dashboard / FS | `SKYLINK_FS_BUILD` + `fs` in JSON + `fsBuild` in JS | `skylink_config.h`, `data/skylink_build.json`, `data/gcs_config.js` | `pio run --target uploadfs` |
+
+**Serial boot log:** `Build FW:1 | FS flash:2 (expected 2) OK`  
+**Dashboard header:** `FW 1 · FS 2`  
+**HTTP check:** `http://<ESP_IP>/health` → `"fw":1,"fs":2,"fs_ok":true`
+
+If `FS flash:0` or `MISMATCH` → run `uploadfs` and bump `fs` in all three FS files.
+
+---
+
 ## Firmware — `include/skylink_config.h`
 
 | Constant | Default | Unit | Used by |
 |----------|---------|------|---------|
+| `SKYLINK_FIRMWARE_BUILD` | 1 | — | Serial log, `/health`, dashboard |
+| `SKYLINK_FS_BUILD` | 2 | — | Expected FS (must match `skylink_build.json`) |
 | `SKYLINK_PROTOCOL_VERSION` | 1 | — | WebSocket JSON `v` field |
 | `SKYLINK_JSON_BUFFER_SIZE` | 768 | bytes | WS serialize buffer |
 | `SKYLINK_WS_TELEMETRY_INTERVAL_MS` | 200 | ms | `main.cpp` telemetry to browser (5 Hz) |
@@ -31,10 +48,19 @@ Also see `include/config.h` for WiFi reconnect and serial heartbeat logging.
 
 ---
 
+## LittleFS — `data/skylink_build.json`
+
+| Field | Default | Purpose |
+|-------|---------|---------|
+| `fs` | 2 | FS build on flash (ESP reads at boot) |
+
+---
+
 ## Browser — `data/gcs_config.js`
 
 | Key | Default | Purpose |
 |-----|---------|---------|
+| `fsBuild` | 2 | Display / must match `skylink_build.json` |
 | `protocolVersion` | 1 | Must match firmware |
 | `wsReconnectInitialMs` | 1500 | WS reconnect start |
 | `wsReconnectMaxMs` | 20000 | WS reconnect cap |

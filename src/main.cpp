@@ -9,6 +9,7 @@
 #include "led_controller.h"
 #include "flight_controller.h"
 #include "skylink_config.h"
+#include "build_info.h"
 
 unsigned long lastHeartbeat = 0;
 unsigned long lastWSHeartbeat = 0;
@@ -20,14 +21,17 @@ void setup() {
     logger.info("================================");
     logger.info("Skylink ESP32 Starting");
     logger.info("================================");
-    
+
     ledController.begin();
     
-    // Initialize ConfigManager
     configManager.begin();
-    
-    // Initialize WiFi
     wifiManager.begin();
+
+    buildInfoBegin();
+    logger.info("Build FW:" + String(getFirmwareBuild()) +
+                " | FS flash:" + String(getFsBuildOnFlash()) +
+                " (expected " + String(getFsBuildExpected()) + ")" +
+                (isFsBuildMatch() ? " OK" : " MISMATCH — run uploadfs"));
     
     // Initialize OTA
     otaUpdater.begin();

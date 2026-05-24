@@ -37,7 +37,12 @@
 #define SKYLINK_LED_MAVLINK_BLINK_MS    500
 #define SKYLINK_LED_ARMED_BLINK_MS      200
 
-// --- Build identity ---
+// --- Build identity (bump when flashing; see CONFIG_REFERENCE.md) ---
+// FIRMWARE: increment before `pio run --target upload`
+#define SKYLINK_FIRMWARE_BUILD          1
+// FS: increment before `pio run --target uploadfs` (must match data/skylink_build.json + gcs_config.js)
+#define SKYLINK_FS_BUILD                2
+
 #ifdef SITL_MODE
 constexpr bool SKYLINK_SIMULATION = true;
 #else

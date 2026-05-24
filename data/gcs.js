@@ -9,9 +9,26 @@ let countdownTimer;
 let pingTimestamp = 0;
 let connectedIP = location.hostname;
 
+function updateBuildTag(d) {
+  const el = document.getElementById('build-tag');
+  if (!el) return;
+  const fw = d && d.fw_build != null ? d.fw_build : '?';
+  const fs = d && d.fs_build != null ? d.fs_build : '?';
+  const fsExp = d && d.fs_build_expected != null ? d.fs_build_expected : (CFG.fsBuild || '?');
+  let text = 'FW ' + fw + ' · FS ' + fs;
+  if (d && d.fs_build_ok === false) {
+    text += ' (expected ' + fsExp + ' — uploadfs?)';
+    el.className = 'build-mismatch';
+  } else {
+    el.className = '';
+  }
+  el.textContent = text;
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   const el = document.getElementById('proto-ver');
   if (el) el.textContent = String(CFG.protocolVersion || 1);
+  updateBuildTag(null);
 });
 
 // ── CLOCK ──────────────────────────────────────────────────────────
@@ -225,9 +242,10 @@ function connect() {
     try {
       const d = JSON.parse(e.data);
       switch (d.event) {
-        case 'HEARTBEAT':
-          updateTelemetry(d);
-          break;
+            case 'HEARTBEAT':
+              updateTelemetry(d);
+              updateBuildTag(d);
+              break;
         case 'LED_STATE':
           setLED(d.value);
           log('LED', 'tag-led', 'State changed → ' + (d.value ? 'ON ✔' : 'OFF ✖'));

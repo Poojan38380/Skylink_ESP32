@@ -5,6 +5,7 @@
 #include "time_sync.h"
 #include "flight_controller.h"
 #include "skylink_config.h"
+#include "build_info.h"
 #include "ws_json.h"
 #include <LittleFS.h>
 
@@ -192,6 +193,10 @@ void WebServerModule::sendHeartbeat() {
     doc["uptime"] = millis() / 1000;
     doc["timestamp"] = timeSync.getCurrentTime();
     doc["simulation"] = SKYLINK_SIMULATION;
+    doc["fw_build"] = getFirmwareBuild();
+    doc["fs_build"] = getFsBuildOnFlash();
+    doc["fs_build_expected"] = getFsBuildExpected();
+    doc["fs_build_ok"] = isFsBuildMatch();
 
     doc["armed"] = fc.armed;
     doc["altitude"] = fc.altitude;
@@ -226,10 +231,14 @@ void WebServerModule::begin() {
     server.serveStatic("/", LittleFS, "/").setDefaultFile("index.html");
 
     server.on("/health", HTTP_GET, [](AsyncWebServerRequest *request) {
-        char buf[128];
+        char buf[192];
         snprintf(buf, sizeof(buf),
-            "{\"status\":\"ok\",\"v\":%d,\"simulation\":%s}",
+            "{\"status\":\"ok\",\"v\":%d,\"fw\":%u,\"fs\":%u,\"fs_expected\":%u,\"fs_ok\":%s,\"simulation\":%s}",
             SKYLINK_PROTOCOL_VERSION,
+            (unsigned)getFirmwareBuild(),
+            (unsigned)getFsBuildOnFlash(),
+            (unsigned)getFsBuildExpected(),
+            isFsBuildMatch() ? "true" : "false",
             SKYLINK_SIMULATION ? "true" : "false");
         request->send(200, "application/json", buf);
     });

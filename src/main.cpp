@@ -7,6 +7,7 @@
 #include "ota_updater.h"
 #include "time_sync.h"
 #include "led_controller.h"
+#include "flight_controller.h"
 
 unsigned long lastHeartbeat = 0;
 unsigned long lastWSHeartbeat = 0;
@@ -33,6 +34,9 @@ void setup() {
     // Initialize NTP Time Sync
     timeSync.begin();
     
+    // Initialize Flight Controller Bridge
+    flightController.begin();
+    
     // Initialize Web Server
     webServerModule.begin(); // Async server can start before WiFi is fully up
     
@@ -42,6 +46,7 @@ void setup() {
 void loop() {
     wifiManager.handle();
     otaUpdater.handle();
+    flightController.handle();
     
     // Note: webServerModule.handle() is NOT needed for AsyncWebServer
     

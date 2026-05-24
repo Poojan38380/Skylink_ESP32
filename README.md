@@ -34,8 +34,14 @@ Skylink/
 │   ├── config_manager.cpp # Config storage implementation
 │   ├── ota_updater.cpp   # OTA updater implementation
 │   └── time_sync.cpp     # Time sync implementation
-├── platformio.ini        # PlatformIO configuration
-└── docs/                 # Documentation
+├── data/                 # LittleFS (index.html, wifi_networks.json)
+├── include/
+│   └── flight_controller.h  # MAVLink bridge (SITL TCP or UART)
+├── src/
+│   └── flight_controller.cpp
+├── platformio.ini        # -D SITL_MODE for simulation
+└── docs/
+    └── simulation/       # SITL run guides (read successful_run_guide.md)
 ```
 
 ## 🔧 Setup Instructions
@@ -71,6 +77,27 @@ Skylink/
    pio device monitor
    ```
 
+## 🛰️ SITL Flight Simulation (ArduPilot + ESP32 GCS)
+
+Skylink acts as a **WiFi MAVLink bridge** between a browser dashboard and ArduPilot SITL (or a physical Pixhawk in hardware mode).
+
+**Start here:** [docs/simulation/successful_run_guide.md](docs/simulation/successful_run_guide.md)  
+**AI / developer index:** [docs/simulation/README.md](docs/simulation/README.md)
+
+### Quick start (verified May 2026)
+
+| Step | Where | Command / action |
+|------|--------|------------------|
+| 1 | WSL | `cd ~/ardupilot/ArduCopter && sim_vehicle.py -v ArduCopter` |
+| 2 | Windows | `pio run --target uploadfs --target upload` |
+| 3 | Mission Planner | TCP `127.0.0.1:5762` |
+| 4 | Chrome | `http://<ESP32_IP>/` → wait for **MAVLink OK** |
+| 5 | Dashboard | GUIDED → SET MODE → ARM → TAKEOFF |
+
+**Ports:** MavProxy `5760` · Mission Planner `5762` · ESP32 `5763` — do not use `--out=tcpin:0.0.0.0:5763`.
+
+---
+
 ## 🌐 Web Dashboard
 
 Once connected to WiFi, access the dashboard at:
@@ -79,11 +106,11 @@ http://<ESP32_IP_ADDRESS>/
 ```
 
 ### Features:
-- **Device Status**: Chip info, uptime, free heap memory
-- **WiFi Status**: Connection state, IP address, signal strength
-- **LED Control**: Toggle built-in LED ON/OFF
-- **Configuration**: Change WiFi credentials (saves to EEPROM)
-- **Time Display**: Current time from NTP sync
+- **Live MAVLink telemetry** from SITL or Pixhawk (altitude, GPS, battery, speed)
+- **Flight control**: GUIDED mode, arm, autonomous takeoff, land, RTL
+- **WiFi / link status** including SITL TCP connection state
+- **LED demo** controls (bench testing)
+- **Time Display**: NTP-synchronized clock
 
 ## 📡 REST API Endpoints
 

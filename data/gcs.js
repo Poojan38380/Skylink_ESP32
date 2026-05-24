@@ -1,4 +1,4 @@
-// Skylink GCS — application logic (see gcs_config.js for tunables)
+// Skylink GCS — application logic (see gcs_config.js)
 'use strict';
 
 const CFG = typeof SKYLINK_GCS_CONFIG !== 'undefined' ? SKYLINK_GCS_CONFIG : {};
@@ -8,7 +8,6 @@ let reconnectDelay = CFG.wsReconnectInitialMs || 1500;
 let countdownTimer;
 let pingTimestamp = 0;
 let connectedIP = location.hostname;
-
 function updateBuildTag(d) {
   const el = document.getElementById('build-tag');
   if (!el) return;
@@ -17,7 +16,7 @@ function updateBuildTag(d) {
   const fsExp = d && d.fs_build_expected != null ? d.fs_build_expected : (CFG.fsBuild || '?');
   let text = 'FW ' + fw + ' · FS ' + fs;
   if (d && d.fs_build_ok === false) {
-    text += ' (expected ' + fsExp + ' — uploadfs?)';
+    text += ' (expected ' + fsExp + ' — run uploadfs)';
     el.className = 'build-mismatch';
   } else {
     el.className = '';
@@ -25,47 +24,55 @@ function updateBuildTag(d) {
   el.textContent = text;
 }
 
+function initTabs() {
+  const buttons = document.querySelectorAll('.tab-btn');
+  const panels = document.querySelectorAll('.tab-panel');
+
+  function showTab(name) {
+    buttons.forEach((btn) => {
+      const on = btn.dataset.tab === name;
+      btn.classList.toggle('active', on);
+      btn.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    panels.forEach((panel) => {
+      const on = panel.id === 'tab-' + name;
+      panel.classList.toggle('active', on);
+      panel.hidden = !on;
+    });
+    if (name === 'map' && typeof SkylinkMap !== 'undefined' && window.L) {
+      setTimeout(() => window.dispatchEvent(new Event('resize')), 120);
+    }
+  }
+
+  buttons.forEach((btn) => {
+    btn.addEventListener('click', () => showTab(btn.dataset.tab));
+  });
+
+  const saved = CFG.defaultTab || 'map';
+  showTab(saved);
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   const simBanner = document.getElementById('sim-banner');
   if (simBanner && CFG.simulationBanner) simBanner.hidden = false;
   updateBuildTag(null);
-
-  const logToggle = document.getElementById('log-toggle');
-  const logPanel = document.getElementById('log-panel');
-  const logIcon = document.getElementById('log-collapse-icon');
-  if (logToggle && logPanel) {
-    const toggleLog = () => {
-      const collapsed = logPanel.classList.toggle('collapsed');
-      logToggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
-      if (logIcon) logIcon.textContent = collapsed ? '▲' : '▼';
-      if (typeof SkylinkMap !== 'undefined' && window.L) {
-        setTimeout(() => window.dispatchEvent(new Event('resize')), 300);
-      }
-    };
-    logToggle.addEventListener('click', toggleLog);
-    logToggle.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        toggleLog();
-      }
-    });
-  }
+  initTabs();
 });
 
-// ── CLOCK ──────────────────────────────────────────────────────────
 function updateClock() {
-  document.getElementById('sys-time').textContent = new Date().toLocaleTimeString('en-GB', { hour12: false });
+  const el = document.getElementById('sys-time');
+  if (el) el.textContent = new Date().toLocaleTimeString('en-GB', { hour12: false });
 }
 setInterval(updateClock, 1000);
 updateClock();
 
-// ── UPTIME FORMAT ──────────────────────────────────────────────────
 function fmtUptime(s) {
-  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), ss = s % 60;
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(ss).padStart(2, '0')}`;
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const ss = s % 60;
+  return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0') + ':' + String(ss).padStart(2, '0');
 }
 
-// ── SIGNAL CLASS ───────────────────────────────────────────────────
 function signalClass(dbm) {
   if (dbm >= -55) return 's5';
   if (dbm >= -65) return 's4';
@@ -74,36 +81,39 @@ function signalClass(dbm) {
   return 's1';
 }
 
-// ── CONNECTION UI ──────────────────────────────────────────────────
 function setLinkState(state) {
   const badge = document.getElementById('link-badge');
   const dot = document.getElementById('badge-dot');
+  const badgeText = document.getElementById('badge-text');
   const lnkState = document.getElementById('lnk-state');
   const btns = ['btn-arm', 'btn-disarm', 'btn-liftoff', 'btn-land', 'btn-rtl', 'btn-set-mode', 'mode-select'];
   const overlay = document.getElementById('reconnect-overlay');
 
   if (state === 'connected') {
-    badge.className = 'link-badge connected';
-    document.getElementById('badge-text').textContent = 'LINK ACTIVE';
-    dot.className = 'badge-dot pulse';
-    lnkState.textContent = '● CONNECTED';
-    lnkState.className = 'stat-value good';
-    btns.forEach(id => document.getElementById(id).disabled = false);
-    overlay.classList.remove('show');
+    if (badge) badge.className = 'link-badge connected';
+    if (badgeText) badgeText.textContent = 'Connected';
+    if (dot) dot.className = 'badge-dot pulse';
+    if (lnkState) lnkState.textContent = 'Connected';
+    btns.forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.disabled = false;
+    });
+    if (overlay) overlay.classList.remove('show');
   } else if (state === 'disconnected') {
-    badge.className = 'link-badge disconnected';
-    document.getElementById('badge-text').textContent = 'LINK LOST';
-    dot.className = 'badge-dot';
-    lnkState.textContent = '○ DISCONNECTED';
-    lnkState.className = 'stat-value bad';
-    btns.forEach(id => document.getElementById(id).disabled = true);
-    overlay.classList.add('show');
+    if (badge) badge.className = 'link-badge disconnected';
+    if (badgeText) badgeText.textContent = 'Disconnected';
+    if (dot) dot.className = 'badge-dot';
+    if (lnkState) lnkState.textContent = 'Disconnected';
+    btns.forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.disabled = true;
+    });
+    if (overlay) overlay.classList.add('show');
   } else {
-    badge.className = 'link-badge connecting';
-    document.getElementById('badge-text').textContent = 'CONNECTING…';
-    dot.className = 'badge-dot pulse';
-    lnkState.textContent = '◌ CONNECTING';
-    lnkState.className = 'stat-value warn';
+    if (badge) badge.className = 'link-badge connecting';
+    if (badgeText) badgeText.textContent = 'Connecting…';
+    if (dot) dot.className = 'badge-dot pulse';
+    if (lnkState) lnkState.textContent = 'Connecting…';
   }
 }
 
@@ -113,6 +123,13 @@ function setPreflightItem(id, pass) {
   el.className = pass ? 'pass' : 'fail';
   const icon = el.querySelector('.pf-icon');
   if (icon) icon.textContent = pass ? '●' : '○';
+}
+
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
 }
 
 function updatePreflight(d) {
@@ -134,21 +151,29 @@ function updatePreflight(d) {
   const ready = wifiOk && gpsOk && mavOk && batOk && safeOk;
   const summary = document.getElementById('preflight-summary');
   if (summary) {
-    summary.textContent = ready ? 'READY TO ARM' : 'NOT READY';
-    summary.className = 'preflight-summary' + (ready ? ' ready' : (mavOk ? ' warn' : ' bad'));
+    if (ready) {
+      summary.textContent = 'All checks passed — you may arm from the Fly tab.';
+      summary.className = 'fly-ready-banner ready';
+    } else if (!mavOk) {
+      summary.textContent = 'Waiting for MAVLink — open dashboard while SITL is running.';
+      summary.className = 'fly-ready-banner bad';
+    } else {
+      summary.textContent = 'Not ready to arm — review the Status tab checklist.';
+      summary.className = 'fly-ready-banner warn';
+    }
   }
 
   const msgs = document.getElementById('preflight-msgs');
-  if (msgs && Array.isArray(d.statustext) && d.statustext.length) {
-    msgs.innerHTML = d.statustext.slice(-5).map((line) => {
-      const err = /denied|fail|error|prearm|reject/i.test(line);
-      return '<div class="fc-msg' + (err ? ' err' : '') + '">' + escapeHtml(line) + '</div>';
-    }).join('');
+  if (msgs) {
+    if (Array.isArray(d.statustext) && d.statustext.length) {
+      msgs.innerHTML = d.statustext.slice(-8).map((line) => {
+        const err = /denied|fail|error|prearm|reject/i.test(line);
+        return '<div class="fc-msg' + (err ? ' err' : '') + '">' + escapeHtml(line) + '</div>';
+      }).join('');
+    } else if (!msgs.querySelector('.fc-msg')) {
+      msgs.innerHTML = '<div class="fc-msg-empty">No messages yet.</div>';
+    }
   }
-}
-
-function escapeHtml(s) {
-  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 function updateAttitude(d) {
@@ -164,19 +189,26 @@ function updateAttitude(d) {
     horizon.style.top = (50 + pitch * 1.2) + '%';
   }
   if (bubble) bubble.style.transform = 'rotate(' + roll.toFixed(1) + 'deg)';
-  if (rollEl) rollEl.textContent = 'R ' + roll.toFixed(0) + '°';
-  if (pitchEl) pitchEl.textContent = 'P ' + pitch.toFixed(0) + '°';
+  if (rollEl) rollEl.textContent = 'Roll ' + roll.toFixed(0) + '°';
+  if (pitchEl) pitchEl.textContent = 'Pitch ' + pitch.toFixed(0) + '°';
 }
 
-function showToast(message, type) {
-  const stack = document.getElementById('toast-stack');
-  if (!stack || !message) return;
-  const el = document.createElement('div');
-  el.className = 'toast ' + (type || 'info');
-  el.textContent = message;
-  stack.appendChild(el);
-  const ttl = CFG.toastDurationMs || 4500;
-  setTimeout(() => el.remove(), ttl);
+function updateLiveStrip(d) {
+  const mode = d.flight_mode_name || '—';
+  const modeEl = document.getElementById('live-mode');
+  if (modeEl) modeEl.textContent = mode;
+
+  const armEl = document.getElementById('live-arm');
+  if (armEl) {
+    armEl.textContent = d.armed ? 'ARMED' : 'DISARMED';
+    armEl.classList.toggle('armed', !!d.armed);
+  }
+
+  const altEl = document.getElementById('live-alt');
+  if (altEl) altEl.textContent = 'ALT ' + (Number(d.altitude) || 0).toFixed(1) + ' m';
+
+  const spdEl = document.getElementById('live-spd');
+  if (spdEl) spdEl.textContent = 'SPD ' + (Number(d.speed) || 0).toFixed(1) + ' m/s';
 }
 
 function setChip(el, state, text) {
@@ -190,23 +222,25 @@ function updateLinkChips(d) {
   setChip(document.getElementById('chip-ws'), wsOk ? 'ok' : 'warn', wsOk ? 'WS ●' : 'WS ○');
 
   const tcpOk = d.sitl_tcp_connected === true;
-  setChip(document.getElementById('chip-sitl'), tcpOk ? 'ok' : (d.sitl_host_ready ? 'warn' : 'bad'),
-    tcpOk ? 'SITL ●' : (d.sitl_host_ready ? 'SITL ◌' : 'SITL ○'));
+  setChip(
+    document.getElementById('chip-sitl'),
+    tcpOk ? 'ok' : (d.sitl_host_ready ? 'warn' : 'bad'),
+    tcpOk ? 'SITL ●' : (d.sitl_host_ready ? 'SITL ◌' : 'SITL ○')
+  );
 
   const mavOk = d.mav_connected === true;
   setChip(document.getElementById('chip-mav'), mavOk ? 'ok' : 'bad', mavOk ? 'MAV ●' : 'MAV ○');
 
   const wifiOk = d.wifi_connected === true;
   const rssi = Number(d.wifi_rssi) || 0;
-  const wifiText = wifiOk ? ('WiFi ' + rssi + ' dBm') : 'WiFi —';
-  setChip(document.getElementById('chip-wifi'), wifiOk ? 'ok' : 'bad', wifiText);
+  setChip(document.getElementById('chip-wifi'), wifiOk ? 'ok' : 'bad', wifiOk ? ('WiFi ' + rssi) : 'WiFi');
 
-  if (d.simulation && document.getElementById('sim-banner')) {
-    document.getElementById('sim-banner').hidden = false;
+  if (d.simulation) {
+    const banner = document.getElementById('sim-banner');
+    if (banner) banner.hidden = false;
   }
 }
 
-// ── TELEMETRY UI ───────────────────────────────────────────────────
 function updateTelemetry(d) {
   const alt = Number(d.altitude) || 0;
   const spd = Number(d.speed) || 0;
@@ -217,201 +251,193 @@ function updateTelemetry(d) {
   const sats = Number(d.sats) || 0;
   const yaw = Number(d.yaw);
 
-  document.getElementById('tl-alt').textContent = alt.toFixed(1);
-  document.getElementById('tl-speed').textContent = spd.toFixed(1);
-  document.getElementById('tl-lat').textContent = lat.toFixed(6);
-  document.getElementById('tl-lng').textContent = lng.toFixed(6);
-  const hdgEl = document.getElementById('tl-hdg');
-  if (hdgEl) hdgEl.textContent = Number.isFinite(yaw) ? String(Math.round(yaw % 360)) : '—';
-  document.getElementById('lnk-ip').textContent = connectedIP;
-  document.getElementById('lnk-uptime').textContent = fmtUptime(d.uptime || 0);
+  const set = (id, text) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = text;
+  };
+
+  set('tl-alt', alt.toFixed(1));
+  set('tl-speed', spd.toFixed(1));
+  set('tl-lat', lat.toFixed(6));
+  set('tl-lng', lng.toFixed(6));
+  set('tl-hdg', Number.isFinite(yaw) ? String(Math.round(yaw % 360)) : '—');
+  set('lnk-ip', connectedIP);
+  set('lnk-uptime', fmtUptime(d.uptime || 0));
+  set('tl-mode', d.flight_mode_name || String(d.flight_mode ?? '—'));
+  set('tl-bat', bat + '% · ' + batV.toFixed(1) + ' V');
 
   const sitlEl = document.getElementById('lnk-sitl');
-  if (d.mav_connected) {
-    sitlEl.textContent = '● MAVLink · ' + (d.sitl_host || '?') + ':' + (d.sitl_port || CFG.sitlPortDefault || 5763);
-    sitlEl.className = 'stat-value good';
-  } else if (d.sitl_tcp_connected) {
-    sitlEl.textContent = '◌ TCP only · ' + (d.sitl_host || '?') + ':' + (d.sitl_port || CFG.sitlPortDefault || 5763);
-    sitlEl.className = 'stat-value warn';
-  } else if (d.sitl_host_ready) {
-    sitlEl.textContent = '◌ connecting ' + (d.sitl_host || '?') + ':' + (d.sitl_port || CFG.sitlPortDefault || 5763);
-    sitlEl.className = 'stat-value warn';
-  } else {
-    sitlEl.textContent = '○ OPEN DASHBOARD FIRST';
-    sitlEl.className = 'stat-value bad';
+  if (sitlEl) {
+    const port = d.sitl_port || CFG.sitlPortDefault || 5763;
+    const host = d.sitl_host || '?';
+    if (d.mav_connected) {
+      sitlEl.textContent = 'MAVLink OK · ' + host + ':' + port;
+    } else if (d.sitl_tcp_connected) {
+      sitlEl.textContent = 'TCP only · ' + host + ':' + port;
+    } else if (d.sitl_host_ready) {
+      sitlEl.textContent = 'Connecting · ' + host + ':' + port;
+    } else {
+      sitlEl.textContent = 'Open this page to start SITL link';
+    }
   }
 
-  const stateBadge = document.getElementById('lnk-state');
-  if (stateBadge) {
-    stateBadge.textContent = d.armed ? 'ARMED' : 'DISARMED';
-    stateBadge.className = d.armed ? 'stat-value bad' : 'stat-value good';
+  const stateEl = document.getElementById('lnk-state');
+  if (stateEl) stateEl.textContent = d.armed ? 'Armed' : 'Disarmed';
+
+  const bar = document.getElementById('bat-bar');
+  if (bar) {
+    bar.style.width = Math.min(100, Math.max(0, bat)) + '%';
+    bar.style.background = bat > 50 ? 'var(--green)' : bat > 20 ? 'var(--orange)' : 'var(--red)';
   }
 
-  const modeEl = document.getElementById('tl-mode');
-  if (modeEl) modeEl.textContent = d.flight_mode_name || String(d.flight_mode ?? '—');
+  const sb = document.getElementById('signal-bars');
+  if (sb) {
+    if (d.wifi_connected && d.wifi_rssi) {
+      sb.className = 'signal-bars ' + signalClass(Number(d.wifi_rssi));
+    } else if (sats > 9) sb.className = 'signal-bars s5';
+    else if (sats > 6) sb.className = 'signal-bars s4';
+    else if (sats > 3) sb.className = 'signal-bars s3';
+    else sb.className = 'signal-bars s1';
+  }
+
+  set('last-hb-text', (d.sitl_connected ? 'MAVLink live' : 'Waiting') + ' · ' + sats + ' sats');
 
   updateLinkChips(d);
   updatePreflight(d);
   updateAttitude(d);
-
-  document.getElementById('tl-bat').textContent = bat + '% · ' + batV.toFixed(1) + 'V';
-  const bar = document.getElementById('bat-bar');
-  bar.style.width = bat + '%';
-  bar.style.background = bat > 50 ? 'var(--green)' : bat > 20 ? 'var(--orange)' : 'var(--red)';
-
-  const sb = document.getElementById('signal-bars');
-  if (d.wifi_connected && d.wifi_rssi) {
-    sb.className = 'signal-bars ' + signalClass(Number(d.wifi_rssi));
-  } else if (sats > 9) sb.className = 'signal-bars s5';
-  else if (sats > 6) sb.className = 'signal-bars s4';
-  else if (sats > 3) sb.className = 'signal-bars s3';
-  else sb.className = 'signal-bars s1';
-
-  const sitlNote = d.sitl_connected ? 'MAVLink' : 'SITL pending';
-  document.getElementById('last-hb-text').textContent = sitlNote + ' · ' + sats + ' sats';
+  updateLiveStrip(d);
 
   if (typeof SkylinkMap !== 'undefined') SkylinkMap.updateFromTelemetry(d);
 }
 
-// ── LOG ────────────────────────────────────────────────────────────
 function log(tag, tagClass, msg) {
   const box = document.getElementById('log');
+  if (!box) return;
   const ts = new Date().toLocaleTimeString('en-GB', { hour12: false });
   const el = document.createElement('div');
   el.className = 'log-entry';
   el.innerHTML =
-    `<span class="log-ts">${ts}</span>` +
-    `<span class="log-tag ${tagClass}">${tag}</span>` +
-    `<span class="log-msg">${msg}</span>`;
+    '<span class="log-ts">' + ts + '</span>' +
+    '<span class="log-tag ' + tagClass + '">' + tag + '</span>' +
+    '<span class="log-msg">' + escapeHtml(msg) + '</span>';
   box.prepend(el);
-      const maxLog = CFG.commsLogMaxEntries || 40;
-      while (box.children.length > maxLog) box.removeChild(box.lastChild);
+  const maxLog = CFG.commsLogMaxEntries || 40;
+  while (box.children.length > maxLog) box.removeChild(box.lastChild);
 }
 
-// ── COMMANDS ───────────────────────────────────────────────────────
 function sendCmd(command, extra) {
   if (!ws || ws.readyState !== WebSocket.OPEN) return;
-      const msg = { v: CFG.protocolVersion || 1, type: 'command', command, ...(extra || {}) };
+  const msg = { v: CFG.protocolVersion || 1, type: 'command', command, ...(extra || {}) };
   ws.send(JSON.stringify(msg));
   log('TX', 'tag-sys', command + (extra ? ' → ' + JSON.stringify(extra) : ''));
 }
 
-function sendPing() {
-  pingTimestamp = performance.now();
-  sendCmd('PING');
-}
-
 function applyFlightMode() {
-  const mode = document.getElementById('mode-select').value;
-  sendCmd('SET_FLIGHT_MODE', { mode });
+  sendCmd('SET_FLIGHT_MODE', { mode: document.getElementById('mode-select').value });
 }
 
 function armSequence() {
-  const mode = document.getElementById('mode-select').value;
-  if (mode !== 'GUIDED') {
-    log('SYS', 'tag-err', 'Select GUIDED mode before arming (STABILIZE will auto-disarm on ground)');
-    document.getElementById('mode-select').value = 'GUIDED';
+  const modeSelect = document.getElementById('mode-select');
+  if (modeSelect && modeSelect.value !== 'GUIDED') {
+    log('SYS', 'tag-err', 'GUIDED mode required before arming');
+    modeSelect.value = 'GUIDED';
   }
   sendCmd('SET_FLIGHT_MODE', { mode: 'GUIDED' });
-      setTimeout(() => sendCmd('ARM_DRONE'), CFG.armModeDelayMs || 400);
+  setTimeout(() => sendCmd('ARM_DRONE'), CFG.armModeDelayMs || 400);
 }
 
 function autonomousTakeoff() {
-      const alt = prompt('Takeoff altitude (meters)?', String(CFG.defaultTakeoffAltM || 5));
-      if (alt === null) return;
-      const meters = parseFloat(alt);
-      const altMin = CFG.takeoffAltMinM || 1;
-      const altMax = CFG.takeoffAltMaxM || 50;
-      if (isNaN(meters) || meters < altMin || meters > altMax) {
-        log('ERR', 'tag-err', `Invalid altitude (use ${altMin}–${altMax}m)`);
-        return;
-      }
-      sendCmd('SET_FLIGHT_MODE', { mode: 'GUIDED' });
-      setTimeout(() => {
-        sendCmd('ARM_DRONE');
-        setTimeout(() => sendCmd('TAKEOFF', { altitude: meters }), CFG.takeoffArmDelayMs || 500);
-      }, CFG.armModeDelayMs || 400);
-  log('SYS', 'tag-sys', 'Takeoff sequence: GUIDED → ARM → ' + meters + 'm');
+  const alt = prompt('Takeoff altitude (meters)?', String(CFG.defaultTakeoffAltM || 5));
+  if (alt === null) return;
+  const meters = parseFloat(alt);
+  const altMin = CFG.takeoffAltMinM || 1;
+  const altMax = CFG.takeoffAltMaxM || 50;
+  if (isNaN(meters) || meters < altMin || meters > altMax) {
+    log('ERR', 'tag-err', 'Altitude must be between ' + altMin + ' and ' + altMax + ' m');
+    return;
+  }
+  sendCmd('SET_FLIGHT_MODE', { mode: 'GUIDED' });
+  setTimeout(() => {
+    sendCmd('ARM_DRONE');
+    setTimeout(() => sendCmd('TAKEOFF', { altitude: meters }), CFG.takeoffArmDelayMs || 500);
+  }, CFG.armModeDelayMs || 400);
+  log('SYS', 'tag-sys', 'Takeoff: GUIDED → arm → ' + meters + ' m');
 }
 
-// ── RECONNECT COUNTDOWN ────────────────────────────────────────────
 function startCountdown(seconds) {
   clearInterval(countdownTimer);
   let t = seconds;
-  document.getElementById('countdown').textContent = t;
+  const el = document.getElementById('countdown');
+  if (el) el.textContent = t;
   countdownTimer = setInterval(() => {
     t--;
-    document.getElementById('countdown').textContent = t;
+    if (el) el.textContent = t;
     if (t <= 0) clearInterval(countdownTimer);
   }, 1000);
 }
 
-// ── WEBSOCKET ──────────────────────────────────────────────────────
 function connect() {
   setLinkState('connecting');
   const wsProtocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
   ws = new WebSocket(wsProtocol + window.location.host + '/ws');
 
   ws.onopen = () => {
-        reconnectDelay = CFG.wsReconnectInitialMs || 1500;
+    reconnectDelay = CFG.wsReconnectInitialMs || 1500;
     setLinkState('connected');
-    log('SYS', 'tag-sys', 'WebSocket link established → ws://' + location.host + '/ws');
+    log('SYS', 'tag-sys', 'Connected to ' + location.host);
   };
 
   ws.onmessage = (e) => {
     try {
       const d = JSON.parse(e.data);
       switch (d.event) {
-            case 'HEARTBEAT':
-              updateTelemetry(d);
-              updateBuildTag(d);
-              break;
+        case 'HEARTBEAT':
+          updateTelemetry(d);
+          updateBuildTag(d);
+          break;
         case 'LED_STATE':
           break;
         case 'ACK': {
           const ok = d.ok === true || d.result === 0;
-          const label = d.result_name || ('result ' + d.result);
-          showToast('CMD ' + (d.command ?? '?') + ': ' + label, ok ? 'ok' : 'err');
-          log(ok ? 'ACK' : 'ERR', ok ? 'tag-sys' : 'tag-err', 'ACK ' + (d.command ?? '?') + ' → ' + label);
+          const label = d.result_name || ('code ' + d.result);
+          log(ok ? 'ACK' : 'ERR', ok ? 'tag-sys' : 'tag-err', 'Command ' + (d.command ?? '?') + ': ' + label);
           break;
         }
         case 'STATUSTEXT': {
           const txt = d.text || '';
-          const sev = Number(d.severity) || 0;
-          const isErr = sev >= 4 || /denied|fail|error|prearm|reject/i.test(txt);
           if (txt) {
-            showToast(txt, isErr ? 'err' : 'info');
+            const isErr = (Number(d.severity) || 0) >= 4 || /denied|fail|error|prearm|reject/i.test(txt);
             log('FC', isErr ? 'tag-err' : 'tag-sys', txt);
           }
           break;
         }
         case 'PONG': {
           const latency = pingTimestamp ? Math.round(performance.now() - pingTimestamp) : '?';
-          log('PING', 'tag-ping', `PONG ← round-trip ${latency}ms`);
+          log('PING', 'tag-ping', 'Round-trip ' + latency + ' ms');
           break;
         }
         case 'ERROR':
-          log('ERR', 'tag-err', d.message || 'Unknown error from device');
+          log('ERR', 'tag-err', d.message || 'Unknown error');
           break;
         default:
-          log('RX', 'tag-sys', JSON.stringify(d));
+          break;
       }
     } catch (err) {
-      log('ERR', 'tag-err', 'Bad JSON from device: ' + e.data);
+      log('ERR', 'tag-err', 'Invalid message from device');
     }
   };
 
   ws.onclose = () => {
     setLinkState('disconnected');
     const delay = reconnectDelay;
-    log('SYS', 'tag-err', `Link closed. Reconnecting in ${Math.round(delay / 1000)}s…`);
+    log('SYS', 'tag-err', 'Disconnected — retry in ' + Math.round(delay / 1000) + ' s');
     startCountdown(Math.round(delay / 1000));
     setTimeout(connect, delay);
-        reconnectDelay = Math.min(reconnectDelay * 1.5, CFG.wsReconnectMaxMs || 20000);
+    reconnectDelay = Math.min(reconnectDelay * 1.5, CFG.wsReconnectMaxMs || 20000);
   };
 
   ws.onerror = () => {
-    log('ERR', 'tag-err', 'WebSocket transport error — check device power and network');
+    log('ERR', 'tag-err', 'WebSocket error — check ESP32 power and Wi‑Fi');
   };
 }
 

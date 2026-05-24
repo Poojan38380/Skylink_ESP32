@@ -12,8 +12,8 @@ All user-tunable values in one place. Change constants here — not scattered in
 | Dashboard / FS | `SKYLINK_FS_BUILD` + `fs` in JSON + `fsBuild` in JS | `skylink_config.h`, `data/skylink_build.json`, `data/gcs_config.js` | `pio run --target uploadfs` |
 
 **Serial boot log:** `Build FW:5 | FS flash:6 (expected 6) OK`  
-**Dashboard header:** `FW 5 · FS 6`  
-**HTTP check:** `http://<ESP_IP>/health` → `"fw":5,"fs":6,"fs_ok":true`
+**Dashboard header:** `FW 5 · FS 7`  
+**HTTP check:** `http://<ESP_IP>/health` → `"fw":5,"fs":7,"fs_ok":true`
 
 If `FS flash:0` or `MISMATCH` → run `uploadfs` and bump `fs` in all three FS files.
 
@@ -24,7 +24,7 @@ If `FS flash:0` or `MISMATCH` → run `uploadfs` and bump `fs` in all three FS f
 | Constant | Default | Unit | Used by |
 |----------|---------|------|---------|
 | `SKYLINK_FIRMWARE_BUILD` | 5 | — | Serial log, `/health`, dashboard |
-| `SKYLINK_FS_BUILD` | 6 | — | Expected FS (must match `skylink_build.json`) |
+| `SKYLINK_FS_BUILD` | 7 | — | Expected FS (must match `skylink_build.json`) |
 | `SKYLINK_JSON_BUFFER_SIZE` | 1152 | bytes | WS JSON (statustext array) |
 | `SKYLINK_WS_TELEMETRY_INTERVAL_MS` | 100 | ms | 10 Hz browser telemetry |
 | `SKYLINK_WS_TELEMETRY_HZ` | 10 | Hz | Alias for docs |
@@ -62,8 +62,8 @@ Also see `include/config.h` for WiFi reconnect and serial heartbeat logging.
 
 | Key | Default | Purpose |
 |-----|---------|---------|
-| `fsBuild` | 6 | Display / must match `skylink_build.json` |
-| `toastDurationMs` | 4500 | ACK / STATUSTEXT toast TTL |
+| `fsBuild` | 7 | Display / must match `skylink_build.json` |
+| `defaultTab` | map | Initial tab: map, fly, status, log |
 | `preflightMinGpsFix` | 3 | Preflight GPS check |
 | `preflightMinBatteryPct` | 20 | Preflight battery check |
 | `simulationBanner` | true | Show SIMULATION MODE bar (SITL) |

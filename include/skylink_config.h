@@ -45,7 +45,7 @@
 // FIRMWARE: increment before `pio run --target upload`
 #define SKYLINK_FIRMWARE_BUILD          5
 // FS: increment before `pio run --target uploadfs` (must match data/skylink_build.json + gcs_config.js)
-#define SKYLINK_FS_BUILD                6
+#define SKYLINK_FS_BUILD                7
 
 #ifdef SITL_MODE
 constexpr bool SKYLINK_SIMULATION = true;

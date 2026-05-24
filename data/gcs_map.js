@@ -81,7 +81,7 @@ const SkylinkMap = (function () {
       btnFollow.addEventListener('click', () => {
         followDrone = !followDrone;
         btnFollow.classList.toggle('active', followDrone);
-        btnFollow.textContent = followDrone ? '◎ FOLLOW' : '○ FOLLOW';
+        btnFollow.textContent = followDrone ? 'Follow' : 'Follow off';
       });
       btnFollow.classList.toggle('active', followDrone);
     }
@@ -142,12 +142,6 @@ const SkylinkMap = (function () {
       map.panTo([lat, lng], { animate: true, duration: 0.25 });
     }
 
-    const hudAlt = document.getElementById('map-hud-alt');
-    const hudSpd = document.getElementById('map-hud-spd');
-    const hudSats = document.getElementById('map-hud-sats');
-    if (hudAlt) hudAlt.textContent = 'ALT ' + (Number(d.altitude) || 0).toFixed(1) + ' m';
-    if (hudSpd) hudSpd.textContent = 'SPD ' + (Number(d.speed) || 0).toFixed(1) + ' m/s';
-    if (hudSats) hudSats.textContent = 'GPS ' + (Number(d.sats) || 0) + ' sats';
   }
 
   document.addEventListener('DOMContentLoaded', init);

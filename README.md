@@ -82,7 +82,8 @@ Skylink/
 Skylink acts as a **WiFi MAVLink bridge** between a browser dashboard and ArduPilot SITL (or a physical Pixhawk in hardware mode).
 
 **Start here:** [docs/simulation/successful_run_guide.md](docs/simulation/successful_run_guide.md)  
-**AI / developer index:** [docs/simulation/README.md](docs/simulation/README.md)
+**AI / developer index:** [docs/simulation/README.md](docs/simulation/README.md)  
+**Real drone (Pixhawk 2.4.8):** [docs/PIXHAWK_HARDWARE_ROADMAP.md](docs/PIXHAWK_HARDWARE_ROADMAP.md)
 
 ### Quick start (verified May 2026)
 

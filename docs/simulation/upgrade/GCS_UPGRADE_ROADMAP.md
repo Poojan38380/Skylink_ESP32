@@ -265,6 +265,8 @@ Require **armed + GUIDED**; disable otherwise.
 
 ### Pixhawk hardware
 
+Full phased plan: **[../PIXHAWK_HARDWARE_ROADMAP.md](../PIXHAWK_HARDWARE_ROADMAP.md)** (Pixhawk 2.4.8 kit, wiring, params, safety).
+
 - Remove `SITL_MODE`, UART2 wiring, parameter check (`SERIAL2_PROTOCOL`)
 - Replace SIM banner with **LIVE AIRCRAFT** red theme
 - Bench test without props first

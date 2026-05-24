@@ -21,7 +21,7 @@ Skylink evolved from a monolithic `index.html` dashboard into a **tabbed, map-fi
 | 4 — Relative body moves + keyboard | ✅ Done |
 | 5 — Map click-to-fly, geofence, LOITER | ✅ Done (SITL acceptance tests still manual) |
 | 6 — Polish & safety | ❌ Not started |
-| 7+ — Missions / Pixhawk | ❌ Deferred |
+| 7+ — Missions / Pixhawk | 📋 Roadmap: [../PIXHAWK_HARDWARE_ROADMAP.md](../PIXHAWK_HARDWARE_ROADMAP.md) |
 
 **Operational rule:** After **any** firmware change → `pio run --target upload`. After **any** `data/*` change → also `uploadfs`. Bump **both** build counters when you flash (see §8).
 

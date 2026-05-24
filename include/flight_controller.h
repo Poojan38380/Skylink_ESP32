@@ -33,8 +33,8 @@ private:
 
 #ifdef SITL_MODE
     WiFiClient sitlClient;
-    const char* sitlHost = "127.0.0.1"; // Thanks to Mirrored Mode, WSL2 is mapped to localhost!
-    const uint16_t sitlPort = 5760;     // SITL default TCP port
+    String sitlHost = "127.0.0.1";      // Dynamic SITL Host IP
+    const uint16_t sitlPort = 5763;     // SITL default TCP port
 #else
     HardwareSerial& fcSerial;
 #endif
@@ -63,6 +63,7 @@ public:
     // Inbound Telemetry Getters
     FCTelemetry getTelemetry();
     bool isConnected();
+    void setSITLHost(const String& host);
 };
 
 extern FlightController flightController;

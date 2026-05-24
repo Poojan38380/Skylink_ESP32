@@ -18,7 +18,7 @@ During simulation testing, the physical UART wire is replaced with a virtual **W
 ┌───────────────────────────────────────┐
 │        ESP32 Dev Module (Skylink)     │
 └──────────────────┬────────────────────┘
-                   │ MAVLink over WiFi TCP (Port 5760 or 5762)
+                   │ MAVLink over WiFi TCP (Port 5763)
                    ▼
  ───────────────── [WiFi Network Boundary] ─────────────────
                    ▼
@@ -192,8 +192,8 @@ private:
 
 #ifdef SITL_MODE
     WiFiClient sitlClient;
-    const char* sitlHost = "127.0.0.1"; // Thanks to Mirrored Mode, WSL2 is mapped to localhost!
-    const uint16_t sitlPort = 5760;     // SITL default TCP port
+    String sitlHost = "127.0.0.1";      // Dynamic SITL Host IP
+    const uint16_t sitlPort = 5763;     // SITL default TCP port
 #else
     HardwareSerial& fcSerial;
 #endif
@@ -603,7 +603,7 @@ Once your code is written and flashed, use this sequential checklist to test the
 1. Power on your physical ESP32 module.
 2. Check your Serial monitor to verify it connects to your WiFi router successfully.
 3. Observe the logs:
-   - `[INFO] Attempting connection to SITL at 127.0.0.1:5760`
+   - `[INFO] Attempting connection to SITL at <YOUR_LAPTOP_IP>:5763`
    - `[INFO] Connected to ArduPilot SITL Socket!`
    - `[INFO] Stream verified. MAVLink Handshake Established!`
 4. Open your web browser and navigate to `http://<ESP32_IP_ADDRESS>/`.

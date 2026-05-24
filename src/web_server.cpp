@@ -13,6 +13,7 @@ void WebServerModule::onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *cl
     switch (type) {
         case WS_EVT_CONNECT:
             logger.info("WebSocket client #" + String(client->id()) + " connected from " + client->remoteIP().toString());
+            flightController.setSITLHost(client->remoteIP().toString());
             sendAppState();
             break;
         case WS_EVT_DISCONNECT:

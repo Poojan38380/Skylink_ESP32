@@ -26,11 +26,11 @@ Running SITL in **headless mode** is the most stable and performant way to run i
    ```bash
    cd ~/ardupilot/ArduCopter
    ```
-4. Start the flight simulator in **headless mode**:
+4. Start the flight simulator with an open external TCP port:
    ```bash
-   sim_vehicle.py -v ArduCopter
+   sim_vehicle.py -v ArduCopter --out=tcpin:0.0.0.0:5763
    ```
-   *   **What to look for**: Wait about 10–20 seconds. Once the build finishes, you will see a scrolling command line ending with the prompt: `STABILIZE>` or `MAV>`. Your simulated flight controller is now live!
+   *   **What to look for**: Wait about 10–20 seconds. Once the build finishes, you will see a scrolling command line ending with the prompt: `STABILIZE>` or `MAV>`. Your simulated flight controller is now live and accepting external TCP connections on port 5763!
 
 ---
 
@@ -58,8 +58,9 @@ We connect Mission Planner via **TCP** to completely bypass Windows UDP port con
 ## 🔌 Step 3: Run the ESP32 & Custom GCS Dashboard
 Now that your virtual drone is running in the simulator and connected to Mission Planner, let's connect your physical ESP32 and browser dashboard.
 
-1. With your ESP32 flashed and connected to your WiFi, it will automatically search your local network and connect to your laptop at `127.0.0.1:5760` (the master TCP port).
+1. With your ESP32 flashed and connected to your WiFi, it will automatically search your local network and connect to your laptop at `<YOUR_LAPTOP_IP_ADDRESS>:5763` (the dynamic TCP port).
 2. Check your PlatformIO Serial Monitor. You should see:
+   *   `[INFO] SITL Host dynamically updated to GCS IP: <YOUR_LAPTOP_IP>`
    *   `[INFO] Connected to ArduPilot SITL Socket!`
    *   `[INFO] Stream verified. MAVLink Handshake Established!`
 3. Open a web browser (like Google Chrome) on your laptop and navigate to your ESP32's IP address:

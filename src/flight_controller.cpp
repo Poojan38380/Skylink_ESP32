@@ -94,7 +94,7 @@ void FlightController::handle() {
         if (now - lastHeartbeatSent >= 5000) { // Retry connection every 5s
             lastHeartbeatSent = now;
             logger.info("Attempting connection to SITL at " + String(sitlHost) + ":" + String(sitlPort));
-            if (sitlClient.connect(sitlHost, sitlPort)) {
+            if (sitlClient.connect(sitlHost.c_str(), sitlPort)) {
                 logger.info("Connected to ArduPilot SITL Socket!");
                 isConnectedToFC = true;
             } else {
@@ -177,9 +177,22 @@ void FlightController::processMavlinkMessage(mavlink_message_t* msg) {
     }
 }
 
+void FlightController::setSITLHost(const String& host) {
+#ifdef SITL_MODE
+    if (sitlHost != host) {
+        sitlHost = host;
+        logger.info("SITL Host dynamically updated to GCS IP: " + sitlHost);
+        if (sitlClient.connected()) {
+            sitlClient.stop();
+        }
+    }
+#endif
+}
+
 // Instantiate the global object
 #ifdef SITL_MODE
 FlightController flightController;
 #else
 FlightController flightController(Serial2);
 #endif
+

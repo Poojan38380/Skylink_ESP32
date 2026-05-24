@@ -8,10 +8,28 @@
 #include "time_sync.h"
 #include "led_controller.h"
 #include "flight_controller.h"
+#include "skylink_config.h"
+#include "build_info.h"
 
 unsigned long lastHeartbeat = 0;
 unsigned long lastWSHeartbeat = 0;
 unsigned long lastTimeSync = 0;
+
+static void updateLinkLed() {
+    if (!wifiManager.isConnected()) {
+        ledController.setAutoPattern(LedPattern::Off);
+        return;
+    }
+
+    const FCTelemetry fc = flightController.getTelemetry();
+    if (fc.armed) {
+        ledController.setAutoPattern(LedPattern::BlinkFast);
+    } else if (!flightController.isConnected()) {
+        ledController.setAutoPattern(LedPattern::BlinkSlow);
+    } else {
+        ledController.setAutoPattern(LedPattern::Solid);
+    }
+}
 
 void setup() {
     Serial.begin(115200);
@@ -19,14 +37,17 @@ void setup() {
     logger.info("================================");
     logger.info("Skylink ESP32 Starting");
     logger.info("================================");
-    
+
     ledController.begin();
     
-    // Initialize ConfigManager
     configManager.begin();
-    
-    // Initialize WiFi
     wifiManager.begin();
+
+    buildInfoBegin();
+    logger.info("Build FW:" + String(getFirmwareBuild()) +
+                " | FS flash:" + String(getFsBuildOnFlash()) +
+                " (expected " + String(getFsBuildExpected()) + ")" +
+                (isFsBuildMatch() ? " OK" : " MISMATCH — run uploadfs"));
     
     // Initialize OTA
     otaUpdater.begin();
@@ -47,6 +68,8 @@ void loop() {
     wifiManager.handle();
     otaUpdater.handle();
     flightController.handle();
+    updateLinkLed();
+    ledController.update();
     
     // Note: webServerModule.handle() is NOT needed for AsyncWebServer
     
@@ -59,9 +82,12 @@ void loop() {
     }
     
     // Send WebSocket Heartbeat (Telemetric demo)
-    if (wifiManager.isConnected() && (now - lastWSHeartbeat >= 3000)) {
+    if (wifiManager.isConnected() &&
+        webServerModule.getWsClientCount() > 0 &&
+        (now - lastWSHeartbeat >= SKYLINK_WS_TELEMETRY_INTERVAL_MS)) {
         lastWSHeartbeat = now;
         webServerModule.sendHeartbeat();
+        webServerModule.sendPendingFcEvents();
     }
     
     // Serial Heartbeat

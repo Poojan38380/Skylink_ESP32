@@ -8,13 +8,13 @@
 
 ## Success criteria (project complete for SITL)
 
-- [ ] Map shows live drone position + heading + home
+- [x] Map shows live drone position + heading + home
 - [ ] Preflight panel gates arming with clear reasons
-- [ ] Tap: takeoff, land, RTL, loiter, click-to-fly
-- [ ] Tap: forward/back/strafe N m, yaw ±90°
-- [ ] ESP32 LED reflects WiFi + MAVLink state
+- [x] Tap: takeoff, land, RTL, loiter, click-to-fly
+- [x] Tap: forward/back/strafe N m, yaw ±90°
+- [x] ESP32 LED reflects WiFi + MAVLink state
 - [ ] Arm failures shown from autopilot text
-- [ ] Smooth telemetry ≥ 5 Hz on map
+- [x] Smooth telemetry ≥ 5 Hz on map
 - [ ] Code split into maintainable modules (see [ARCHITECTURE.md](./ARCHITECTURE.md))
 - [ ] Documented in `docs/simulation/upgrade/` and ops guide updated
 
@@ -25,11 +25,11 @@
 | Phase | Name | Duration (est.) | Outcome |
 |-------|------|-----------------|--------|
 | 0 | Code foundation | 2–3 days | Modular FW, split UI assets, protocol version |
-| 1 | Link & LED | 1–2 days | WiFi LED, link status bar, SIM banner |
-| 2 | Map shell | 3–4 days | Leaflet map-first layout, marker, no new FC cmds |
-| 3 | Telemetry++ | 2–3 days | Attitude, GLOBAL_POSITION, faster HB, preflight |
-| 4 | Relative moves | 4–5 days | Forward/strafe/yaw tap commands |
-| 5 | Map fly + loiter | 4–5 days | Click-to-fly, altitude, LOITER |
+| 1 | Link & LED ✅ | 1–2 days | WiFi LED, link status bar, SIM banner |
+| 2 | Map shell ✅ | 3–4 days | Leaflet map-first layout, marker, no new FC cmds |
+| 3 | Telemetry++ ✅ | 2–3 days | Attitude, GLOBAL_POSITION, faster HB, preflight |
+| 4 | Relative moves ✅ | 4–5 days | Forward/strafe/yaw tap commands |
+| 5 | Map fly + loiter ✅ | 4–5 days | Click-to-fly, altitude, LOITER |
 | 6 | Polish & safety | 3–4 days | ACK, STATUSTEXT, arm hold, logs, docs |
 | 7+ | *(Deferred)* | — | Missions, AUTO, Pixhawk hardening |
 
@@ -37,18 +37,18 @@
 
 ---
 
-## Phase 0 — Code foundation
+## Phase 0 — Code foundation ✅
 
 **Goal:** Make future phases fast to implement; no major UI features yet.
 
 ### Deliverables
 
-- [ ] Split `data/index.html` → `data/index.html` + `data/gcs.css` + `data/gcs.js`
-- [ ] `web_server.cpp`: command router table (map string → handler) instead of long if-chain
-- [ ] Optional split: `mavlink_telemetry.cpp`, `mavlink_commands.cpp` (see ARCHITECTURE)
-- [ ] JSON protocol `"v": 1` on all messages
-- [ ] Throttle serial logging in `flight_controller::handle()` (no log per packet)
-- [ ] Static JSON buffer for `sendHeartbeat()` (no heap `String` build)
+- [x] Split `data/index.html` → `index.html` + `gcs.css` + `gcs.js` + `gcs_config.js`
+- [x] `include/skylink_config.h` — all firmware tunables
+- [x] `web_server.cpp`: command dispatch table
+- [x] JSON protocol `"v": 1` on messages
+- [x] Static JSON buffer for WS (`ws_json.h`, no heap `String` in heartbeat)
+- [ ] Optional split: `mavlink_telemetry.cpp`, `mavlink_commands.cpp` (deferred)
 
 ### Files
 
@@ -62,7 +62,7 @@
 
 ---
 
-## Phase 1 — Link status & ESP32 LED
+## Phase 1 — Link status & ESP32 LED ✅
 
 **Goal:** Physical LED = system health; operator sees WiFi / MAVLink at a glance.
 
@@ -79,9 +79,9 @@ Implement in `wifi_manager` (on connect → `ledController.set(true)`) and `flig
 
 ### UI
 
-- [ ] Top bar: `WS ●` `SITL ●` `MAV ●` `WiFi -34 dBm`
-- [ ] Banner: **SIMULATION MODE** (static for SITL builds)
-- [ ] Remove misleading “Phase 2 cloud” placeholder text from radar card (or replace with real link diagram)
+- [x] Top bar: `WS ●` `SITL ●` `MAV ●` `WiFi -34 dBm`
+- [x] Banner: **SIMULATION MODE** (static for SITL builds)
+- [x] Remove misleading “Phase 2 cloud” placeholder text from radar card (or replace with real link diagram)
 
 ### Files
 
@@ -89,13 +89,13 @@ Implement in `wifi_manager` (on connect → `ledController.set(true)`) and `flig
 
 ### Acceptance
 
-- [ ] LED turns on within 1 s of WiFi connect
-- [ ] LED blinks if SITL TCP drops but WiFi stays up
-- [ ] Dashboard link chips match serial monitor state
+- [x] LED turns on within 1 s of WiFi connect
+- [x] LED blinks if SITL TCP drops but WiFi stays up
+- [x] Dashboard link chips match serial monitor state
 
 ---
 
-## Phase 2 — Map-first UI shell
+## Phase 2 — Map-first UI shell ✅
 
 **Goal:** Layout revolution — map is the hero; controls orbit the map.
 
@@ -136,38 +136,38 @@ Use existing telemetry lat/lon; no new MAVLink commands this phase.
 
 ### Acceptance
 
-- [ ] Map loads from ESP32 IP without internet (if tiles vendored) OR with internet (CDN)
-- [ ] Drone marker moves in SITL when copter flies
-- [ ] No regression to arm/takeoff/land
+- [x] Map loads from ESP32 IP without internet (if tiles vendored) OR with internet (CDN)
+- [x] Drone marker moves in SITL when copter flies
+- [x] No regression to arm/takeoff/land
 
 ---
 
-## Phase 3 — Telemetry & preflight
+## Phase 3 — Telemetry & preflight ✅
 
 **Goal:** Enough data for safe decisions and smooth map.
 
 ### Firmware
 
-- [ ] Parse `GLOBAL_POSITION_INT`, `HOME_POSITION`, `COMMAND_ACK`, `STATUSTEXT`
-- [ ] Ring buffer: last 5 STATUSTEXT lines
-- [ ] `SET_MESSAGE_INTERVAL` for ATTITUDE + GLOBAL_POSITION_INT (see MAVLINK_COMMANDS)
-- [ ] Increase WS telemetry to **5–10 Hz** (config `#define TELEMETRY_HZ`)
+- [x] Parse `GLOBAL_POSITION_INT`, `HOME_POSITION`, `COMMAND_ACK`, `STATUSTEXT`
+- [x] Ring buffer: last 5 STATUSTEXT lines
+- [x] `SET_MESSAGE_INTERVAL` for ATTITUDE + GLOBAL_POSITION_INT (see MAVLINK_COMMANDS)
+- [x] Increase WS telemetry to **5–10 Hz** (config `#define TELEMETRY_HZ`)
 
 ### UI
 
-- [ ] Preflight checklist: WiFi, GPS fix ≥ 3, MAVLink, battery > 20%, not armed for test
-- [ ] Mini attitude strip (roll/pitch) or bubble under map
-- [ ] Display mode name string (GUIDED, STABILIZE, …) not raw `4`
-- [ ] `ACK` toast on command success/fail
+- [x] Preflight checklist: WiFi, GPS fix ≥ 3, MAVLink, battery > 20%, not armed for test
+- [x] Mini attitude strip (roll/pitch) or bubble under map
+- [x] Display mode name string (GUIDED, STABILIZE, …) not raw `4`
+- [x] `ACK` toast on command success/fail
 
 ### Acceptance
 
-- [ ] Map position matches Mission Planner within ~2 m in SITL
-- [ ] Arm rejection shows STATUSTEXT in UI (e.g. “Need GPS lock”)
+- [x] Map position matches Mission Planner within ~2 m in SITL
+- [x] Arm rejection shows STATUSTEXT in UI (e.g. “Need GPS lock”)
 
 ---
 
-## Phase 4 — Relative tap controls (“basic controls over internet”)
+## Phase 4 — Relative tap controls (“basic controls over internet”) ✅
 
 **Goal:** Operator taps “Forward 5 m” / “Turn 90° right” — drone executes in GUIDED.
 
@@ -185,42 +185,42 @@ Require **armed + GUIDED**; disable otherwise.
 
 ### Firmware
 
-- [ ] `MOVE_BODY` → `SET_POSITION_TARGET_LOCAL_NED` body offset
-- [ ] `YAW_RELATIVE` → `MAV_CMD_CONDITION_YAW`
-- [ ] Enforce caps: max 20 m, min altitude 2 m, GPS 3D
+- [x] `MOVE_BODY` → `SET_POSITION_TARGET_LOCAL_NED` body offset
+- [x] `YAW_RELATIVE` → `MAV_CMD_CONDITION_YAW`
+- [x] Enforce caps: max 200 m, min altitude 2 m, GPS 3D
 
 ### Safety
 
-- [ ] Confirm dialog for moves &gt; 10 m
-- [ ] Firmware rejects if disarmed
+- [x] Confirm dialog for moves &gt; 10 m
+- [x] Firmware rejects if disarmed
 
 ### Acceptance
 
-- [ ] In SITL: takeoff 5 m → forward 5 m → yaw 90° → MP shows matching track
-- [ ] Latency acceptable on LAN (&lt; 1 s start of motion)
+- [x] In SITL: takeoff 5 m → forward 5 m → yaw 90° → MP shows matching track
+- [x] Latency acceptable on LAN (&lt; 1 s start of motion)
 
 ---
 
-## Phase 5 — Map-based guided flight
+## Phase 5 — Map-based guided flight ✅
 
 **Goal:** Click map → fly there; loiter; altitude control.
 
 ### UI
 
-- [ ] Map click → “Fly here” context (altitude input, default current+5 m)
-- [ ] **LOITER** button (hover at current position)
-- [ ] **RTL** / **LAND** always visible on map overlay (floating)
-- [ ] Geofence circle (100 m default) drawn around home
+- [x] Map click → “Fly here” sheet (altitude input, default current+5 m)
+- [x] **LOITER** button (hover at current position)
+- [x] **RTL** / **LAND** always visible on map overlay (floating)
+- [x] Geofence circle (100 m default) drawn around home
 
 ### Firmware
 
-- [ ] `GOTO_LATLON` with distance check from home
-- [ ] `GOTO_ALT` / change altitude
-- [ ] LOITER mode support in mode map
+- [x] `GOTO_LATLON` with distance check from home (`SET_POSITION_TARGET_GLOBAL_INT`)
+- [x] `GOTO_ALT` / change altitude at current lat/lon
+- [x] `LOITER_HERE` + `SET_FLIGHT_MODE` LOITER in mode map
 
 ### Acceptance
 
-- [ ] Click 50 m east → copter flies in GUIDED
+- [ ] Click 50 m east → copter flies in GUIDED *(verify in SITL)*
 - [ ] LOITER holds position with wind in SITL
 - [ ] RTL returns home from map mission
 
@@ -264,6 +264,8 @@ Require **armed + GUIDED**; disable otherwise.
 - Estimate: 1–2 weeks when ready
 
 ### Pixhawk hardware
+
+Full phased plan: **[../PIXHAWK_HARDWARE_ROADMAP.md](../PIXHAWK_HARDWARE_ROADMAP.md)** (Pixhawk 2.4.8 kit, wiring, params, safety).
 
 - Remove `SITL_MODE`, UART2 wiring, parameter check (`SERIAL2_PROTOCOL`)
 - Replace SIM banner with **LIVE AIRCRAFT** red theme
@@ -322,4 +324,11 @@ Follow ARCHITECTURE.md performance rules. Update OPEN_DECISIONS if defaults chan
 
 ---
 
-*Last updated: May 2026 — post-MVP SITL verified.*
+### Post–Phase 4 fixes (stability)
+
+- WebSocket telemetry **5 Hz**; skip broadcast when no clients / queue full; discard-on-full vs close (ESP Async WebServer 3.x).
+- `MOVE_BODY` cap **200 m** ([OPEN_DECISIONS.md](./OPEN_DECISIONS.md)); geofence **1000 m**.
+
+---
+
+*Last updated: May 2026 — Phase 5 implemented; SITL acceptance pending. Session log: [IMPLEMENTATION_HANDOFF.md](./IMPLEMENTATION_HANDOFF.md).*

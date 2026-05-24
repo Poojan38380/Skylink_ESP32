@@ -4,1132 +4,302 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Skylink GCS — Ground Control Station</title>
+  <title>Skylink GCS</title>
   <link rel="icon" href="/favicon.ico" type="image/x-icon">
-  <link rel="apple-touch-icon" href="/apple-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&display=swap"
-    rel="stylesheet">
-  <style>
-    :root {
-      --bg: #0d1117;
-      --surface: #161b22;
-      --border: #21262d;
-      --border2: #30363d;
-      --accent: #00d4ff;
-      --green: #3fb950;
-      --red: #f85149;
-      --orange: #d29922;
-      --muted: #8b949e;
-      --text: #e6edf3;
-      --font: 'JetBrains Mono', 'Courier New', monospace;
-    }
-
-    *,
-    *::before,
-    *::after {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
-    body {
-      font-family: var(--font);
-      background: var(--bg);
-      color: var(--text);
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-    }
-
-    /* ── HEADER ─────────────────────────────────────────── */
-    header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 12px 24px;
-      background: var(--surface);
-      border-bottom: 1px solid var(--border2);
-      flex-wrap: wrap;
-      gap: 8px;
-    }
-
-    .logo {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .logo .icon {
-      width: 32px;
-      height: 32px;
-      background: var(--accent);
-      border-radius: 8px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 18px;
-      flex-shrink: 0;
-    }
-
-    .logo-text {
-      line-height: 1.15;
-    }
-
-    .logo-text .brand {
-      font-size: 15px;
-      font-weight: 700;
-      color: var(--accent);
-      letter-spacing: 2px;
-    }
-
-    .logo-text .sub {
-      font-size: 10px;
-      color: var(--muted);
-      letter-spacing: 1px;
-    }
-
-    .header-right {
-      display: flex;
-      align-items: center;
-      gap: 20px;
-    }
-
-    #sys-time {
-      font-size: 13px;
-      color: var(--muted);
-      letter-spacing: 1px;
-    }
-
-    .link-badge {
-      display: flex;
-      align-items: center;
-      gap: 7px;
-      padding: 5px 12px;
-      border-radius: 20px;
-      border: 1px solid var(--border2);
-      font-size: 12px;
-      font-weight: 600;
-      letter-spacing: 1px;
-      transition: all 0.4s;
-    }
-
-    .link-badge.connected {
-      border-color: var(--green);
-      color: var(--green);
-    }
-
-    .link-badge.disconnected {
-      border-color: var(--red);
-      color: var(--red);
-    }
-
-    .link-badge.connecting {
-      border-color: var(--orange);
-      color: var(--orange);
-    }
-
-    .badge-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: currentColor;
-    }
-
-    .badge-dot.pulse {
-      animation: pulse 1.5s ease-in-out infinite;
-    }
-
-    @keyframes pulse {
-
-      0%,
-      100% {
-        opacity: 1;
-        box-shadow: 0 0 0 0 currentColor;
-      }
-
-      50% {
-        opacity: 0.7;
-        box-shadow: 0 0 0 4px transparent;
-      }
-    }
-
-    /* ── MAIN GRID ───────────────────────────────────────── */
-    main {
-      flex: 1;
-      display: grid;
-      grid-template-columns: 300px 1fr;
-      grid-template-rows: auto auto 1fr;
-      gap: 16px;
-      padding: 16px 24px;
-      max-width: 1200px;
-      width: 100%;
-      margin: 0 auto;
-    }
-
-    /* ── CARDS ───────────────────────────────────────────── */
-    .card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      overflow: hidden;
-    }
-
-    .card-header {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 10px 14px;
-      border-bottom: 1px solid var(--border);
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 2px;
-      color: var(--muted);
-      text-transform: uppercase;
-    }
-
-    .card-header .dot-indicator {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: var(--accent);
-    }
-
-    .card-body {
-      padding: 14px;
-    }
-
-    /* ── LEFT COLUMN ─────────────────────────────────────── */
-    .left-col {
-      grid-column: 1;
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-    }
-
-    /* LINK STATUS */
-    .stat-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 7px 0;
-      border-bottom: 1px solid var(--border);
-      font-size: 12px;
-    }
-
-    .stat-row:last-child {
-      border-bottom: none;
-    }
-
-    .stat-label {
-      color: var(--muted);
-    }
-
-    .stat-value {
-      color: var(--text);
-      font-weight: 600;
-    }
-
-    .stat-value.good {
-      color: var(--green);
-    }
-
-    .stat-value.warn {
-      color: var(--orange);
-    }
-
-    .stat-value.bad {
-      color: var(--red);
-    }
-
-    /* SIGNAL BARS */
-    .signal-bars {
-      display: flex;
-      align-items: flex-end;
-      gap: 3px;
-      height: 16px;
-    }
-
-    .signal-bars span {
-      width: 4px;
-      background: var(--border2);
-      border-radius: 2px;
-      transition: background 0.5s;
-    }
-
-    .signal-bars span:nth-child(1) {
-      height: 4px;
-    }
-
-    .signal-bars span:nth-child(2) {
-      height: 7px;
-    }
-
-    .signal-bars span:nth-child(3) {
-      height: 10px;
-    }
-
-    .signal-bars span:nth-child(4) {
-      height: 13px;
-    }
-
-    .signal-bars span:nth-child(5) {
-      height: 16px;
-    }
-
-    .signal-bars.s5 span {
-      background: var(--green);
-    }
-
-    .signal-bars.s4 span:nth-child(-n+4) {
-      background: var(--green);
-    }
-
-    .signal-bars.s3 span:nth-child(-n+3) {
-      background: var(--orange);
-    }
-
-    .signal-bars.s2 span:nth-child(-n+2) {
-      background: var(--orange);
-    }
-
-    .signal-bars.s1 span:nth-child(1) {
-      background: var(--red);
-    }
-
-    /* LED ACTUATOR */
-    .led-panel {
-      text-align: center;
-      padding: 10px 0 4px;
-    }
-
-    .led-orb {
-      width: 60px;
-      height: 60px;
-      border-radius: 50%;
-      margin: 0 auto 12px;
-      background: #1a1a1a;
-      border: 3px solid var(--border2);
-      transition: all 0.3s;
-      position: relative;
-    }
-
-    .led-orb.on {
-      background: radial-gradient(circle at 35% 35%, #fffde7, #ffd700 50%, #e6a800);
-      border-color: #ffd700;
-      box-shadow: 0 0 20px 8px rgba(255, 215, 0, 0.35), 0 0 50px rgba(255, 215, 0, 0.15);
-    }
-
-    .led-status-text {
-      font-size: 13px;
-      font-weight: 700;
-      color: var(--muted);
-      letter-spacing: 2px;
-      margin-bottom: 14px;
-      transition: color 0.3s;
-    }
-
-    .led-status-text.on {
-      color: #ffd700;
-    }
-
-    .btn-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-      margin-bottom: 8px;
-    }
-
-    .btn-row.wide {
-      grid-template-columns: 1fr 1fr;
-    }
-
-    button {
-      font-family: var(--font);
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 1px;
-      padding: 9px 6px;
-      border-radius: 6px;
-      border: 1px solid;
-      cursor: pointer;
-      transition: all 0.15s;
-    }
-
-    button:disabled {
-      opacity: 0.35;
-      cursor: not-allowed;
-    }
-
-    button:not(:disabled):hover {
-      filter: brightness(1.2);
-      transform: translateY(-1px);
-    }
-
-    button:not(:disabled):active {
-      transform: translateY(0);
-    }
-
-    .btn-on {
-      background: rgba(63, 185, 80, 0.12);
-      border-color: var(--green);
-      color: var(--green);
-    }
-
-    .btn-off {
-      background: rgba(248, 81, 73, 0.12);
-      border-color: var(--red);
-      color: var(--red);
-    }
-
-    .btn-toggle {
-      background: rgba(0, 212, 255, 0.12);
-      border-color: var(--accent);
-      color: var(--accent);
-      grid-column: 1 / -1;
-    }
-
-    .btn-ping {
-      background: rgba(139, 148, 158, 0.1);
-      border-color: var(--border2);
-      color: var(--muted);
-      grid-column: 1 / -1;
-    }
-
-    /* ── RIGHT COLUMN ────────────────────────────────────── */
-    .right-col {
-      grid-column: 2;
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-    }
-
-    /* TELEMETRY GRID */
-    .telemetry-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-    }
-
-    .telem-card {
-      background: rgba(0, 0, 0, 0.2);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 12px 14px;
-    }
-
-    .telem-label {
-      font-size: 10px;
-      letter-spacing: 2px;
-      color: var(--muted);
-      text-transform: uppercase;
-      margin-bottom: 6px;
-    }
-
-    .telem-value {
-      font-size: 26px;
-      font-weight: 700;
-      color: var(--accent);
-      line-height: 1;
-    }
-
-    .telem-unit {
-      font-size: 12px;
-      color: var(--muted);
-      margin-left: 4px;
-      font-weight: 400;
-    }
-
-    /* BATTERY BAR */
-    .battery-bar-wrap {
-      margin-top: 8px;
-      height: 6px;
-      background: var(--border2);
-      border-radius: 3px;
-      overflow: hidden;
-    }
-
-    .battery-bar {
-      height: 100%;
-      border-radius: 3px;
-      transition: width 1s ease, background 0.5s;
-    }
-
-    /* GPS */
-    .gps-row {
-      display: flex;
-      gap: 8px;
-      font-size: 12px;
-      margin-top: 4px;
-      color: var(--muted);
-    }
-
-    .gps-coord {
-      color: var(--text);
-    }
-
-    /* RADAR DECORATION */
-    .radar-wrap {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 10px;
-    }
-
-    .radar {
-      width: 90px;
-      height: 90px;
-      border-radius: 50%;
-      border: 1px solid rgba(0, 212, 255, 0.25);
-      position: relative;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .radar::before,
-    .radar::after {
-      content: '';
-      position: absolute;
-      border-radius: 50%;
-      border: 1px solid rgba(0, 212, 255, 0.15);
-    }
-
-    .radar::before {
-      width: 60%;
-      height: 60%;
-    }
-
-    .radar::after {
-      width: 30%;
-      height: 30%;
-    }
-
-    .radar-sweep {
-      position: absolute;
-      width: 50%;
-      height: 1px;
-      background: linear-gradient(90deg, transparent, var(--accent));
-      transform-origin: right center;
-      right: 50%;
-      top: 50%;
-      animation: sweep 3s linear infinite;
-    }
-
-    @keyframes sweep {
-      from {
-        transform: rotate(0deg);
-      }
-
-      to {
-        transform: rotate(360deg);
-      }
-    }
-
-    .radar-blip {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: var(--green);
-      box-shadow: 0 0 6px var(--green);
-      animation: blip 3s ease-in-out infinite;
-    }
-
-    @keyframes blip {
-
-      0%,
-      100% {
-        opacity: 1
-      }
-
-      50% {
-        opacity: 0.3
-      }
-    }
-
-    /* LOG */
-    .log-card {
-      grid-column: 1 / -1;
-    }
-
-    .log-body {
-      padding: 0;
-      height: 190px;
-      overflow-y: auto;
-    }
-
-    .log-body::-webkit-scrollbar {
-      width: 4px;
-    }
-
-    .log-body::-webkit-scrollbar-track {
-      background: transparent;
-    }
-
-    .log-body::-webkit-scrollbar-thumb {
-      background: var(--border2);
-      border-radius: 2px;
-    }
-
-    .log-entry {
-      display: grid;
-      grid-template-columns: 70px 70px 1fr;
-      gap: 8px;
-      padding: 6px 14px;
-      font-size: 11px;
-      border-bottom: 1px solid var(--border);
-      align-items: start;
-    }
-
-    .log-entry:first-child {
-      background: rgba(0, 212, 255, 0.04);
-    }
-
-    .log-ts {
-      color: var(--muted);
-    }
-
-    .log-tag {
-      font-weight: 700;
-      letter-spacing: 1px;
-    }
-
-    .log-msg {
-      color: #cdd9e5;
-      word-break: break-word;
-    }
-
-    .tag-hb {
-      color: var(--orange);
-    }
-
-    .tag-led {
-      color: var(--green);
-    }
-
-    .tag-sys {
-      color: var(--accent);
-    }
-
-    .tag-ping {
-      color: #a371f7;
-    }
-
-    .tag-err {
-      color: var(--red);
-    }
-
-    /* RECONNECT OVERLAY */
-    #reconnect-overlay {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(13, 17, 23, 0.85);
-      z-index: 100;
-      align-items: center;
-      justify-content: center;
-      flex-direction: column;
-      gap: 16px;
-      backdrop-filter: blur(4px);
-    }
-
-    #reconnect-overlay.show {
-      display: flex;
-    }
-
-    .reconnect-icon {
-      font-size: 48px;
-      animation: spin 2s linear infinite;
-    }
-
-    @keyframes spin {
-      from {
-        transform: rotate(0)
-      }
-
-      to {
-        transform: rotate(360deg)
-      }
-    }
-
-    .reconnect-text {
-      font-size: 15px;
-      color: var(--orange);
-      font-weight: 600;
-    }
-
-    .reconnect-sub {
-      font-size: 12px;
-      color: var(--muted);
-    }
-
-    /* RESPONSIVE */
-    @media (max-width: 768px) {
-      main {
-        grid-template-columns: 1fr;
-        padding: 12px;
-      }
-
-      .left-col,
-      .right-col {
-        grid-column: 1;
-      }
-
-      .telemetry-grid {
-        grid-template-columns: 1fr 1fr;
-      }
-
-      .radar-wrap {
-        display: none;
-      }
-    }
-  </style>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/lib/leaflet/leaflet.css">
+  <link rel="stylesheet" href="/gcs.css">
 </head>
 
 <body>
 
-  <!-- RECONNECT OVERLAY -->
   <div id="reconnect-overlay">
     <div class="reconnect-icon">📡</div>
-    <div class="reconnect-text">LINK LOST</div>
-    <div class="reconnect-sub" id="reconnect-sub">Reconnecting in <span id="countdown">5</span>s…</div>
+    <div class="reconnect-text">Connection lost</div>
+    <div class="reconnect-sub">Reconnecting in <span id="countdown">5</span>s…</div>
   </div>
 
-  <!-- HEADER -->
-  <header>
+  <header class="app-header">
     <div class="logo">
-      <div class="icon">🛰</div>
-      <div class="logo-text">
-        <div class="brand">SKYLINK GCS</div>
-        <div class="sub">GROUND CONTROL STATION · v2.0</div>
+      <div class="logo-mark">🛰</div>
+      <div>
+        <div class="logo-title">Skylink GCS</div>
+        <div class="logo-sub">Build <span id="build-tag">FW ? · FS ?</span></div>
       </div>
     </div>
-    <div class="header-right">
-      <div id="sys-time">--:--:--</div>
+    <div class="header-status">
+      <div class="link-chips" id="link-chips" aria-label="Link status">
+        <span class="link-chip warn" id="chip-ws">WS</span>
+        <span class="link-chip bad" id="chip-sitl">SITL</span>
+        <span class="link-chip bad" id="chip-mav">MAV</span>
+        <span class="link-chip bad" id="chip-wifi">WiFi</span>
+      </div>
+      <div class="header-clock" id="sys-time">--:--:--</div>
       <div class="link-badge connecting" id="link-badge">
-        <div class="badge-dot pulse" id="badge-dot"></div>
-        <span id="badge-text">CONNECTING</span>
+        <span class="badge-dot pulse" id="badge-dot"></span>
+        <span id="badge-text">Connecting</span>
       </div>
     </div>
   </header>
 
-  <!-- MAIN -->
-  <main>
-    <!-- LEFT COLUMN -->
-    <div class="left-col">
+  <div class="sim-banner" id="sim-banner" hidden>
+    Simulation mode — SITL only. Do not use on real aircraft without hardware checks.
+  </div>
 
-      <!-- LINK STATUS -->
-      <div class="card">
-        <div class="card-header">
-          <div class="dot-indicator"></div>
-          LINK STATUS
-        </div>
-        <div class="card-body">
-          <div class="stat-row">
-            <span class="stat-label">STATE</span>
-            <span class="stat-value" id="lnk-state">—</span>
-          </div>
-          <div class="stat-row">
-            <span class="stat-label">IP ADDRESS</span>
-            <span class="stat-value" id="lnk-ip">—</span>
-          </div>
-          <div class="stat-row">
-            <span class="stat-label">SIGNAL</span>
-            <div class="signal-bars" id="signal-bars">
-              <span></span><span></span><span></span><span></span><span></span>
+  <nav class="tab-bar" role="tablist" aria-label="Main sections">
+    <button type="button" class="tab-btn active" role="tab" aria-selected="true" data-tab="map" id="tab-btn-map">
+      <span class="tab-label">Map</span>
+      <span class="tab-hint">Position &amp; trail</span>
+    </button>
+    <button type="button" class="tab-btn" role="tab" aria-selected="false" data-tab="fly" id="tab-btn-fly">
+      <span class="tab-label">Fly</span>
+      <span class="tab-hint">Arm, mode, takeoff</span>
+    </button>
+    <button type="button" class="tab-btn" role="tab" aria-selected="false" data-tab="status" id="tab-btn-status">
+      <span class="tab-label">Status</span>
+      <span class="tab-hint">Preflight &amp; telemetry</span>
+    </button>
+    <button type="button" class="tab-btn" role="tab" aria-selected="false" data-tab="log" id="tab-btn-log">
+      <span class="tab-label">Log</span>
+      <span class="tab-hint">Messages</span>
+    </button>
+  </nav>
+
+  <main class="app-main">
+
+    <!-- MAP -->
+    <section class="tab-panel active" id="tab-map" role="tabpanel" aria-labelledby="tab-btn-map">
+      <div class="map-stage">
+        <div id="map" aria-label="Live map"></div>
+        <div class="map-overlay map-overlay-left">
+          <div class="attitude-card">
+            <div class="att-bubble" id="att-bubble">
+              <div class="att-horizon" id="att-horizon"></div>
+              <div class="att-drone">▲</div>
+            </div>
+            <div class="att-readouts">
+              <span id="att-roll">Roll —°</span>
+              <span id="att-pitch">Pitch —°</span>
             </div>
           </div>
-          <div class="stat-row">
-            <span class="stat-label">UPTIME</span>
-            <span class="stat-value" id="lnk-uptime">—</span>
+        </div>
+        <div class="map-overlay map-overlay-top">
+          <div class="live-strip">
+            <span class="live-pill" id="live-mode">MODE —</span>
+            <span class="live-pill" id="live-arm">DISARMED</span>
+            <span class="live-pill" id="live-alt">ALT — m</span>
+            <span class="live-pill" id="live-spd">SPD — m/s</span>
           </div>
-          <div class="stat-row">
-            <span class="stat-label">SITL LINK</span>
-            <span class="stat-value" id="lnk-sitl">—</span>
-          </div>
-          <div class="stat-row">
-            <span class="stat-label">DEVICE</span>
-            <span class="stat-value" style="color:var(--muted)">ESP32-SKYLINK</span>
+        </div>
+        <div class="map-overlay map-overlay-right">
+          <button type="button" class="map-btn" id="btn-map-center">Center</button>
+          <button type="button" class="map-btn active" id="btn-map-follow">Follow</button>
+        </div>
+        <div class="map-overlay map-overlay-bottom" role="toolbar" aria-label="Quick flight actions">
+          <button type="button" class="map-btn map-btn-action" id="btn-map-loiter" disabled title="Hold position (LOITER)">Loiter</button>
+          <button type="button" class="map-btn map-btn-action" id="btn-map-land" disabled title="Land in place">Land</button>
+          <button type="button" class="map-btn map-btn-action map-btn-danger" id="btn-map-rtl" disabled title="Return to home">RTL</button>
+        </div>
+        <div class="goto-sheet" id="goto-sheet" hidden>
+          <div class="goto-sheet-inner">
+            <h3 class="goto-title">Fly here</h3>
+            <p class="goto-meta" id="goto-coords">—</p>
+            <p class="goto-meta" id="goto-dist">—</p>
+            <label class="goto-label" for="goto-alt">Altitude (m, relative to home)</label>
+            <input type="number" id="goto-alt" class="goto-alt-input" min="2" max="50" step="0.5" value="5">
+            <div class="goto-actions">
+              <button type="button" class="btn btn-primary" id="goto-confirm">Go</button>
+              <button type="button" class="btn btn-secondary" id="goto-cancel">Cancel</button>
+            </div>
           </div>
         </div>
       </div>
 
-      <!-- FLIGHT ACTUATOR -->
-      <div class="card">
-        <div class="card-header">
-          <div class="dot-indicator" style="background:var(--orange)"></div>
-          FLIGHT ACTUATOR · AUTOPILOT
+      <div class="map-dock" id="move-section">
+        <div class="map-dock-header">
+          <h2 class="section-title">Drone control</h2>
+          <p class="section-desc">Tap the map to <strong>fly here</strong> (within geofence). Relative moves below use body frame. Arm in <strong>GUIDED</strong> from the Fly tab first.</p>
         </div>
-        <div class="card-body">
-          <div class="led-panel">
-            <div class="led-orb" id="led-orb"></div>
-            <div class="led-status-text" id="led-status-text">UNKNOWN</div>
-          </div>
+        <p class="move-hint" id="move-hint">Requires armed + GUIDED + 3D GPS + 2 m altitude.</p>
 
-          <div class="stat-row" style="margin-bottom:10px">
-            <span class="stat-label">FLIGHT MODE</span>
+        <div class="distance-picker" role="group" aria-label="Move distance">
+          <span class="preset-label">Distance</span>
+          <div class="distance-presets">
+            <button type="button" class="preset-btn active" data-move-m="1">1 m</button>
+            <button type="button" class="preset-btn" data-move-m="3">3 m</button>
+            <button type="button" class="preset-btn" data-move-m="5">5 m</button>
+            <button type="button" class="preset-btn" data-move-m="10">10 m</button>
           </div>
-          <select id="mode-select" disabled style="width:100%;margin-bottom:12px;padding:8px;background:var(--bg);color:var(--text);border:1px solid var(--border2);border-radius:6px;font-family:var(--font);font-size:11px">
-            <option value="GUIDED" selected>GUIDED (required for arm/takeoff)</option>
+          <div class="distance-custom">
+            <label class="custom-dist-label" for="move-dist-custom">Custom (0.5–200 m)</label>
+            <input type="number" id="move-dist-custom" class="custom-dist-input" min="0.5" max="200" step="0.5" placeholder="e.g. 25" inputmode="decimal" title="Type a distance — used automatically for moves and keyboard">
+            <span class="custom-dist-unit">m</span>
+            <button type="button" class="btn btn-secondary btn-apply-dist" id="btn-apply-custom-dist" title="Optional — distance applies as you type">Apply</button>
+          </div>
+          <div class="distance-active" id="distance-active-label">Active: 1 m</div>
+        </div>
+
+        <div class="map-dock-controls">
+          <div class="move-pad">
+            <div class="move-row move-row-single">
+              <button type="button" class="btn btn-move move-dir" data-move="x" data-sign="1" disabled>
+                <span class="btn-label">Forward</span>
+                <kbd class="key-hint">↑</kbd>
+              </button>
+            </div>
+            <div class="move-row move-row-triple">
+              <button type="button" class="btn btn-move move-dir" data-move="y" data-sign="-1" disabled>
+                <span class="btn-label">Left</span>
+                <kbd class="key-hint">←</kbd>
+              </button>
+              <button type="button" class="btn btn-move move-dir" data-move="x" data-sign="-1" disabled>
+                <span class="btn-label">Back</span>
+                <kbd class="key-hint">↓</kbd>
+              </button>
+              <button type="button" class="btn btn-move move-dir" data-move="y" data-sign="1" disabled>
+                <span class="btn-label">Right</span>
+                <kbd class="key-hint">→</kbd>
+              </button>
+            </div>
+            <div class="move-row move-row-triple">
+              <button type="button" class="btn btn-move move-dir" data-move="z" data-sign="-1" disabled>
+                <span class="btn-label">Up</span>
+                <kbd class="key-hint">Num 8</kbd>
+              </button>
+              <span class="move-pad-center">BODY</span>
+              <button type="button" class="btn btn-move move-dir" data-move="z" data-sign="1" disabled>
+                <span class="btn-label">Down</span>
+                <kbd class="key-hint">Num 2</kbd>
+              </button>
+            </div>
+          </div>
+          <div class="yaw-row" role="group" aria-label="Yaw">
+            <span class="preset-label">Yaw (90°)</span>
+            <button type="button" class="btn btn-move btn-yaw" data-yaw="-90" disabled>
+              <span class="btn-label">Yaw left</span>
+              <kbd class="key-hint">Num 4</kbd>
+            </button>
+            <button type="button" class="btn btn-move btn-yaw" data-yaw="90" disabled>
+              <span class="btn-label">Yaw right</span>
+              <kbd class="key-hint">Num 6</kbd>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FLY -->
+    <section class="tab-panel" id="tab-fly" role="tabpanel" aria-labelledby="tab-btn-fly" hidden>
+      <div class="panel-scroll">
+        <div class="fly-ready-banner warn" id="preflight-summary">Checking systems…</div>
+
+        <div class="section-block">
+          <h2 class="section-title">Flight mode</h2>
+          <p class="section-desc">Use GUIDED for arm and autonomous takeoff. Other modes are for manual or recovery.</p>
+          <select id="mode-select" disabled class="field-select">
+            <option value="GUIDED" selected>GUIDED</option>
+            <option value="LOITER">LOITER (hold)</option>
             <option value="STABILIZE">STABILIZE</option>
             <option value="LAND">LAND</option>
             <option value="RTL">RTL (return home)</option>
           </select>
+          <button type="button" class="btn btn-secondary" id="btn-set-mode" disabled onclick="applyFlightMode()">Apply mode</button>
+        </div>
 
-          <div class="btn-row">
-            <button class="btn-toggle" id="btn-set-mode" disabled onclick="applyFlightMode()">SET MODE</button>
+        <div class="section-block">
+          <h2 class="section-title">Arm / disarm</h2>
+          <p class="section-desc">Arm only when preflight checks pass (Status tab). Disarm to stop motors.</p>
+          <div class="btn-grid-2">
+            <button type="button" class="btn btn-arm" id="btn-arm" disabled onclick="armSequence()">Arm</button>
+            <button type="button" class="btn btn-disarm" id="btn-disarm" disabled onclick="sendCmd('DISARM_DRONE')">Disarm</button>
           </div>
-          <div class="btn-row">
-            <button class="btn-on" id="btn-arm" disabled onclick="armSequence()">⚡ ARM DRONE</button>
-            <button class="btn-off" id="btn-disarm" disabled onclick="sendCmd('DISARM_DRONE')">🛑 DISARM</button>
+        </div>
+
+        <div class="section-block">
+          <h2 class="section-title">Mission commands</h2>
+          <p class="section-desc">Takeoff climbs in GUIDED. Land and RTL are safe recovery options.</p>
+          <button type="button" class="btn btn-primary btn-block" id="btn-liftoff" disabled onclick="autonomousTakeoff()">Takeoff…</button>
+          <div class="btn-grid-2" style="margin-top:16px">
+            <button type="button" class="btn btn-secondary" id="btn-land" disabled onclick="sendCmd('LAND')">Land</button>
+            <button type="button" class="btn btn-secondary" id="btn-rtl" disabled onclick="sendCmd('RTL')">Return home</button>
           </div>
-          <div class="btn-row">
-            <button class="btn-toggle" id="btn-liftoff" disabled onclick="autonomousTakeoff()">🚀 AUTONOMOUS TAKEOFF</button>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- STATUS -->
+    <section class="tab-panel" id="tab-status" role="tabpanel" aria-labelledby="tab-btn-status" hidden>
+      <div class="panel-scroll">
+        <div class="section-block">
+          <h2 class="section-title">Preflight checklist</h2>
+          <p class="section-desc">All items should be green before arming (Fly tab).</p>
+          <ul class="preflight-list" id="preflight-list">
+            <li id="pf-wifi"><span class="pf-icon">○</span><span>Wi‑Fi link to ESP32</span></li>
+            <li id="pf-gps"><span class="pf-icon">○</span><span>GPS 3D fix</span></li>
+            <li id="pf-mav"><span class="pf-icon">○</span><span>MAVLink to autopilot</span></li>
+            <li id="pf-bat"><span class="pf-icon">○</span><span>Battery above 20%</span></li>
+            <li id="pf-safe"><span class="pf-icon">○</span><span>Disarmed</span></li>
+          </ul>
+        </div>
+
+        <div class="section-block">
+          <h2 class="section-title">Connection</h2>
+          <dl class="info-grid">
+            <dt>Vehicle</dt><dd id="lnk-state">—</dd>
+            <dt>SITL / MAV</dt><dd id="lnk-sitl">—</dd>
+            <dt>ESP32 IP</dt><dd id="lnk-ip">—</dd>
+            <dt>Uptime</dt><dd id="lnk-uptime">—</dd>
+            <dt>Wi‑Fi</dt><dd><div class="signal-bars" id="signal-bars"><span></span><span></span><span></span><span></span><span></span></div></dd>
+            <dt>Stream</dt><dd id="last-hb-text">—</dd>
+          </dl>
+        </div>
+
+        <div class="section-block">
+          <h2 class="section-title">Telemetry</h2>
+          <div class="telem-grid">
+            <div class="telem-tile"><span class="telem-k">Altitude</span><span class="telem-v" id="tl-alt">—</span><span class="telem-u">m</span></div>
+            <div class="telem-tile"><span class="telem-k">Speed</span><span class="telem-v" id="tl-speed">—</span><span class="telem-u">m/s</span></div>
+            <div class="telem-tile"><span class="telem-k">Heading</span><span class="telem-v" id="tl-hdg">—</span><span class="telem-u">°</span></div>
+            <div class="telem-tile"><span class="telem-k">Mode</span><span class="telem-v telem-v-text" id="tl-mode">—</span></div>
+            <div class="telem-tile telem-tile-wide">
+              <span class="telem-k">Battery</span>
+              <span class="telem-v" id="tl-bat">—</span>
+              <div class="battery-bar-wrap"><div class="battery-bar" id="bat-bar" style="width:0%"></div></div>
+            </div>
+            <div class="telem-tile telem-tile-wide">
+              <span class="telem-k">GPS</span>
+              <span class="telem-v telem-v-small" id="tl-lat">—</span>
+              <span class="telem-v telem-v-small" id="tl-lng">—</span>
+            </div>
           </div>
-          <div class="btn-row" style="margin-top:4px">
-            <button class="btn-ping" id="btn-land" disabled onclick="sendCmd('LAND')">⬇ LAND</button>
-            <button class="btn-ping" id="btn-rtl" disabled onclick="sendCmd('RTL')">🏠 RTL</button>
+        </div>
+
+        <div class="section-block">
+          <h2 class="section-title">Autopilot messages</h2>
+          <p class="section-desc">Recent text from ArduPilot (arm errors, warnings).</p>
+          <div class="fc-messages" id="preflight-msgs">
+            <div class="fc-msg-empty">No messages yet.</div>
           </div>
         </div>
       </div>
+    </section>
 
-    </div><!-- /left-col -->
-
-    <!-- RIGHT COLUMN -->
-    <div class="right-col">
-
-      <!-- TELEMETRY -->
-      <div class="card">
-        <div class="card-header">
-          <div class="dot-indicator" style="background:var(--green)"></div>
-          TELEMETRY · REAL-TIME
-          <span style="margin-left:auto;font-size:10px;color:var(--muted)" id="last-hb-text">No data yet</span>
-        </div>
-        <div class="card-body">
-          <div class="telemetry-grid">
-
-            <div class="telem-card">
-              <div class="telem-label">🛩 ALTITUDE</div>
-              <div><span class="telem-value" id="tl-alt">—</span><span class="telem-unit">m</span></div>
-            </div>
-
-            <div class="telem-card">
-              <div class="telem-label">⚡ BATTERY</div>
-              <div><span class="telem-value" id="tl-bat">—</span><span class="telem-unit">%</span></div>
-              <div class="battery-bar-wrap">
-                <div class="battery-bar" id="bat-bar" style="width:0%"></div>
-              </div>
-            </div>
-
-            <div class="telem-card">
-              <div class="telem-label">💨 SPEED</div>
-              <div><span class="telem-value" id="tl-speed">—</span><span class="telem-unit">m/s</span></div>
-            </div>
-
-            <div class="telem-card" style="grid-column: 1 / -1">
-              <div class="telem-label">📍 GPS COORDINATES</div>
-              <div class="gps-row">
-                <span>LAT:</span><span class="gps-coord" id="tl-lat">—</span>
-                <span style="margin-left:12px">LNG:</span><span class="gps-coord" id="tl-lng">—</span>
-              </div>
-            </div>
-
-          </div>
-        </div>
+    <!-- LOG -->
+    <section class="tab-panel" id="tab-log" role="tabpanel" aria-labelledby="tab-btn-log" hidden>
+      <div class="log-panel-full">
+        <p class="section-desc log-intro">Commands you send and responses from the ESP32. Switch here to debug connection issues.</p>
+        <div class="log-body" id="log"></div>
       </div>
-
-      <!-- RADAR + PHASE INFO -->
-      <div class="card">
-        <div class="card-header">
-          <div class="dot-indicator" style="background:#a371f7"></div>
-          RF LINK VISUALIZER · DEMO MODE
-        </div>
-        <div class="card-body" style="display:flex;align-items:center;gap:20px">
-          <div class="radar-wrap">
-            <div class="radar">
-              <div class="radar-sweep"></div>
-              <div class="radar-blip"></div>
-            </div>
-          </div>
-          <div style="font-size:11px;line-height:2;color:var(--muted)">
-            <div>PHASE: <span style="color:var(--accent)">1 — LOCAL LAN</span></div>
-            <div>PROTOCOL: <span style="color:var(--text)">WebSocket / JSON</span></div>
-            <div>TRANSPORT: <span style="color:var(--text)">TCP · 802.11 2.4GHz</span></div>
-            <div>PHASE 2: <span style="color:var(--border2)">Cloud Backend (future)</span></div>
-            <div>PHASE 3: <span style="color:var(--border2)">MAVLink FC Bridge (future)</span></div>
-          </div>
-        </div>
-      </div>
-
-    </div><!-- /right-col -->
-
-    <!-- COMMS LOG (full width) -->
-    <div class="card log-card">
-      <div class="card-header">
-        <div class="dot-indicator" style="background:var(--red)"></div>
-        COMMUNICATION LOG
-        <span style="margin-left:auto;font-size:10px;color:var(--muted)">LAST 40 MESSAGES</span>
-      </div>
-      <div class="log-body" id="log"></div>
-    </div>
+    </section>
 
   </main>
 
-  <script>
-    // ── STATE ──────────────────────────────────────────────────────────
-    let ws;
-    let reconnectDelay = 1500;
-    let countdownTimer;
-    let pingTimestamp = 0;
-    let connectedIP = location.hostname;
-
-    // ── CLOCK ──────────────────────────────────────────────────────────
-    function updateClock() {
-      document.getElementById('sys-time').textContent = new Date().toLocaleTimeString('en-GB', { hour12: false });
-    }
-    setInterval(updateClock, 1000);
-    updateClock();
-
-    // ── UPTIME FORMAT ──────────────────────────────────────────────────
-    function fmtUptime(s) {
-      const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), ss = s % 60;
-      return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(ss).padStart(2, '0')}`;
-    }
-
-    // ── SIGNAL CLASS ───────────────────────────────────────────────────
-    function signalClass(dbm) {
-      if (dbm >= -55) return 's5';
-      if (dbm >= -65) return 's4';
-      if (dbm >= -75) return 's3';
-      if (dbm >= -85) return 's2';
-      return 's1';
-    }
-
-    // ── CONNECTION UI ──────────────────────────────────────────────────
-    function setLinkState(state) {
-      const badge = document.getElementById('link-badge');
-      const dot = document.getElementById('badge-dot');
-      const lnkState = document.getElementById('lnk-state');
-      const btns = ['btn-arm', 'btn-disarm', 'btn-liftoff', 'btn-land', 'btn-rtl', 'btn-set-mode', 'mode-select'];
-      const overlay = document.getElementById('reconnect-overlay');
-
-      if (state === 'connected') {
-        badge.className = 'link-badge connected';
-        document.getElementById('badge-text').textContent = 'LINK ACTIVE';
-        dot.className = 'badge-dot pulse';
-        lnkState.textContent = '● CONNECTED';
-        lnkState.className = 'stat-value good';
-        btns.forEach(id => document.getElementById(id).disabled = false);
-        overlay.classList.remove('show');
-      } else if (state === 'disconnected') {
-        badge.className = 'link-badge disconnected';
-        document.getElementById('badge-text').textContent = 'LINK LOST';
-        dot.className = 'badge-dot';
-        lnkState.textContent = '○ DISCONNECTED';
-        lnkState.className = 'stat-value bad';
-        btns.forEach(id => document.getElementById(id).disabled = true);
-        overlay.classList.add('show');
-      } else {
-        badge.className = 'link-badge connecting';
-        document.getElementById('badge-text').textContent = 'CONNECTING…';
-        dot.className = 'badge-dot pulse';
-        lnkState.textContent = '◌ CONNECTING';
-        lnkState.className = 'stat-value warn';
-      }
-    }
-
-    // ── LED UI ─────────────────────────────────────────────────────────
-    function setLED(on) {
-      const orb = document.getElementById('led-orb');
-      const label = document.getElementById('led-status-text');
-      orb.className = 'led-orb' + (on ? ' on' : '');
-      label.className = 'led-status-text' + (on ? ' on' : '');
-      label.textContent = on ? 'ARMED / ON' : 'DISARMED / OFF';
-    }
-
-    // ── TELEMETRY UI ───────────────────────────────────────────────────
-    function updateTelemetry(d) {
-      const alt = Number(d.altitude) || 0;
-      const spd = Number(d.speed) || 0;
-      const lat = Number(d.lat) || 0;
-      const lng = Number(d.lng) || 0;
-      const bat = Number(d.battery) || 0;
-      const batV = Number(d.battery_v) || 0;
-      const sats = Number(d.sats) || 0;
-
-      document.getElementById('tl-alt').textContent = alt.toFixed(1);
-      document.getElementById('tl-speed').textContent = spd.toFixed(1);
-      document.getElementById('tl-lat').textContent = lat.toFixed(6) + '°N';
-      document.getElementById('tl-lng').textContent = lng.toFixed(6) + '°E';
-      document.getElementById('lnk-ip').textContent = connectedIP;
-      document.getElementById('lnk-uptime').textContent = fmtUptime(d.uptime || 0);
-
-      const sitlEl = document.getElementById('lnk-sitl');
-      if (d.sitl_connected) {
-        sitlEl.textContent = '● MAVLink OK';
-        sitlEl.className = 'stat-value good';
-      } else if (d.sitl_host_ready) {
-        sitlEl.textContent = '◌ ' + (d.sitl_host || '?') + ':' + (d.sitl_port || 5763);
-        sitlEl.className = 'stat-value warn';
-      } else {
-        sitlEl.textContent = '○ OPEN DASHBOARD FIRST';
-        sitlEl.className = 'stat-value bad';
-      }
-
-      // Arm Status
-      const stateBadge = document.getElementById('lnk-state');
-      if (d.armed) {
-        stateBadge.textContent = "● ARMED / FLYING";
-        stateBadge.className = "stat-value bad"; // Show red alarm when armed
-        setLED(true);
-      } else {
-        stateBadge.textContent = "○ DISARMED / SAFE";
-        stateBadge.className = "stat-value good";
-        setLED(false);
-      }
-
-      // Battery
-      document.getElementById('tl-bat').textContent = bat + "% (" + batV.toFixed(1) + "V)";
-      const bar = document.getElementById('bat-bar');
-      bar.style.width = bat + '%';
-      bar.style.background = bat > 50 ? 'var(--green)' : bat > 20 ? 'var(--orange)' : 'var(--red)';
-
-      // Signal Strength (Parse GPS Sats instead of RSSI to indicate localization quality)
-      const sb = document.getElementById('signal-bars');
-      if (sats > 9) sb.className = 'signal-bars s5';
-      else if (sats > 6) sb.className = 'signal-bars s4';
-      else if (sats > 3) sb.className = 'signal-bars s3';
-      else sb.className = 'signal-bars s1';
-
-      const sitlNote = d.sitl_connected ? 'MAVLink live' : 'SITL pending';
-      document.getElementById('last-hb-text').textContent = sitlNote + ' | Sats: ' + sats;
-    }
-
-    // ── LOG ────────────────────────────────────────────────────────────
-    function log(tag, tagClass, msg) {
-      const box = document.getElementById('log');
-      const ts = new Date().toLocaleTimeString('en-GB', { hour12: false });
-      const el = document.createElement('div');
-      el.className = 'log-entry';
-      el.innerHTML =
-        `<span class="log-ts">${ts}</span>` +
-        `<span class="log-tag ${tagClass}">${tag}</span>` +
-        `<span class="log-msg">${msg}</span>`;
-      box.prepend(el);
-      while (box.children.length > 40) box.removeChild(box.lastChild);
-    }
-
-    // ── COMMANDS ───────────────────────────────────────────────────────
-    function sendCmd(command, extra) {
-      if (!ws || ws.readyState !== WebSocket.OPEN) return;
-      const msg = { type: 'command', command, ...(extra || {}) };
-      ws.send(JSON.stringify(msg));
-      log('TX', 'tag-sys', command + (extra ? ' → ' + JSON.stringify(extra) : ''));
-    }
-
-    function sendPing() {
-      pingTimestamp = performance.now();
-      sendCmd('PING');
-    }
-
-    function applyFlightMode() {
-      const mode = document.getElementById('mode-select').value;
-      sendCmd('SET_FLIGHT_MODE', { mode });
-    }
-
-    function armSequence() {
-      const mode = document.getElementById('mode-select').value;
-      if (mode !== 'GUIDED') {
-        log('SYS', 'tag-err', 'Select GUIDED mode before arming (STABILIZE will auto-disarm on ground)');
-        document.getElementById('mode-select').value = 'GUIDED';
-      }
-      sendCmd('SET_FLIGHT_MODE', { mode: 'GUIDED' });
-      setTimeout(() => sendCmd('ARM_DRONE'), 400);
-    }
-
-    function autonomousTakeoff() {
-      const alt = prompt('Takeoff altitude (meters)?', '5');
-      if (alt === null) return;
-      const meters = parseFloat(alt);
-      if (isNaN(meters) || meters < 1 || meters > 50) {
-        log('ERR', 'tag-err', 'Invalid altitude (use 1–50m)');
-        return;
-      }
-      sendCmd('SET_FLIGHT_MODE', { mode: 'GUIDED' });
-      setTimeout(() => {
-        sendCmd('ARM_DRONE');
-        setTimeout(() => sendCmd('TAKEOFF', { altitude: meters }), 500);
-      }, 400);
-      log('SYS', 'tag-sys', 'Takeoff sequence: GUIDED → ARM → ' + meters + 'm');
-    }
-
-    // ── RECONNECT COUNTDOWN ────────────────────────────────────────────
-    function startCountdown(seconds) {
-      clearInterval(countdownTimer);
-      let t = seconds;
-      document.getElementById('countdown').textContent = t;
-      countdownTimer = setInterval(() => {
-        t--;
-        document.getElementById('countdown').textContent = t;
-        if (t <= 0) clearInterval(countdownTimer);
-      }, 1000);
-    }
-
-    // ── WEBSOCKET ──────────────────────────────────────────────────────
-    function connect() {
-      setLinkState('connecting');
-      const wsProtocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
-      ws = new WebSocket(wsProtocol + window.location.host + '/ws');
-
-      ws.onopen = () => {
-        reconnectDelay = 1500;
-        setLinkState('connected');
-        log('SYS', 'tag-sys', 'WebSocket link established → ws://' + location.host + '/ws');
-      };
-
-      ws.onmessage = (e) => {
-        try {
-          const d = JSON.parse(e.data);
-          switch (d.event) {
-            case 'HEARTBEAT':
-              updateTelemetry(d);
-              break;
-            case 'LED_STATE':
-              setLED(d.value);
-              log('LED', 'tag-led', 'State changed → ' + (d.value ? 'ON ✔' : 'OFF ✖'));
-              break;
-            case 'PONG': {
-              const latency = pingTimestamp ? Math.round(performance.now() - pingTimestamp) : '?';
-              log('PING', 'tag-ping', `PONG ← round-trip ${latency}ms`);
-              break;
-            }
-            case 'ERROR':
-              log('ERR', 'tag-err', d.message || 'Unknown error from device');
-              break;
-            default:
-              log('RX', 'tag-sys', JSON.stringify(d));
-          }
-        } catch (err) {
-          log('ERR', 'tag-err', 'Bad JSON from device: ' + e.data);
-        }
-      };
-
-      ws.onclose = () => {
-        setLinkState('disconnected');
-        const delay = reconnectDelay;
-        log('SYS', 'tag-err', `Link closed. Reconnecting in ${Math.round(delay / 1000)}s…`);
-        startCountdown(Math.round(delay / 1000));
-        setTimeout(connect, delay);
-        reconnectDelay = Math.min(reconnectDelay * 1.5, 20000);
-      };
-
-      ws.onerror = () => {
-        log('ERR', 'tag-err', 'WebSocket transport error — check device power and network');
-      };
-    }
-
-    connect();
-  </script>
+  <script src="/lib/leaflet/leaflet.js"></script>
+  <script src="/gcs_config.js"></script>
+  <script src="/gcs_map.js"></script>
+  <script src="/gcs.js"></script>
 </body>
 
 </html>

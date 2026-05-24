@@ -23,7 +23,7 @@ Uses **body-offset** frame so “forward” is nose direction regardless of head
 | UI action | WebSocket | MAVLink | Notes |
 |-----------|-----------|---------|-------|
 | Forward N m | `MOVE_BODY` `{ "x": N, "y": 0, "z": 0 }` | `SET_POSITION_TARGET_LOCAL_NED` | `MAV_FRAME_BODY_OFFSET_NED`, position mask |
-| Back N m | `MOVE_BODY` `{ "x": -N, ... }` | same | cap \|N\| ≤ 20 m |
+| Back N m | `MOVE_BODY` `{ "x": -N, ... }` | same | cap \|N\| ≤ 200 m |
 | Strafe left/right | `MOVE_BODY` `{ "y": ±N }` | same | |
 | Up/down N m | `MOVE_BODY` `{ "z": -N }` | same | NED: z negative = up |
 | Yaw right 90° | `YAW_RELATIVE` `{ "deg": 90 }` | `MAV_CMD_CONDITION_YAW` | relative, rate limited |

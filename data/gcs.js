@@ -28,6 +28,10 @@ function updateBuildTag(d) {
 document.addEventListener('DOMContentLoaded', () => {
   const el = document.getElementById('proto-ver');
   if (el) el.textContent = String(CFG.protocolVersion || 1);
+  const portLbl = document.getElementById('sitl-port-label');
+  if (portLbl) portLbl.textContent = String(CFG.sitlPortDefault || 5763);
+  const simBanner = document.getElementById('sim-banner');
+  if (simBanner && CFG.simulationBanner) simBanner.hidden = false;
   updateBuildTag(null);
 });
 
@@ -86,13 +90,56 @@ function setLinkState(state) {
   }
 }
 
-// ── LED UI ─────────────────────────────────────────────────────────
-function setLED(on) {
+// ── LED UI (ESP32 onboard link LED) ───────────────────────────────
+const LED_MODE_LABELS = {
+  off: 'ESP32 LED · OFF',
+  solid: 'ESP32 LED · ON (link OK)',
+  blink_slow: 'ESP32 LED · SLOW BLINK (no MAVLink)',
+  blink_fast: 'ESP32 LED · FAST BLINK (armed)',
+};
+
+function updateEspLed(mode) {
   const orb = document.getElementById('led-orb');
   const label = document.getElementById('led-status-text');
-  orb.className = 'led-orb' + (on ? ' on' : '');
-  label.className = 'led-status-text' + (on ? ' on' : '');
-  label.textContent = on ? 'ARMED / ON' : 'DISARMED / OFF';
+  if (!orb || !label) return;
+  const m = mode || 'off';
+  let cls = 'led-orb';
+  if (m === 'solid') cls += ' on';
+  else if (m === 'blink_slow') cls += ' on blink-slow';
+  else if (m === 'blink_fast') cls += ' on blink-fast';
+  orb.className = cls;
+  label.className = 'led-status-text' + (m !== 'off' ? ' on' : '');
+  label.textContent = LED_MODE_LABELS[m] || ('ESP32 LED · ' + m);
+}
+
+function setChip(el, state, text) {
+  if (!el) return;
+  el.className = 'link-chip ' + state;
+  el.textContent = text;
+}
+
+function updateLinkChips(d) {
+  const wsOk = d.ws_connected === true;
+  setChip(document.getElementById('chip-ws'), wsOk ? 'ok' : 'warn', wsOk ? 'WS ●' : 'WS ○');
+
+  const tcpOk = d.sitl_tcp_connected === true;
+  setChip(document.getElementById('chip-sitl'), tcpOk ? 'ok' : (d.sitl_host_ready ? 'warn' : 'bad'),
+    tcpOk ? 'SITL ●' : (d.sitl_host_ready ? 'SITL ◌' : 'SITL ○'));
+
+  const mavOk = d.mav_connected === true;
+  setChip(document.getElementById('chip-mav'), mavOk ? 'ok' : 'bad', mavOk ? 'MAV ●' : 'MAV ○');
+
+  const wifiOk = d.wifi_connected === true;
+  const rssi = Number(d.wifi_rssi) || 0;
+  const wifiText = wifiOk ? ('WiFi ' + rssi + ' dBm') : 'WiFi —';
+  setChip(document.getElementById('chip-wifi'), wifiOk ? 'ok' : 'bad', wifiText);
+
+  const stackWifi = document.getElementById('link-stack-wifi');
+  if (stackWifi) stackWifi.textContent = wifiOk ? ('802.11 · ' + rssi + ' dBm') : 'WiFi down';
+
+  if (d.simulation && document.getElementById('sim-banner')) {
+    document.getElementById('sim-banner').hidden = false;
+  }
 }
 
 // ── TELEMETRY UI ───────────────────────────────────────────────────
@@ -113,28 +160,31 @@ function updateTelemetry(d) {
   document.getElementById('lnk-uptime').textContent = fmtUptime(d.uptime || 0);
 
   const sitlEl = document.getElementById('lnk-sitl');
-  if (d.sitl_connected) {
-    sitlEl.textContent = '● MAVLink OK';
+  if (d.mav_connected) {
+    sitlEl.textContent = '● MAVLink · ' + (d.sitl_host || '?') + ':' + (d.sitl_port || CFG.sitlPortDefault || 5763);
     sitlEl.className = 'stat-value good';
+  } else if (d.sitl_tcp_connected) {
+    sitlEl.textContent = '◌ TCP only · ' + (d.sitl_host || '?') + ':' + (d.sitl_port || CFG.sitlPortDefault || 5763);
+    sitlEl.className = 'stat-value warn';
   } else if (d.sitl_host_ready) {
-        sitlEl.textContent = '◌ ' + (d.sitl_host || '?') + ':' + (d.sitl_port || CFG.sitlPortDefault || 5763);
+    sitlEl.textContent = '◌ connecting ' + (d.sitl_host || '?') + ':' + (d.sitl_port || CFG.sitlPortDefault || 5763);
     sitlEl.className = 'stat-value warn';
   } else {
     sitlEl.textContent = '○ OPEN DASHBOARD FIRST';
     sitlEl.className = 'stat-value bad';
   }
 
-  // Arm Status
   const stateBadge = document.getElementById('lnk-state');
   if (d.armed) {
-    stateBadge.textContent = "● ARMED / FLYING";
-    stateBadge.className = "stat-value bad"; // Show red alarm when armed
-    setLED(true);
+    stateBadge.textContent = '● ARMED / FLYING';
+    stateBadge.className = 'stat-value bad';
   } else {
-    stateBadge.textContent = "○ DISARMED / SAFE";
-    stateBadge.className = "stat-value good";
-    setLED(false);
+    stateBadge.textContent = '○ DISARMED / SAFE';
+    stateBadge.className = 'stat-value good';
   }
+
+  updateEspLed(d.led_mode);
+  updateLinkChips(d);
 
   // Battery
   document.getElementById('tl-bat').textContent = bat + "% (" + batV.toFixed(1) + "V)";
@@ -142,9 +192,10 @@ function updateTelemetry(d) {
   bar.style.width = bat + '%';
   bar.style.background = bat > 50 ? 'var(--green)' : bat > 20 ? 'var(--orange)' : 'var(--red)';
 
-  // Signal Strength (Parse GPS Sats instead of RSSI to indicate localization quality)
   const sb = document.getElementById('signal-bars');
-  if (sats > 9) sb.className = 'signal-bars s5';
+  if (d.wifi_connected && d.wifi_rssi) {
+    sb.className = 'signal-bars ' + signalClass(Number(d.wifi_rssi));
+  } else if (sats > 9) sb.className = 'signal-bars s5';
   else if (sats > 6) sb.className = 'signal-bars s4';
   else if (sats > 3) sb.className = 'signal-bars s3';
   else sb.className = 'signal-bars s1';
@@ -247,8 +298,8 @@ function connect() {
               updateBuildTag(d);
               break;
         case 'LED_STATE':
-          setLED(d.value);
-          log('LED', 'tag-led', 'State changed → ' + (d.value ? 'ON ✔' : 'OFF ✖'));
+          updateEspLed(d.led_mode || (d.value ? 'solid' : 'off'));
+          log('LED', 'tag-led', 'ESP32 LED → ' + (d.led_mode || (d.value ? 'on' : 'off')));
           break;
         case 'PONG': {
           const latency = pingTimestamp ? Math.round(performance.now() - pingTimestamp) : '?';

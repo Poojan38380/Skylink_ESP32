@@ -3,17 +3,39 @@
 
 #include <Arduino.h>
 
+enum class LedPattern : uint8_t {
+    Off = 0,
+    Solid,
+    BlinkSlow,
+    BlinkFast
+};
+
 class LedController {
 private:
     int pin;
-    bool state;
+    LedPattern autoPattern;
+    LedPattern activePattern;
+    bool manualOverride;
+    bool pinLevel;
+    unsigned long lastToggleMs;
+
+    void applyPin(bool on);
+    unsigned long blinkIntervalMs(LedPattern p) const;
 
 public:
-    LedController(int pin);
+    explicit LedController(int pin);
+
     void begin();
-    void set(bool newState);
+    void update();
+
+    void setAutoPattern(LedPattern pattern);
+    void setManual(bool on);
     void toggle();
-    bool getState();
+    void clearManual();
+
+    bool getState() const;
+    LedPattern getPattern() const;
+    const char* getPatternName() const;
 };
 
 extern LedController ledController;

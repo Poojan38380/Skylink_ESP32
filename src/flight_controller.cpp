@@ -221,6 +221,14 @@ bool FlightController::isConnected() {
     return connected;
 }
 
+bool FlightController::isSitlTcpConnected() {
+#ifdef SITL_MODE
+    return sitlClient.connected();
+#else
+    return true;
+#endif
+}
+
 #ifdef SITL_MODE
 bool FlightController::isSitlHostConfigured() {
     return sitlHostConfigured;

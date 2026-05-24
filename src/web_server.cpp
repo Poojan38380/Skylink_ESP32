@@ -22,7 +22,7 @@ using WsCommandHandler = void (*)(JsonDocument&, AsyncWebSocketClient*);
 
 void handleLedSet(JsonDocument& doc, AsyncWebSocketClient* client) {
     (void)client;
-    ledController.set(doc["value"] | false);
+    ledController.setManual(doc["value"] | false);
     webServerModule.sendAppState();
 }
 
@@ -179,8 +179,13 @@ void WebServerModule::sendAppState() {
     doc["type"] = "event";
     doc["event"] = "LED_STATE";
     doc["value"] = ledController.getState();
+    doc["led_mode"] = ledController.getPatternName();
     doc["timestamp"] = timeSync.getCurrentTime();
     wsBroadcastJson(ws, doc);
+}
+
+int WebServerModule::getWsClientCount() const {
+    return ws.count();
 }
 
 void WebServerModule::sendHeartbeat() {
@@ -211,6 +216,13 @@ void WebServerModule::sendHeartbeat() {
     doc["pitch"] = fc.pitch;
     doc["flight_mode"] = fc.flight_mode;
     doc["sitl_connected"] = flightController.isConnected();
+    doc["mav_connected"] = flightController.isConnected();
+    doc["sitl_tcp_connected"] = flightController.isSitlTcpConnected();
+    doc["wifi_connected"] = wifiManager.isConnected();
+    doc["wifi_rssi"] = wifiManager.getSignalStrength();
+    doc["ws_connected"] = (getWsClientCount() > 0);
+    doc["ws_clients"] = getWsClientCount();
+    doc["led_mode"] = ledController.getPatternName();
 #ifdef SITL_MODE
     doc["sitl_host"] = flightController.getSitlHost();
     doc["sitl_port"] = flightController.getSitlPort();

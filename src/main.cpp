@@ -15,6 +15,22 @@ unsigned long lastHeartbeat = 0;
 unsigned long lastWSHeartbeat = 0;
 unsigned long lastTimeSync = 0;
 
+static void updateLinkLed() {
+    if (!wifiManager.isConnected()) {
+        ledController.setAutoPattern(LedPattern::Off);
+        return;
+    }
+
+    const FCTelemetry fc = flightController.getTelemetry();
+    if (fc.armed) {
+        ledController.setAutoPattern(LedPattern::BlinkFast);
+    } else if (!flightController.isConnected()) {
+        ledController.setAutoPattern(LedPattern::BlinkSlow);
+    } else {
+        ledController.setAutoPattern(LedPattern::Solid);
+    }
+}
+
 void setup() {
     Serial.begin(115200);
     
@@ -52,6 +68,8 @@ void loop() {
     wifiManager.handle();
     otaUpdater.handle();
     flightController.handle();
+    updateLinkLed();
+    ledController.update();
     
     // Note: webServerModule.handle() is NOT needed for AsyncWebServer
     

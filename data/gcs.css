@@ -76,6 +76,66 @@ header {
   letter-spacing: 1px;
 }
 
+.sim-banner {
+  background: linear-gradient(90deg, #3d2800 0%, #5c4000 50%, #3d2800 100%);
+  color: #f0c040;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  padding: 6px 16px;
+  border-bottom: 1px solid var(--orange);
+}
+
+.link-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.link-chip {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--border2);
+  background: var(--bg);
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.link-chip.ok {
+  border-color: var(--green);
+  color: var(--green);
+}
+
+.link-chip.warn {
+  border-color: var(--orange);
+  color: var(--orange);
+}
+
+.link-chip.bad {
+  border-color: var(--red);
+  color: var(--red);
+}
+
+.led-orb.blink-slow {
+  animation: led-blink 1s step-end infinite;
+}
+
+.led-orb.blink-fast {
+  animation: led-blink 0.4s step-end infinite;
+}
+
+@keyframes led-blink {
+  50% {
+    opacity: 0.25;
+    box-shadow: none;
+  }
+}
+
 #build-tag.build-mismatch {
   color: var(--red);
   font-weight: 700;

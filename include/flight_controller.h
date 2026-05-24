@@ -91,6 +91,7 @@ public:
 
     FCTelemetry getTelemetry();
     bool isConnected();
+    bool isSitlTcpConnected();
 #ifdef SITL_MODE
     bool isSitlHostConfigured();
     String getSitlHost();

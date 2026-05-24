@@ -30,6 +30,12 @@
       </div>
     </div>
     <div class="header-right">
+      <div class="link-chips" id="link-chips" aria-label="Link status">
+        <span class="link-chip warn" id="chip-ws" title="Browser WebSocket">WS ○</span>
+        <span class="link-chip bad" id="chip-sitl" title="ESP32 → SITL TCP">SITL ○</span>
+        <span class="link-chip bad" id="chip-mav" title="MAVLink heartbeat">MAV ○</span>
+        <span class="link-chip bad" id="chip-wifi" title="ESP32 WiFi">WiFi —</span>
+      </div>
       <div id="sys-time">--:--:--</div>
       <div class="link-badge connecting" id="link-badge">
         <div class="badge-dot pulse" id="badge-dot"></div>
@@ -37,6 +43,10 @@
       </div>
     </div>
   </header>
+
+  <div class="sim-banner" id="sim-banner" hidden>
+  SIMULATION MODE — SITL only · do not arm real hardware without Pixhawk checks
+  </div>
 
   <main>
     <div class="left-col">
@@ -84,7 +94,8 @@
         <div class="card-body">
           <div class="led-panel">
             <div class="led-orb" id="led-orb"></div>
-            <div class="led-status-text" id="led-status-text">UNKNOWN</div>
+            <div class="led-status-text" id="led-status-text">ESP32 LINK LED</div>
+            <div class="led-hint" style="font-size:10px;color:var(--muted);margin-top:6px">Solid = WiFi · slow blink = no MAV · fast = armed</div>
           </div>
 
           <div class="stat-row" style="margin-bottom:10px">
@@ -155,7 +166,7 @@
       <div class="card">
         <div class="card-header">
           <div class="dot-indicator" style="background:#a371f7"></div>
-          RF LINK VISUALIZER · DEMO MODE
+          LINK STACK
         </div>
         <div class="card-body" style="display:flex;align-items:center;gap:20px">
           <div class="radar-wrap">
@@ -164,10 +175,10 @@
               <div class="radar-blip"></div>
             </div>
           </div>
-          <div style="font-size:11px;line-height:2;color:var(--muted)">
-            <div>PHASE: <span style="color:var(--accent)">1 — LOCAL LAN</span></div>
-            <div>PROTOCOL: <span style="color:var(--text)">WebSocket / JSON v<span id="proto-ver">1</span></span></div>
-            <div>TRANSPORT: <span style="color:var(--text)">TCP · 802.11 2.4GHz</span></div>
+          <div class="link-stack-diagram" style="font-size:11px;line-height:2;color:var(--muted)">
+            <div>PATH: <span style="color:var(--text)">Browser → WS → ESP32 → TCP :<span id="sitl-port-label">5763</span> → SITL</span></div>
+            <div>PROTOCOL: <span style="color:var(--text)">JSON v<span id="proto-ver">1</span> + MAVLink</span></div>
+            <div>RADIO: <span style="color:var(--text)" id="link-stack-wifi">WiFi —</span></div>
           </div>
         </div>
       </div>

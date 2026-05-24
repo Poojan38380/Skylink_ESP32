@@ -17,6 +17,7 @@ public:
     void begin();
     void sendAppState();
     void sendHeartbeat();
+    int getWsClientCount() const;
 };
 
 extern WebServerModule webServerModule;

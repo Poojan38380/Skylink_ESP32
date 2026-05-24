@@ -12,7 +12,7 @@
 - [ ] Preflight panel gates arming with clear reasons
 - [ ] Tap: takeoff, land, RTL, loiter, click-to-fly
 - [ ] Tap: forward/back/strafe N m, yaw ±90°
-- [ ] ESP32 LED reflects WiFi + MAVLink state
+- [x] ESP32 LED reflects WiFi + MAVLink state
 - [ ] Arm failures shown from autopilot text
 - [ ] Smooth telemetry ≥ 5 Hz on map
 - [ ] Code split into maintainable modules (see [ARCHITECTURE.md](./ARCHITECTURE.md))
@@ -25,7 +25,7 @@
 | Phase | Name | Duration (est.) | Outcome |
 |-------|------|-----------------|--------|
 | 0 | Code foundation | 2–3 days | Modular FW, split UI assets, protocol version |
-| 1 | Link & LED | 1–2 days | WiFi LED, link status bar, SIM banner |
+| 1 | Link & LED ✅ | 1–2 days | WiFi LED, link status bar, SIM banner |
 | 2 | Map shell | 3–4 days | Leaflet map-first layout, marker, no new FC cmds |
 | 3 | Telemetry++ | 2–3 days | Attitude, GLOBAL_POSITION, faster HB, preflight |
 | 4 | Relative moves | 4–5 days | Forward/strafe/yaw tap commands |
@@ -62,7 +62,7 @@
 
 ---
 
-## Phase 1 — Link status & ESP32 LED
+## Phase 1 — Link status & ESP32 LED ✅
 
 **Goal:** Physical LED = system health; operator sees WiFi / MAVLink at a glance.
 
@@ -79,9 +79,9 @@ Implement in `wifi_manager` (on connect → `ledController.set(true)`) and `flig
 
 ### UI
 
-- [ ] Top bar: `WS ●` `SITL ●` `MAV ●` `WiFi -34 dBm`
-- [ ] Banner: **SIMULATION MODE** (static for SITL builds)
-- [ ] Remove misleading “Phase 2 cloud” placeholder text from radar card (or replace with real link diagram)
+- [x] Top bar: `WS ●` `SITL ●` `MAV ●` `WiFi -34 dBm`
+- [x] Banner: **SIMULATION MODE** (static for SITL builds)
+- [x] Remove misleading “Phase 2 cloud” placeholder text from radar card (or replace with real link diagram)
 
 ### Files
 
@@ -89,9 +89,9 @@ Implement in `wifi_manager` (on connect → `ledController.set(true)`) and `flig
 
 ### Acceptance
 
-- [ ] LED turns on within 1 s of WiFi connect
-- [ ] LED blinks if SITL TCP drops but WiFi stays up
-- [ ] Dashboard link chips match serial monitor state
+- [x] LED turns on within 1 s of WiFi connect
+- [x] LED blinks if SITL TCP drops but WiFi stays up
+- [x] Dashboard link chips match serial monitor state
 
 ---
 

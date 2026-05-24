@@ -4,7 +4,8 @@
  */
 const SKYLINK_GCS_CONFIG = {
   protocolVersion: 1,
-  fsBuild: 2,  // Must match data/skylink_build.json — bump before uploadfs
+  fsBuild: 3,  // Must match data/skylink_build.json — bump before uploadfs
+  simulationBanner: true,
 
   wsReconnectInitialMs: 1500,
   wsReconnectMaxMs: 20000,

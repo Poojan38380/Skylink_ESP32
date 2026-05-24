@@ -64,6 +64,7 @@ private:
     uint32_t lastReconnectAttempt = 0;
     uint32_t lastStreamRequest = 0;
     uint32_t lastMavlinkRx = 0;
+    uint32_t lastGuidedCmdMs = 0;
     bool mavlinkActive = false;
     bool messageIntervalsSent = false;
 
@@ -94,6 +95,7 @@ private:
     void setMessageInterval(uint32_t msgId, int32_t intervalUs);
     void setCopterMode(uint8_t customMode);
     void sendArmDisarm(bool state);
+    bool canExecuteGuidedMoveUnlocked() const;
     void pushStatusLine(const char* text, uint8_t severity);
     void pushEvent(const FCEvent& event);
     bool takeMutex(TickType_t timeout = portMAX_DELAY);
@@ -119,6 +121,8 @@ public:
     void takeoff(float altitudeMeters);
     void land();
     void returnToLaunch();
+    void moveBody(float xMeters, float yMeters, float zMeters);
+    void yawRelative(float degrees);
     void sendRCOverride(uint16_t roll, uint16_t pitch, uint16_t throttle, uint16_t yaw);
     void sendHeartbeat();
     void emergencyStop();

@@ -4,7 +4,9 @@
  */
 const SKYLINK_GCS_CONFIG = {
   protocolVersion: 1,
-  fsBuild: 7,  // Must match data/skylink_build.json — bump before uploadfs
+  fsBuild: 8,  // Must match data/skylink_build.json — bump before uploadfs
+  moveConfirmAboveM: 10,
+  moveAltStepM: 2,
   defaultTab: 'map',
   preflightMinGpsFix: 3,
   preflightMinBatteryPct: 20,

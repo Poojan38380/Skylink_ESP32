@@ -17,14 +17,43 @@
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+html {
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent) var(--surface);
+}
+
+::-webkit-scrollbar {
+  width: 11px;
+  height: 11px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #2a6f8a 0%, var(--accent) 100%);
+  border-radius: 10px;
+  border: 2px solid var(--bg);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
+}
+
+::-webkit-scrollbar-corner {
+  background: var(--bg);
+}
+
 body {
   font-family: var(--font);
   background: var(--bg);
   color: var(--text);
-  height: 100vh;
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 /* ── Header ───────────────────────────────────────── */
@@ -165,32 +194,27 @@ body {
 
 /* ── Main / panels ────────────────────────────────── */
 .app-main {
-  flex: 1;
-  min-height: 0;
+  flex: none;
   background: var(--surface);
-  margin: 0 24px 24px;
+  margin: 0 24px 48px;
   border: 1px solid var(--border2);
   border-top: none;
   border-radius: 0 0 var(--radius) var(--radius);
-  overflow: hidden;
+  overflow: visible;
 }
 
 .tab-panel {
   display: none;
-  height: 100%;
-  min-height: 0;
 }
 
-.tab-panel.active { display: flex; flex-direction: column; }
+.tab-panel.active { display: block; }
 
 .panel-scroll {
-  flex: 1;
-  overflow-y: auto;
-  padding: 28px 32px 40px;
-  max-width: 720px;
+  padding: 36px 40px 56px;
+  max-width: 800px;
 }
 
-.section-block { margin-bottom: 36px; }
+.section-block { margin-bottom: 48px; }
 
 .section-title {
   font-size: 14px;
@@ -262,6 +286,83 @@ body {
 .btn-secondary { background: var(--bg); color: var(--text); }
 .btn-arm { background: rgba(63, 185, 80, 0.15); border-color: var(--green); color: var(--green); }
 .btn-disarm { background: rgba(248, 81, 73, 0.12); border-color: var(--red); color: var(--red); }
+
+.move-hint {
+  font-size: 12px;
+  color: var(--muted);
+  margin: -8px 0 20px;
+  padding: 12px 16px;
+  background: var(--bg);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+.move-hint.ready { border-color: var(--green); color: var(--green); }
+
+.preset-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.preset-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  min-width: 64px;
+}
+
+.preset-btn {
+  font-family: var(--font);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 10px 16px;
+  border-radius: 8px;
+  border: 1px solid var(--border2);
+  background: var(--bg);
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.preset-btn:hover { border-color: var(--accent); color: var(--accent); }
+.preset-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(0, 212, 255, 0.1); }
+
+.move-pad {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 420px;
+}
+
+.move-row { display: flex; gap: 12px; justify-content: center; }
+.move-row-single .btn-move { flex: 1; max-width: 420px; }
+.move-row-triple .btn-move { flex: 1; }
+
+.move-pad-center {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--muted);
+  letter-spacing: 2px;
+}
+
+.btn-move {
+  background: var(--bg);
+  color: var(--text);
+  min-height: 52px;
+}
+
+.btn-move:not(:disabled):hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
 
 /* ── Status tab ───────────────────────────────────── */
 .preflight-list {
@@ -369,13 +470,12 @@ body {
 
 /* ── Map tab ──────────────────────────────────────── */
 .map-stage {
-  flex: 1;
   position: relative;
-  min-height: 0;
+  height: clamp(420px, 68vh, 760px);
   background: #0a0e14;
 }
 
-#map { width: 100%; height: 100%; min-height: 320px; }
+#map { width: 100%; height: 100%; }
 
 .map-overlay { position: absolute; z-index: 500; pointer-events: none; }
 .map-overlay-right { top: 16px; right: 16px; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
@@ -469,22 +569,16 @@ body {
 
 /* ── Log tab ──────────────────────────────────────── */
 .log-panel-full {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  padding: 24px 28px;
+  padding: 36px 40px 56px;
 }
 
-.log-intro { margin-bottom: 16px; flex-shrink: 0; }
+.log-intro { margin-bottom: 20px; }
 
 .log-body {
-  flex: 1;
-  overflow-y: auto;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--bg);
-  min-height: 200px;
+  min-height: 420px;
 }
 
 .log-entry {
@@ -532,9 +626,11 @@ body {
   .app-header { padding: 12px 16px; }
   .tab-bar { padding: 8px 12px 0; }
   .tab-btn { min-width: 88px; padding: 10px 12px; }
-  .app-main { margin: 0 12px 12px; }
-  .panel-scroll { padding: 20px 16px 32px; }
+  .app-main { margin: 0 12px 32px; }
+  .panel-scroll, .log-panel-full { padding: 24px 16px 40px; }
   .telem-grid { grid-template-columns: 1fr; }
   .btn-grid-2 { max-width: none; }
   .field-select, .btn-block { max-width: none; }
+  .move-pad { max-width: none; }
+  .map-stage { height: 52vh; min-height: 320px; }
 }

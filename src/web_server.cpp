@@ -78,6 +78,20 @@ void handleRcOverride(JsonDocument& doc, AsyncWebSocketClient* client) {
     flightController.sendRCOverride(r, p, t, y);
 }
 
+void handleMoveBody(JsonDocument& doc, AsyncWebSocketClient* client) {
+    (void)client;
+    flightController.moveBody(
+        doc["x"] | 0.0f,
+        doc["y"] | 0.0f,
+        doc["z"] | 0.0f
+    );
+}
+
+void handleYawRelative(JsonDocument& doc, AsyncWebSocketClient* client) {
+    (void)client;
+    flightController.yawRelative(doc["deg"] | 0.0f);
+}
+
 void handlePing(JsonDocument& doc, AsyncWebSocketClient* client) {
     (void)doc;
     JsonDocument response;
@@ -102,6 +116,8 @@ const WsCommandEntry kCommands[] = {
     {"TAKEOFF", handleTakeoff},
     {"LAND", handleLand},
     {"RTL", handleRtl},
+    {"MOVE_BODY", handleMoveBody},
+    {"YAW_RELATIVE", handleYawRelative},
     {"RC_OVERRIDE", handleRcOverride},
     {"PING", handlePing},
 };

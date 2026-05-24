@@ -197,6 +197,115 @@ void FlightController::returnToLaunch() {
     giveMutex();
 }
 
+bool FlightController::canExecuteGuidedMoveUnlocked() const {
+    if (!mavlinkActive) return false;
+    if (!telemetry.armed) return false;
+    if (telemetry.flight_mode != COPTER_MODE_GUIDED) return false;
+    if (telemetry.gps_fix < 3) return false;
+    const float agl = telemetry.relative_alt > 0.0f ? telemetry.relative_alt : telemetry.altitude;
+    if (agl < SKYLINK_MOVE_MIN_AGL_M) return false;
+    return true;
+}
+
+static float clampMove(float v) {
+    if (v > SKYLINK_MOVE_BODY_MAX_M) return SKYLINK_MOVE_BODY_MAX_M;
+    if (v < -SKYLINK_MOVE_BODY_MAX_M) return -SKYLINK_MOVE_BODY_MAX_M;
+    return v;
+}
+
+void FlightController::moveBody(float xMeters, float yMeters, float zMeters) {
+    if (!takeMutex()) return;
+
+    const uint32_t now = millis();
+    if (now - lastGuidedCmdMs < SKYLINK_CMD_DEBOUNCE_MS) {
+        giveMutex();
+        return;
+    }
+
+    if (!canExecuteGuidedMoveUnlocked()) {
+        logger.warning("MOVE_BODY rejected (need armed GUIDED, GPS 3D, min AGL)");
+        giveMutex();
+        return;
+    }
+
+    const float x = clampMove(xMeters);
+    const float y = clampMove(yMeters);
+    const float z = clampMove(zMeters);
+    if (x == 0.0f && y == 0.0f && z == 0.0f) {
+        giveMutex();
+        return;
+    }
+
+    const uint16_t typeMask =
+        POSITION_TARGET_TYPEMASK_VX_IGNORE |
+        POSITION_TARGET_TYPEMASK_VY_IGNORE |
+        POSITION_TARGET_TYPEMASK_VZ_IGNORE |
+        POSITION_TARGET_TYPEMASK_AX_IGNORE |
+        POSITION_TARGET_TYPEMASK_AY_IGNORE |
+        POSITION_TARGET_TYPEMASK_AZ_IGNORE |
+        POSITION_TARGET_TYPEMASK_YAW_IGNORE |
+        POSITION_TARGET_TYPEMASK_YAW_RATE_IGNORE;
+
+    mavlink_message_t msg;
+    mavlink_msg_set_position_target_local_ned_pack(
+        1, 255, &msg,
+        millis(),
+        1, 1,
+        MAV_FRAME_BODY_OFFSET_NED,
+        typeMask,
+        x, y, z,
+        0, 0, 0,
+        0, 0, 0,
+        0, 0
+    );
+    sendMavlinkPacket(&msg);
+    lastGuidedCmdMs = now;
+    giveMutex();
+}
+
+void FlightController::yawRelative(float degrees) {
+    if (!takeMutex()) return;
+
+    const uint32_t now = millis();
+    if (now - lastGuidedCmdMs < SKYLINK_CMD_DEBOUNCE_MS) {
+        giveMutex();
+        return;
+    }
+
+    if (!canExecuteGuidedMoveUnlocked()) {
+        logger.warning("YAW_RELATIVE rejected (need armed GUIDED, GPS 3D, min AGL)");
+        giveMutex();
+        return;
+    }
+
+    float deg = degrees;
+    if (deg > SKYLINK_YAW_MAX_DEG) deg = SKYLINK_YAW_MAX_DEG;
+    if (deg < -SKYLINK_YAW_MAX_DEG) deg = -SKYLINK_YAW_MAX_DEG;
+    if (deg == 0.0f) {
+        giveMutex();
+        return;
+    }
+
+    const int direction = deg >= 0.0f ? 1 : -1;
+    const float absDeg = fabsf(deg);
+
+    mavlink_message_t msg;
+    mavlink_msg_command_long_pack(
+        1, 255, &msg,
+        1, 1,
+        MAV_CMD_CONDITION_YAW,
+        0,
+        absDeg,
+        25.0f,
+        (float)direction,
+        1.0f,
+        0, 0, 0
+    );
+    sendMavlinkPacket(&msg);
+    lastGuidedCmdMs = now;
+    giveMutex();
+}
+
 void FlightController::sendRCOverride(uint16_t roll, uint16_t pitch, uint16_t throttle, uint16_t yaw) {
     if (!takeMutex()) return;
 

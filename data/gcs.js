@@ -8,6 +8,8 @@ let reconnectDelay = CFG.wsReconnectInitialMs || 1500;
 let countdownTimer;
 let pingTimestamp = 0;
 let connectedIP = location.hostname;
+let selectedMoveM = 1;
+let wsConnected = false;
 function updateBuildTag(d) {
   const el = document.getElementById('build-tag');
   if (!el) return;
@@ -57,7 +59,88 @@ document.addEventListener('DOMContentLoaded', () => {
   if (simBanner && CFG.simulationBanner) simBanner.hidden = false;
   updateBuildTag(null);
   initTabs();
+  initMoveControls();
 });
+
+function initMoveControls() {
+  document.querySelectorAll('.preset-btn[data-move-m]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      selectedMoveM = parseFloat(btn.dataset.moveM) || 1;
+      document.querySelectorAll('.preset-btn[data-move-m]').forEach((b) => {
+        b.classList.toggle('active', b === btn);
+      });
+    });
+  });
+
+  document.querySelectorAll('.move-dir').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const axis = btn.dataset.move;
+      const sign = parseFloat(btn.dataset.sign) || 1;
+      sendMoveBody(axis, sign * selectedMoveM);
+    });
+  });
+
+  document.querySelectorAll('.btn-yaw').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const deg = parseFloat(btn.dataset.yaw) || 0;
+      sendYawRelative(deg);
+    });
+  });
+}
+
+function updateMoveControls(d) {
+  const minAgl = 2;
+  const alt = Number(d.relative_alt) || Number(d.altitude) || 0;
+  const canMove =
+    wsConnected &&
+    d.armed === true &&
+    (d.flight_mode_name === 'GUIDED' || d.flight_mode === 4) &&
+    (Number(d.gps_fix) || 0) >= (CFG.preflightMinGpsFix || 3) &&
+    alt >= minAgl;
+
+  document.querySelectorAll('.move-dir, .btn-yaw').forEach((el) => {
+    el.disabled = !canMove;
+  });
+
+  const hint = document.getElementById('move-hint');
+  if (hint) {
+    if (canMove) {
+      hint.textContent = 'Ready — ' + selectedMoveM + ' m steps (body frame, nose = forward).';
+      hint.className = 'move-hint ready';
+    } else if (!d.armed) {
+      hint.textContent = 'Arm in GUIDED after preflight checks to enable moves.';
+      hint.className = 'move-hint';
+    } else if (d.flight_mode_name !== 'GUIDED' && d.flight_mode !== 4) {
+      hint.textContent = 'Switch to GUIDED mode to use relative moves.';
+      hint.className = 'move-hint';
+    } else {
+      hint.textContent = 'Need 3D GPS fix and at least ' + minAgl + ' m altitude.';
+      hint.className = 'move-hint';
+    }
+  }
+}
+
+function sendMoveBody(axis, meters) {
+  const m = Math.abs(meters);
+  const confirmAbove = CFG.moveConfirmAboveM || 10;
+  if (m > confirmAbove && !confirm('Move ' + m + ' meters?')) return;
+
+  const payload = { x: 0, y: 0, z: 0 };
+  if (axis === 'x') payload.x = meters;
+  else if (axis === 'y') payload.y = meters;
+  else if (axis === 'z') payload.z = meters;
+
+  sendCmd('MOVE_BODY', payload);
+  log('SYS', 'tag-sys', 'MOVE_BODY ' + JSON.stringify(payload));
+}
+
+function sendYawRelative(deg) {
+  const abs = Math.abs(deg);
+  const confirmAbove = CFG.moveConfirmAboveM || 10;
+  if (abs > confirmAbove && !confirm('Yaw ' + abs + '°?')) return;
+  sendCmd('YAW_RELATIVE', { deg });
+  log('SYS', 'tag-sys', 'YAW_RELATIVE ' + deg + '°');
+}
 
 function updateClock() {
   const el = document.getElementById('sys-time');
@@ -86,10 +169,14 @@ function setLinkState(state) {
   const dot = document.getElementById('badge-dot');
   const badgeText = document.getElementById('badge-text');
   const lnkState = document.getElementById('lnk-state');
-  const btns = ['btn-arm', 'btn-disarm', 'btn-liftoff', 'btn-land', 'btn-rtl', 'btn-set-mode', 'mode-select'];
+  const btns = [
+    'btn-arm', 'btn-disarm', 'btn-liftoff', 'btn-land', 'btn-rtl', 'btn-set-mode', 'mode-select',
+  ];
+  const moveBtns = document.querySelectorAll('.move-dir, .btn-yaw');
   const overlay = document.getElementById('reconnect-overlay');
 
   if (state === 'connected') {
+    wsConnected = true;
     if (badge) badge.className = 'link-badge connected';
     if (badgeText) badgeText.textContent = 'Connected';
     if (dot) dot.className = 'badge-dot pulse';
@@ -100,6 +187,7 @@ function setLinkState(state) {
     });
     if (overlay) overlay.classList.remove('show');
   } else if (state === 'disconnected') {
+    wsConnected = false;
     if (badge) badge.className = 'link-badge disconnected';
     if (badgeText) badgeText.textContent = 'Disconnected';
     if (dot) dot.className = 'badge-dot';
@@ -108,8 +196,10 @@ function setLinkState(state) {
       const el = document.getElementById(id);
       if (el) el.disabled = true;
     });
+    moveBtns.forEach((el) => { el.disabled = true; });
     if (overlay) overlay.classList.add('show');
   } else {
+    wsConnected = false;
     if (badge) badge.className = 'link-badge connecting';
     if (badgeText) badgeText.textContent = 'Connecting…';
     if (dot) dot.className = 'badge-dot pulse';
@@ -306,6 +396,8 @@ function updateTelemetry(d) {
   updatePreflight(d);
   updateAttitude(d);
   updateLiveStrip(d);
+
+  updateMoveControls(d);
 
   if (typeof SkylinkMap !== 'undefined') SkylinkMap.updateFromTelemetry(d);
 }

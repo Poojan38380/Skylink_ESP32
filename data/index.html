@@ -129,9 +129,45 @@
           <h2 class="section-title">Mission commands</h2>
           <p class="section-desc">Takeoff climbs in GUIDED. Land and RTL are safe recovery options.</p>
           <button type="button" class="btn btn-primary btn-block" id="btn-liftoff" disabled onclick="autonomousTakeoff()">Takeoff…</button>
-          <div class="btn-grid-2" style="margin-top:12px">
+          <div class="btn-grid-2" style="margin-top:16px">
             <button type="button" class="btn btn-secondary" id="btn-land" disabled onclick="sendCmd('LAND')">Land</button>
             <button type="button" class="btn btn-secondary" id="btn-rtl" disabled onclick="sendCmd('RTL')">Return home</button>
+          </div>
+        </div>
+
+        <div class="section-block" id="move-section">
+          <h2 class="section-title">Relative moves</h2>
+          <p class="section-desc">Nose-forward / strafe / climb in GUIDED while armed. Pick a distance, then tap a direction. Moves over 10 m ask for confirmation.</p>
+          <p class="move-hint" id="move-hint">Requires armed + GUIDED + 3D GPS + 2 m altitude.</p>
+
+          <div class="preset-row" role="group" aria-label="Move distance">
+            <span class="preset-label">Distance</span>
+            <button type="button" class="preset-btn active" data-move-m="1">1 m</button>
+            <button type="button" class="preset-btn" data-move-m="3">3 m</button>
+            <button type="button" class="preset-btn" data-move-m="5">5 m</button>
+            <button type="button" class="preset-btn" data-move-m="10">10 m</button>
+          </div>
+
+          <div class="move-pad">
+            <div class="move-row move-row-single">
+              <button type="button" class="btn btn-move move-dir" data-move="x" data-sign="1" disabled>↑ Forward</button>
+            </div>
+            <div class="move-row move-row-triple">
+              <button type="button" class="btn btn-move move-dir" data-move="y" data-sign="-1" disabled>← Left</button>
+              <button type="button" class="btn btn-move move-dir" data-move="x" data-sign="-1" disabled>↓ Back</button>
+              <button type="button" class="btn btn-move move-dir" data-move="y" data-sign="1" disabled>Right →</button>
+            </div>
+            <div class="move-row move-row-triple">
+              <button type="button" class="btn btn-move move-dir" data-move="z" data-sign="-1" disabled>↑ Up</button>
+              <span class="move-pad-center">BODY</span>
+              <button type="button" class="btn btn-move move-dir" data-move="z" data-sign="1" disabled>↓ Down</button>
+            </div>
+          </div>
+
+          <div class="preset-row" style="margin-top:20px" role="group" aria-label="Yaw">
+            <span class="preset-label">Yaw</span>
+            <button type="button" class="btn btn-move btn-yaw" data-yaw="-90" disabled>↺ 90° left</button>
+            <button type="button" class="btn btn-move btn-yaw" data-yaw="90" disabled>90° right ↻</button>
           </div>
         </div>
       </div>

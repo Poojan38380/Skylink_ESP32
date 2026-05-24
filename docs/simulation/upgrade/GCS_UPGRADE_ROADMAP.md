@@ -28,7 +28,7 @@
 | 1 | Link & LED ✅ | 1–2 days | WiFi LED, link status bar, SIM banner |
 | 2 | Map shell ✅ | 3–4 days | Leaflet map-first layout, marker, no new FC cmds |
 | 3 | Telemetry++ ✅ | 2–3 days | Attitude, GLOBAL_POSITION, faster HB, preflight |
-| 4 | Relative moves | 4–5 days | Forward/strafe/yaw tap commands |
+| 4 | Relative moves ✅ | 4–5 days | Forward/strafe/yaw tap commands |
 | 5 | Map fly + loiter | 4–5 days | Click-to-fly, altitude, LOITER |
 | 6 | Polish & safety | 3–4 days | ACK, STATUSTEXT, arm hold, logs, docs |
 | 7+ | *(Deferred)* | — | Missions, AUTO, Pixhawk hardening |
@@ -167,7 +167,7 @@ Use existing telemetry lat/lon; no new MAVLink commands this phase.
 
 ---
 
-## Phase 4 — Relative tap controls (“basic controls over internet”)
+## Phase 4 — Relative tap controls (“basic controls over internet”) ✅
 
 **Goal:** Operator taps “Forward 5 m” / “Turn 90° right” — drone executes in GUIDED.
 
@@ -185,19 +185,19 @@ Require **armed + GUIDED**; disable otherwise.
 
 ### Firmware
 
-- [ ] `MOVE_BODY` → `SET_POSITION_TARGET_LOCAL_NED` body offset
-- [ ] `YAW_RELATIVE` → `MAV_CMD_CONDITION_YAW`
-- [ ] Enforce caps: max 20 m, min altitude 2 m, GPS 3D
+- [x] `MOVE_BODY` → `SET_POSITION_TARGET_LOCAL_NED` body offset
+- [x] `YAW_RELATIVE` → `MAV_CMD_CONDITION_YAW`
+- [x] Enforce caps: max 20 m, min altitude 2 m, GPS 3D
 
 ### Safety
 
-- [ ] Confirm dialog for moves &gt; 10 m
-- [ ] Firmware rejects if disarmed
+- [x] Confirm dialog for moves &gt; 10 m
+- [x] Firmware rejects if disarmed
 
 ### Acceptance
 
-- [ ] In SITL: takeoff 5 m → forward 5 m → yaw 90° → MP shows matching track
-- [ ] Latency acceptable on LAN (&lt; 1 s start of motion)
+- [x] In SITL: takeoff 5 m → forward 5 m → yaw 90° → MP shows matching track
+- [x] Latency acceptable on LAN (&lt; 1 s start of motion)
 
 ---
 

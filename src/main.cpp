@@ -82,7 +82,9 @@ void loop() {
     }
     
     // Send WebSocket Heartbeat (Telemetric demo)
-    if (wifiManager.isConnected() && (now - lastWSHeartbeat >= SKYLINK_WS_TELEMETRY_INTERVAL_MS)) {
+    if (wifiManager.isConnected() &&
+        webServerModule.getWsClientCount() > 0 &&
+        (now - lastWSHeartbeat >= SKYLINK_WS_TELEMETRY_INTERVAL_MS)) {
         lastWSHeartbeat = now;
         webServerModule.sendHeartbeat();
         webServerModule.sendPendingFcEvents();

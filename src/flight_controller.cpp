@@ -322,8 +322,9 @@ void FlightController::sendRCOverride(uint16_t roll, uint16_t pitch, uint16_t th
 
 void FlightController::sendHeartbeat() {
     mavlink_message_t msg;
+    // Sysid 255 = GCS (never 1 — that impersonates the autopilot and confuses HEARTBEAT parsing)
     mavlink_msg_heartbeat_pack(
-        1, 255, &msg,
+        255, MAV_COMP_ID_MISSIONPLANNER, &msg,
         MAV_TYPE_GCS,
         MAV_AUTOPILOT_INVALID,
         MAV_MODE_FLAG_MANUAL_INPUT_ENABLED,
@@ -332,6 +333,29 @@ void FlightController::sendHeartbeat() {
     );
     sendMavlinkPacket(&msg);
 }
+
+namespace {
+
+bool isAutopilotHeartbeat(const mavlink_message_t* msg, const mavlink_heartbeat_t& hb) {
+    if (msg->sysid != SKYLINK_MAVLINK_VEHICLE_SYSID) return false;
+    if (msg->compid != SKYLINK_MAVLINK_VEHICLE_COMPID) return false;
+    if (hb.type == MAV_TYPE_GCS) return false;
+    if (hb.type == MAV_TYPE_ONBOARD_CONTROLLER) return false;
+
+    switch (hb.type) {
+        case MAV_TYPE_QUADROTOR:
+        case MAV_TYPE_HELICOPTER:
+        case MAV_TYPE_FIXED_WING:
+        case MAV_TYPE_GROUND_ROVER:
+        case MAV_TYPE_SUBMARINE:
+        case MAV_TYPE_COAXIAL:
+            return true;
+        default:
+            return false;
+    }
+}
+
+}  // namespace
 
 void FlightController::emergencyStop() {
     if (!takeMutex()) return;
@@ -467,12 +491,7 @@ void FlightController::pushStatusLine(const char* text, uint8_t severity) {
         statusLineCount++;
     }
 
-    FCEvent ev;
-    ev.type = FCEventType::StatusText;
-    ev.severity = severity;
-    strncpy(ev.text, line, SKYLINK_STATUSTEXT_MAX_LEN);
-    ev.text[SKYLINK_STATUSTEXT_MAX_LEN] = '\0';
-    pushEvent(ev);
+    (void)severity;
 }
 
 void FlightController::pushEvent(const FCEvent& event) {
@@ -564,6 +583,9 @@ void FlightController::processMavlinkMessage(mavlink_message_t* msg) {
         case MAVLINK_MSG_ID_HEARTBEAT: {
             mavlink_heartbeat_t hb;
             mavlink_msg_heartbeat_decode(msg, &hb);
+            if (!isAutopilotHeartbeat(msg, hb)) {
+                break;
+            }
             telemetry.armed = (hb.base_mode & MAV_MODE_FLAG_SAFETY_ARMED);
             telemetry.flight_mode = hb.custom_mode;
             break;

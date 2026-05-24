@@ -15,12 +15,13 @@ inline bool wsSendJson(AsyncWebSocketClient* client, JsonDocument& doc) {
     return true;
 }
 
-inline void wsBroadcastJson(AsyncWebSocket& ws, JsonDocument& doc) {
+inline bool wsBroadcastJson(AsyncWebSocket& ws, JsonDocument& doc) {
+    if (ws.count() == 0 || !ws.availableForWriteAll()) return false;
     char buf[SKYLINK_JSON_BUFFER_SIZE];
     size_t len = serializeJson(doc, buf, sizeof(buf));
-    if (len < sizeof(buf)) {
-        ws.textAll(buf, len);
-    }
+    if (len >= sizeof(buf)) return false;
+    ws.textAll(buf, len);
+    return true;
 }
 
 inline void wsSendError(AsyncWebSocketClient* client, const char* message) {

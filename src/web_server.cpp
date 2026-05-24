@@ -140,6 +140,7 @@ WebServerModule::WebServerModule(int port) : server(port), ws("/ws") {
 void WebServerModule::onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len) {
     switch (type) {
         case WS_EVT_CONNECT:
+            client->setCloseClientOnQueueFull(false);
             logger.info("WebSocket client #" + String(client->id()) + " connected from " + client->remoteIP().toString());
 #ifdef SITL_MODE
             flightController.setSITLHost(client->remoteIP().toString());
@@ -204,6 +205,8 @@ int WebServerModule::getWsClientCount() const {
 }
 
 void WebServerModule::sendHeartbeat() {
+    if (getWsClientCount() == 0) return;
+
     JsonDocument doc;
     const FCTelemetry fc = flightController.getTelemetry();
 
@@ -274,26 +277,30 @@ const char* mavResultName(uint8_t result) {
 }  // namespace
 
 void WebServerModule::sendPendingFcEvents() {
+    if (getWsClientCount() == 0) return;
+
     FCEvent ev;
-    while (flightController.popEvent(ev)) {
+    int sent = 0;
+    while (sent < SKYLINK_WS_MAX_EVENTS_PER_LOOP && flightController.popEvent(ev)) {
+        if (ev.type == FCEventType::StatusText) {
+            continue;
+        }
+
         JsonDocument doc;
         doc["v"] = SKYLINK_PROTOCOL_VERSION;
         doc["type"] = "event";
         doc["timestamp"] = timeSync.getCurrentTime();
+        doc["event"] = "ACK";
+        doc["command"] = ev.ack_command;
+        doc["result"] = ev.ack_result;
+        doc["result_name"] = mavResultName(ev.ack_result);
+        doc["ok"] = (ev.ack_result == MAV_RESULT_ACCEPTED);
 
-        if (ev.type == FCEventType::Ack) {
-            doc["event"] = "ACK";
-            doc["command"] = ev.ack_command;
-            doc["result"] = ev.ack_result;
-            doc["result_name"] = mavResultName(ev.ack_result);
-            doc["ok"] = (ev.ack_result == MAV_RESULT_ACCEPTED);
+        if (wsBroadcastJson(ws, doc)) {
+            sent++;
         } else {
-            doc["event"] = "STATUSTEXT";
-            doc["text"] = ev.text;
-            doc["severity"] = ev.severity;
+            break;
         }
-
-        wsBroadcastJson(ws, doc);
     }
 }
 

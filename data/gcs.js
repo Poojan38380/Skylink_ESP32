@@ -13,7 +13,15 @@ let usingCustomDist = false;
 let wsConnected = false;
 let moveControlsEnabled = false;
 let lastKeyMoveMs = 0;
+let lastStatusSnapshot = '';
 let activeTab = 'map';
+
+const flightUiState = {
+  armed: false,
+  guided: false,
+  pendingKey: '',
+  stableCount: 0,
+};
 function updateBuildTag(d) {
   const el = document.getElementById('build-tag');
   if (!el) return;
@@ -206,13 +214,36 @@ function initKeyboardControls() {
   });
 }
 
+function syncFlightUiState(d) {
+  const key =
+    (d.armed ? '1' : '0') + '|' +
+    (d.flight_mode_name || '') + '|' +
+    String(d.flight_mode ?? '');
+  const need = CFG.flightStateStableSamples || 3;
+
+  if (key === flightUiState.pendingKey) {
+    flightUiState.stableCount++;
+  } else {
+    flightUiState.pendingKey = key;
+    flightUiState.stableCount = 1;
+  }
+
+  if (flightUiState.stableCount >= need) {
+    flightUiState.armed = d.armed === true;
+    flightUiState.guided =
+      d.flight_mode_name === 'GUIDED' || Number(d.flight_mode) === 4;
+  }
+}
+
 function updateMoveControls(d) {
+  syncFlightUiState(d);
+
   const minAgl = 2;
   const alt = Number(d.relative_alt) || Number(d.altitude) || 0;
   const canMove =
     wsConnected &&
-    d.armed === true &&
-    (d.flight_mode_name === 'GUIDED' || d.flight_mode === 4) &&
+    flightUiState.armed &&
+    flightUiState.guided &&
     (Number(d.gps_fix) || 0) >= (CFG.preflightMinGpsFix || 3) &&
     alt >= minAgl;
 
@@ -226,10 +257,10 @@ function updateMoveControls(d) {
     if (canMove) {
       hint.textContent = 'Ready — ' + getMoveDistanceM() + ' m per move. Arrows = translate, Num 4/6 = yaw.';
       hint.className = 'move-hint ready';
-    } else if (!d.armed) {
+    } else if (!flightUiState.armed) {
       hint.textContent = 'Arm in GUIDED after preflight checks to enable moves.';
       hint.className = 'move-hint';
-    } else if (d.flight_mode_name !== 'GUIDED' && d.flight_mode !== 4) {
+    } else if (!flightUiState.guided) {
       hint.textContent = 'Switch to GUIDED mode to use relative moves.';
       hint.className = 'move-hint';
     } else {
@@ -342,7 +373,8 @@ function updatePreflight(d) {
   const mavOk = d.mav_connected === true;
   const bat = Number(d.battery);
   const batOk = bat < 0 || bat > minBat;
-  const safeOk = !d.armed;
+  syncFlightUiState(d);
+  const safeOk = !flightUiState.armed;
 
   setPreflightItem('pf-wifi', wifiOk);
   setPreflightItem('pf-gps', gpsOk);
@@ -396,14 +428,19 @@ function updateAttitude(d) {
 }
 
 function updateLiveStrip(d) {
-  const mode = d.flight_mode_name || '—';
+  syncFlightUiState(d);
+
   const modeEl = document.getElementById('live-mode');
-  if (modeEl) modeEl.textContent = mode;
+  if (modeEl) {
+    modeEl.textContent = flightUiState.guided
+      ? 'GUIDED'
+      : (d.flight_mode_name || '—');
+  }
 
   const armEl = document.getElementById('live-arm');
   if (armEl) {
-    armEl.textContent = d.armed ? 'ARMED' : 'DISARMED';
-    armEl.classList.toggle('armed', !!d.armed);
+    armEl.textContent = flightUiState.armed ? 'ARMED' : 'DISARMED';
+    armEl.classList.toggle('armed', flightUiState.armed);
   }
 
   const altEl = document.getElementById('live-alt');
@@ -441,6 +478,19 @@ function updateLinkChips(d) {
     const banner = document.getElementById('sim-banner');
     if (banner) banner.hidden = false;
   }
+}
+
+function logNewStatusTexts(lines) {
+  if (!Array.isArray(lines) || !lines.length) return;
+  const snap = lines.join('\n');
+  if (snap === lastStatusSnapshot) return;
+  const prev = lastStatusSnapshot ? lastStatusSnapshot.split('\n') : [];
+  for (const txt of lines) {
+    if (!txt || prev.includes(txt)) continue;
+    const isErr = /denied|fail|error|prearm|reject/i.test(txt);
+    log('FC', isErr ? 'tag-err' : 'tag-sys', txt);
+  }
+  lastStatusSnapshot = snap;
 }
 
 function updateTelemetry(d) {
@@ -484,7 +534,7 @@ function updateTelemetry(d) {
   }
 
   const stateEl = document.getElementById('lnk-state');
-  if (stateEl) stateEl.textContent = d.armed ? 'Armed' : 'Disarmed';
+  if (stateEl) stateEl.textContent = flightUiState.armed ? 'Armed' : 'Disarmed';
 
   const bar = document.getElementById('bat-bar');
   if (bar) {
@@ -504,6 +554,7 @@ function updateTelemetry(d) {
 
   set('last-hb-text', (d.sitl_connected ? 'MAVLink live' : 'Waiting') + ' · ' + sats + ' sats');
 
+  logNewStatusTexts(d.statustext);
   updateLinkChips(d);
   updatePreflight(d);
   updateAttitude(d);
@@ -581,6 +632,9 @@ function startCountdown(seconds) {
 }
 
 function connect() {
+  if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
+    return;
+  }
   setLinkState('connecting');
   const wsProtocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
   ws = new WebSocket(wsProtocol + window.location.host + '/ws');
@@ -632,6 +686,7 @@ function connect() {
   };
 
   ws.onclose = () => {
+    ws = null;
     setLinkState('disconnected');
     const delay = reconnectDelay;
     log('SYS', 'tag-err', 'Disconnected — retry in ' + Math.round(delay / 1000) + ' s');

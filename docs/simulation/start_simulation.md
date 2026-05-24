@@ -26,11 +26,11 @@ Running SITL in **headless mode** is the most stable and performant way to run i
    ```bash
    cd ~/ardupilot/ArduCopter
    ```
-4. Start the flight simulator with an open external TCP port:
+4. Start the flight simulator (do **not** use `--out=tcpin:0.0.0.0:5763` — it conflicts with SITL's native SERIAL2 port):
    ```bash
-   sim_vehicle.py -v ArduCopter --out=tcpin:0.0.0.0:5763
+   sim_vehicle.py -v ArduCopter
    ```
-   *   **What to look for**: Wait about 10–20 seconds. Once the build finishes, you will see a scrolling command line ending with the prompt: `STABILIZE>` or `MAV>`. Your simulated flight controller is now live and accepting external TCP connections on port 5763!
+   *   **What to look for**: ArduCopter log shows `SERIAL2 on TCP port 5763` with no bind error, then `STABILIZE>` or `MAV>`. The ESP32 connects to **TCP 5763** on your PC's LAN IP after you open the web dashboard.
 
 ---
 
@@ -58,12 +58,12 @@ We connect Mission Planner via **TCP** to completely bypass Windows UDP port con
 ## 🔌 Step 3: Run the ESP32 & Custom GCS Dashboard
 Now that your virtual drone is running in the simulator and connected to Mission Planner, let's connect your physical ESP32 and browser dashboard.
 
-1. With your ESP32 flashed and connected to your WiFi, it will automatically search your local network and connect to your laptop at `<YOUR_LAPTOP_IP_ADDRESS>:5763` (the dynamic TCP port).
-2. Check your PlatformIO Serial Monitor. You should see:
-   *   `[INFO] SITL Host dynamically updated to GCS IP: <YOUR_LAPTOP_IP>`
-   *   `[INFO] Connected to ArduPilot SITL Socket!`
-   *   `[INFO] Stream verified. MAVLink Handshake Established!`
-3. Open a web browser (like Google Chrome) on your laptop and navigate to your ESP32's IP address:
+1. **Open the web dashboard first** on the same PC that runs SITL (`http://<ESP32_IP>/`). This sets the SITL host to your laptop's LAN IP.
+2. Check PlatformIO Serial Monitor for:
+   *   `[INFO] SITL host set to GCS machine: <YOUR_LAPTOP_IP>:5763`
+   *   `[INFO] Connected to ArduPilot SITL (TCP 5763)`
+3. The dashboard **SITL LINK** row should show `MAVLink OK`.
+4. If you have not opened the dashboard yet, navigate to:
    ```text
    http://<YOUR_ESP32_IP_ADDRESS>/
    ```

@@ -744,6 +744,10 @@
             <span class="stat-value" id="lnk-uptime">—</span>
           </div>
           <div class="stat-row">
+            <span class="stat-label">SITL LINK</span>
+            <span class="stat-value" id="lnk-sitl">—</span>
+          </div>
+          <div class="stat-row">
             <span class="stat-label">DEVICE</span>
             <span class="stat-value" style="color:var(--muted)">ESP32-SKYLINK</span>
           </div>
@@ -762,15 +766,29 @@
             <div class="led-status-text" id="led-status-text">UNKNOWN</div>
           </div>
 
+          <div class="stat-row" style="margin-bottom:10px">
+            <span class="stat-label">FLIGHT MODE</span>
+          </div>
+          <select id="mode-select" disabled style="width:100%;margin-bottom:12px;padding:8px;background:var(--bg);color:var(--text);border:1px solid var(--border2);border-radius:6px;font-family:var(--font);font-size:11px">
+            <option value="GUIDED" selected>GUIDED (required for arm/takeoff)</option>
+            <option value="STABILIZE">STABILIZE</option>
+            <option value="LAND">LAND</option>
+            <option value="RTL">RTL (return home)</option>
+          </select>
+
           <div class="btn-row">
-            <button class="btn-on" id="btn-arm" disabled onclick="sendCmd('ARM_DRONE')">⚡ ARM DRONE</button>
+            <button class="btn-toggle" id="btn-set-mode" disabled onclick="applyFlightMode()">SET MODE</button>
+          </div>
+          <div class="btn-row">
+            <button class="btn-on" id="btn-arm" disabled onclick="armSequence()">⚡ ARM DRONE</button>
             <button class="btn-off" id="btn-disarm" disabled onclick="sendCmd('DISARM_DRONE')">🛑 DISARM</button>
           </div>
           <div class="btn-row">
-            <button class="btn-toggle" id="btn-liftoff" disabled onclick="simulateTakeoff()">🚀 CLIMB (RC TAKE OFF)</button>
+            <button class="btn-toggle" id="btn-liftoff" disabled onclick="autonomousTakeoff()">🚀 AUTONOMOUS TAKEOFF</button>
           </div>
           <div class="btn-row" style="margin-top:4px">
-            <button class="btn-ping" id="btn-land" disabled onclick="sendCmd('RC_OVERRIDE', {roll:1500, pitch:1500, throttle:1100, yaw:1500})">⬇ LAND DRONE</button>
+            <button class="btn-ping" id="btn-land" disabled onclick="sendCmd('LAND')">⬇ LAND</button>
+            <button class="btn-ping" id="btn-rtl" disabled onclick="sendCmd('RTL')">🏠 RTL</button>
           </div>
         </div>
       </div>
@@ -892,7 +910,7 @@
       const badge = document.getElementById('link-badge');
       const dot = document.getElementById('badge-dot');
       const lnkState = document.getElementById('lnk-state');
-      const btns = ['btn-arm', 'btn-disarm', 'btn-liftoff', 'btn-land'];
+      const btns = ['btn-arm', 'btn-disarm', 'btn-liftoff', 'btn-land', 'btn-rtl', 'btn-set-mode', 'mode-select'];
       const overlay = document.getElementById('reconnect-overlay');
 
       if (state === 'connected') {
@@ -931,12 +949,32 @@
 
     // ── TELEMETRY UI ───────────────────────────────────────────────────
     function updateTelemetry(d) {
-      document.getElementById('tl-alt').textContent = d.altitude.toFixed(1);
-      document.getElementById('tl-speed').textContent = d.speed.toFixed(1);
-      document.getElementById('tl-lat').textContent = d.lat.toFixed(6) + '°N';
-      document.getElementById('tl-lng').textContent = d.lng.toFixed(6) + '°E';
+      const alt = Number(d.altitude) || 0;
+      const spd = Number(d.speed) || 0;
+      const lat = Number(d.lat) || 0;
+      const lng = Number(d.lng) || 0;
+      const bat = Number(d.battery) || 0;
+      const batV = Number(d.battery_v) || 0;
+      const sats = Number(d.sats) || 0;
+
+      document.getElementById('tl-alt').textContent = alt.toFixed(1);
+      document.getElementById('tl-speed').textContent = spd.toFixed(1);
+      document.getElementById('tl-lat').textContent = lat.toFixed(6) + '°N';
+      document.getElementById('tl-lng').textContent = lng.toFixed(6) + '°E';
       document.getElementById('lnk-ip').textContent = connectedIP;
-      document.getElementById('lnk-uptime').textContent = fmtUptime(d.uptime);
+      document.getElementById('lnk-uptime').textContent = fmtUptime(d.uptime || 0);
+
+      const sitlEl = document.getElementById('lnk-sitl');
+      if (d.sitl_connected) {
+        sitlEl.textContent = '● MAVLink OK';
+        sitlEl.className = 'stat-value good';
+      } else if (d.sitl_host_ready) {
+        sitlEl.textContent = '◌ ' + (d.sitl_host || '?') + ':' + (d.sitl_port || 5763);
+        sitlEl.className = 'stat-value warn';
+      } else {
+        sitlEl.textContent = '○ OPEN DASHBOARD FIRST';
+        sitlEl.className = 'stat-value bad';
+      }
 
       // Arm Status
       const stateBadge = document.getElementById('lnk-state');
@@ -951,21 +989,20 @@
       }
 
       // Battery
-      const bat = d.battery;
-      document.getElementById('tl-bat').textContent = bat + "% (" + d.battery_v.toFixed(1) + "V)";
+      document.getElementById('tl-bat').textContent = bat + "% (" + batV.toFixed(1) + "V)";
       const bar = document.getElementById('bat-bar');
       bar.style.width = bat + '%';
       bar.style.background = bat > 50 ? 'var(--green)' : bat > 20 ? 'var(--orange)' : 'var(--red)';
 
       // Signal Strength (Parse GPS Sats instead of RSSI to indicate localization quality)
       const sb = document.getElementById('signal-bars');
-      if (d.sats > 9) sb.className = 'signal-bars s5';
-      else if (d.sats > 6) sb.className = 'signal-bars s4';
-      else if (d.sats > 3) sb.className = 'signal-bars s3';
+      if (sats > 9) sb.className = 'signal-bars s5';
+      else if (sats > 6) sb.className = 'signal-bars s4';
+      else if (sats > 3) sb.className = 'signal-bars s3';
       else sb.className = 'signal-bars s1';
 
-      // Last HB timestamp
-      document.getElementById('last-hb-text').textContent = 'Live telemetry | Sats: ' + d.sats;
+      const sitlNote = d.sitl_connected ? 'MAVLink live' : 'SITL pending';
+      document.getElementById('last-hb-text').textContent = sitlNote + ' | Sats: ' + sats;
     }
 
     // ── LOG ────────────────────────────────────────────────────────────
@@ -995,16 +1032,35 @@
       sendCmd('PING');
     }
 
-    function simulateTakeoff() {
-      log('SYS', 'tag-sys', 'Sending RC Takeoff sequence...');
-      // Override throttle high (e.g. 1700ms) to climb, other channels neutral (1500ms)
-      sendCmd('RC_OVERRIDE', { roll: 1500, pitch: 1500, throttle: 1700, yaw: 1500 });
-      
-      // Auto return throttle to hover state (1500ms) after 3.5 seconds
+    function applyFlightMode() {
+      const mode = document.getElementById('mode-select').value;
+      sendCmd('SET_FLIGHT_MODE', { mode });
+    }
+
+    function armSequence() {
+      const mode = document.getElementById('mode-select').value;
+      if (mode !== 'GUIDED') {
+        log('SYS', 'tag-err', 'Select GUIDED mode before arming (STABILIZE will auto-disarm on ground)');
+        document.getElementById('mode-select').value = 'GUIDED';
+      }
+      sendCmd('SET_FLIGHT_MODE', { mode: 'GUIDED' });
+      setTimeout(() => sendCmd('ARM_DRONE'), 400);
+    }
+
+    function autonomousTakeoff() {
+      const alt = prompt('Takeoff altitude (meters)?', '5');
+      if (alt === null) return;
+      const meters = parseFloat(alt);
+      if (isNaN(meters) || meters < 1 || meters > 50) {
+        log('ERR', 'tag-err', 'Invalid altitude (use 1–50m)');
+        return;
+      }
+      sendCmd('SET_FLIGHT_MODE', { mode: 'GUIDED' });
       setTimeout(() => {
-        log('SYS', 'tag-sys', 'Entering stable hover...');
-        sendCmd('RC_OVERRIDE', { roll: 1500, pitch: 1500, throttle: 1500, yaw: 1500 });
-      }, 3500);
+        sendCmd('ARM_DRONE');
+        setTimeout(() => sendCmd('TAKEOFF', { altitude: meters }), 500);
+      }, 400);
+      log('SYS', 'tag-sys', 'Takeoff sequence: GUIDED → ARM → ' + meters + 'm');
     }
 
     // ── RECONNECT COUNTDOWN ────────────────────────────────────────────
@@ -1037,9 +1093,6 @@
           switch (d.event) {
             case 'HEARTBEAT':
               updateTelemetry(d);
-              log('HB', 'tag-hb',
-                `alt=${d.altitude.toFixed(1)}m  bat=${d.battery}%  ` +
-                `speed=${d.speed.toFixed(1)}m/s  lat=${d.lat.toFixed(4)}  lng=${d.lng.toFixed(4)}`);
               break;
             case 'LED_STATE':
               setLED(d.value);

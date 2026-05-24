@@ -107,6 +107,78 @@ function setLinkState(state) {
   }
 }
 
+function setPreflightItem(id, pass) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.className = pass ? 'pass' : 'fail';
+  const icon = el.querySelector('.pf-icon');
+  if (icon) icon.textContent = pass ? '●' : '○';
+}
+
+function updatePreflight(d) {
+  const wifiOk = d.wifi_connected === true;
+  const minFix = CFG.preflightMinGpsFix || 3;
+  const minBat = CFG.preflightMinBatteryPct || 20;
+  const gpsOk = (Number(d.gps_fix) || 0) >= minFix;
+  const mavOk = d.mav_connected === true;
+  const bat = Number(d.battery);
+  const batOk = bat < 0 || bat > minBat;
+  const safeOk = !d.armed;
+
+  setPreflightItem('pf-wifi', wifiOk);
+  setPreflightItem('pf-gps', gpsOk);
+  setPreflightItem('pf-mav', mavOk);
+  setPreflightItem('pf-bat', batOk);
+  setPreflightItem('pf-safe', safeOk);
+
+  const ready = wifiOk && gpsOk && mavOk && batOk && safeOk;
+  const summary = document.getElementById('preflight-summary');
+  if (summary) {
+    summary.textContent = ready ? 'READY TO ARM' : 'NOT READY';
+    summary.className = 'preflight-summary' + (ready ? ' ready' : (mavOk ? ' warn' : ' bad'));
+  }
+
+  const msgs = document.getElementById('preflight-msgs');
+  if (msgs && Array.isArray(d.statustext) && d.statustext.length) {
+    msgs.innerHTML = d.statustext.slice(-5).map((line) => {
+      const err = /denied|fail|error|prearm|reject/i.test(line);
+      return '<div class="fc-msg' + (err ? ' err' : '') + '">' + escapeHtml(line) + '</div>';
+    }).join('');
+  }
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function updateAttitude(d) {
+  const roll = Number(d.roll) || 0;
+  const pitch = Number(d.pitch) || 0;
+  const horizon = document.getElementById('att-horizon');
+  const rollEl = document.getElementById('att-roll');
+  const pitchEl = document.getElementById('att-pitch');
+  const bubble = document.getElementById('att-bubble');
+
+  if (horizon) {
+    horizon.style.transform = 'translateY(-50%) rotate(' + (-roll).toFixed(1) + 'deg)';
+    horizon.style.top = (50 + pitch * 1.2) + '%';
+  }
+  if (bubble) bubble.style.transform = 'rotate(' + roll.toFixed(1) + 'deg)';
+  if (rollEl) rollEl.textContent = 'R ' + roll.toFixed(0) + '°';
+  if (pitchEl) pitchEl.textContent = 'P ' + pitch.toFixed(0) + '°';
+}
+
+function showToast(message, type) {
+  const stack = document.getElementById('toast-stack');
+  if (!stack || !message) return;
+  const el = document.createElement('div');
+  el.className = 'toast ' + (type || 'info');
+  el.textContent = message;
+  stack.appendChild(el);
+  const ttl = CFG.toastDurationMs || 4500;
+  setTimeout(() => el.remove(), ttl);
+}
+
 function setChip(el, state, text) {
   if (!el) return;
   el.className = 'link-chip ' + state;
@@ -170,15 +242,17 @@ function updateTelemetry(d) {
   }
 
   const stateBadge = document.getElementById('lnk-state');
-  if (d.armed) {
-    stateBadge.textContent = '● ARMED / FLYING';
-    stateBadge.className = 'stat-value bad';
-  } else {
-    stateBadge.textContent = '○ DISARMED / SAFE';
-    stateBadge.className = 'stat-value good';
+  if (stateBadge) {
+    stateBadge.textContent = d.armed ? 'ARMED' : 'DISARMED';
+    stateBadge.className = d.armed ? 'stat-value bad' : 'stat-value good';
   }
 
+  const modeEl = document.getElementById('tl-mode');
+  if (modeEl) modeEl.textContent = d.flight_mode_name || String(d.flight_mode ?? '—');
+
   updateLinkChips(d);
+  updatePreflight(d);
+  updateAttitude(d);
 
   document.getElementById('tl-bat').textContent = bat + '% · ' + batV.toFixed(1) + 'V';
   const bar = document.getElementById('bat-bar');
@@ -294,6 +368,23 @@ function connect() {
               break;
         case 'LED_STATE':
           break;
+        case 'ACK': {
+          const ok = d.ok === true || d.result === 0;
+          const label = d.result_name || ('result ' + d.result);
+          showToast('CMD ' + (d.command ?? '?') + ': ' + label, ok ? 'ok' : 'err');
+          log(ok ? 'ACK' : 'ERR', ok ? 'tag-sys' : 'tag-err', 'ACK ' + (d.command ?? '?') + ' → ' + label);
+          break;
+        }
+        case 'STATUSTEXT': {
+          const txt = d.text || '';
+          const sev = Number(d.severity) || 0;
+          const isErr = sev >= 4 || /denied|fail|error|prearm|reject/i.test(txt);
+          if (txt) {
+            showToast(txt, isErr ? 'err' : 'info');
+            log('FC', isErr ? 'tag-err' : 'tag-sys', txt);
+          }
+          break;
+        }
         case 'PONG': {
           const latency = pingTimestamp ? Math.round(performance.now() - pingTimestamp) : '?';
           log('PING', 'tag-ping', `PONG ← round-trip ${latency}ms`);

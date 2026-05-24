@@ -104,7 +104,12 @@ const SkylinkMap = (function () {
   }
 
   function setHome(lat, lng) {
-    if (homeSet || !map) return;
+    if (!map || !isValidCoord(lat, lng)) return;
+    if (homeMarker) {
+      homeMarker.setLatLng([lat, lng]);
+      homeSet = true;
+      return;
+    }
     homeSet = true;
     homeMarker = L.marker([lat, lng], { icon: homeIcon(), zIndexOffset: 500 }).addTo(map);
     homeMarker.bindTooltip('Home', { permanent: false, direction: 'top' });
@@ -124,8 +129,12 @@ const SkylinkMap = (function () {
     droneMarker.setIcon(droneIcon(heading));
     lastDronePos = [lat, lng];
 
-    const fix = Number(d.gps_fix) || 0;
-    if (!homeSet && fix >= 2) setHome(lat, lng);
+    if (d.home_valid && isValidCoord(Number(d.home_lat), Number(d.home_lng))) {
+      setHome(Number(d.home_lat), Number(d.home_lng));
+    } else {
+      const fix = Number(d.gps_fix) || 0;
+      if (!homeSet && fix >= 2) setHome(lat, lng);
+    }
 
     pushTrail(lat, lng);
 

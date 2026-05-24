@@ -9,10 +9,14 @@
 
 // --- Protocol ---
 #define SKYLINK_PROTOCOL_VERSION        1
-#define SKYLINK_JSON_BUFFER_SIZE        768
+#define SKYLINK_JSON_BUFFER_SIZE        1152
 
 // --- WebSocket / dashboard telemetry ---
-#define SKYLINK_WS_TELEMETRY_INTERVAL_MS  200   // 5 Hz to browser
+#define SKYLINK_WS_TELEMETRY_INTERVAL_MS  100   // 10 Hz to browser
+#define SKYLINK_WS_TELEMETRY_HZ           10
+#define SKYLINK_STATUSTEXT_RING_LINES     5
+#define SKYLINK_STATUSTEXT_MAX_LEN        50
+#define SKYLINK_FC_EVENT_QUEUE_SIZE       6
 #define SKYLINK_WS_LINK_STATUS_INTERVAL_MS  1000
 
 // --- SITL / MAVLink (flight_controller) ---
@@ -39,9 +43,9 @@
 
 // --- Build identity (bump when flashing; see CONFIG_REFERENCE.md) ---
 // FIRMWARE: increment before `pio run --target upload`
-#define SKYLINK_FIRMWARE_BUILD          4
+#define SKYLINK_FIRMWARE_BUILD          5
 // FS: increment before `pio run --target uploadfs` (must match data/skylink_build.json + gcs_config.js)
-#define SKYLINK_FS_BUILD                5
+#define SKYLINK_FS_BUILD                6
 
 #ifdef SITL_MODE
 constexpr bool SKYLINK_SIMULATION = true;

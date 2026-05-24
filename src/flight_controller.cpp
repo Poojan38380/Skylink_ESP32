@@ -1,6 +1,7 @@
 #include "flight_controller.h"
 #include "logger.h"
 #include "skylink_config.h"
+#include <math.h>
 
 #ifdef SITL_MODE
 FlightController::FlightController() {}
@@ -42,7 +43,12 @@ void FlightController::begin() {
 #endif
 
     mavlinkActive = false;
+    messageIntervalsSent = false;
     lastMavlinkRx = 0;
+    statusLineCount = 0;
+    statusLineHead = 0;
+    eventQueueHead = 0;
+    eventQueueTail = 0;
 }
 
 void FlightController::sendMavlinkPacket(mavlink_message_t* msg) {
@@ -55,6 +61,27 @@ void FlightController::sendMavlinkPacket(mavlink_message_t* msg) {
 #else
     fcSerial.write(buf, len);
 #endif
+}
+
+void FlightController::setMessageInterval(uint32_t msgId, int32_t intervalUs) {
+    mavlink_message_t msg;
+    mavlink_msg_command_long_pack(
+        1, 255, &msg,
+        1, 1,
+        MAV_CMD_SET_MESSAGE_INTERVAL,
+        0,
+        (float)msgId,
+        (float)intervalUs,
+        0, 0, 0, 0, 0
+    );
+    sendMavlinkPacket(&msg);
+}
+
+void FlightController::requestMessageIntervals() {
+    setMessageInterval(MAVLINK_MSG_ID_ATTITUDE, 100000);
+    setMessageInterval(MAVLINK_MSG_ID_GLOBAL_POSITION_INT, 200000);
+    setMessageInterval(MAVLINK_MSG_ID_GPS_RAW_INT, 500000);
+    messageIntervalsSent = true;
 }
 
 void FlightController::requestDataStreams() {
@@ -74,11 +101,13 @@ void FlightController::requestDataStreams() {
             1, 255, &msg,
             1, 1,
             stream,
-            4,  // 4 Hz
-            1   // start streaming
+            4,
+            1
         );
         sendMavlinkPacket(&msg);
     }
+
+    requestMessageIntervals();
 }
 
 void FlightController::setCopterMode(uint8_t customMode) {
@@ -258,6 +287,7 @@ void FlightController::setSITLHost(const String& host) {
             sitlClient.stop();
         }
         mavlinkActive = false;
+        messageIntervalsSent = false;
         lastReconnectAttempt = 0;
     }
     giveMutex();
@@ -268,6 +298,7 @@ void FlightController::maintainSitlConnection(uint32_t now) {
 
     if (!sitlClient.connected()) {
         mavlinkActive = false;
+        messageIntervalsSent = false;
         if (now - lastReconnectAttempt < SKYLINK_SITL_RECONNECT_INTERVAL_MS) return;
 
         lastReconnectAttempt = now;
@@ -289,9 +320,88 @@ void FlightController::maintainSitlConnection(uint32_t now) {
         logger.warning("MAVLink link timed out — reconnecting");
         sitlClient.stop();
         mavlinkActive = false;
+        messageIntervalsSent = false;
     }
 }
 #endif
+
+const char* FlightController::flightModeName(uint8_t customMode) {
+    switch (customMode) {
+        case COPTER_MODE_STABILIZE: return "STABILIZE";
+        case COPTER_MODE_ACRO: return "ACRO";
+        case COPTER_MODE_ALT_HOLD: return "ALT_HOLD";
+        case COPTER_MODE_AUTO: return "AUTO";
+        case COPTER_MODE_GUIDED: return "GUIDED";
+        case COPTER_MODE_LOITER: return "LOITER";
+        case COPTER_MODE_RTL: return "RTL";
+        case COPTER_MODE_CIRCLE: return "CIRCLE";
+        case COPTER_MODE_LAND: return "LAND";
+        default: return "UNKNOWN";
+    }
+}
+
+void FlightController::pushStatusLine(const char* text, uint8_t severity) {
+    if (!text) return;
+
+    char line[SKYLINK_STATUSTEXT_MAX_LEN + 1];
+    strncpy(line, text, SKYLINK_STATUSTEXT_MAX_LEN);
+    line[SKYLINK_STATUSTEXT_MAX_LEN] = '\0';
+
+    for (int i = 0; line[i]; ++i) {
+        if (line[i] < 32 && line[i] != '\t') line[i] = ' ';
+    }
+
+    strncpy(statusLines[statusLineHead], line, SKYLINK_STATUSTEXT_MAX_LEN);
+    statusLines[statusLineHead][SKYLINK_STATUSTEXT_MAX_LEN] = '\0';
+    statusLineHead = (statusLineHead + 1) % SKYLINK_STATUSTEXT_RING_LINES;
+    if (statusLineCount < SKYLINK_STATUSTEXT_RING_LINES) {
+        statusLineCount++;
+    }
+
+    FCEvent ev;
+    ev.type = FCEventType::StatusText;
+    ev.severity = severity;
+    strncpy(ev.text, line, SKYLINK_STATUSTEXT_MAX_LEN);
+    ev.text[SKYLINK_STATUSTEXT_MAX_LEN] = '\0';
+    pushEvent(ev);
+}
+
+void FlightController::pushEvent(const FCEvent& event) {
+    int nextTail = (eventQueueTail + 1) % SKYLINK_FC_EVENT_QUEUE_SIZE;
+    if (nextTail == eventQueueHead) {
+        eventQueueHead = (eventQueueHead + 1) % SKYLINK_FC_EVENT_QUEUE_SIZE;
+    }
+    eventQueue[eventQueueTail] = event;
+    eventQueueTail = nextTail;
+}
+
+bool FlightController::popEvent(FCEvent& out) {
+    if (!takeMutex(5)) return false;
+    if (eventQueueHead == eventQueueTail) {
+        giveMutex();
+        return false;
+    }
+    out = eventQueue[eventQueueHead];
+    eventQueueHead = (eventQueueHead + 1) % SKYLINK_FC_EVENT_QUEUE_SIZE;
+    giveMutex();
+    return true;
+}
+
+void FlightController::appendStatusTexts(JsonArray arr) {
+    if (!takeMutex(5)) return;
+
+    if (statusLineCount == 0) {
+        giveMutex();
+        return;
+    }
+
+    const int start = (statusLineHead - statusLineCount + SKYLINK_STATUSTEXT_RING_LINES) % SKYLINK_STATUSTEXT_RING_LINES;
+    for (int i = 0; i < statusLineCount; ++i) {
+        const int idx = (start + i) % SKYLINK_STATUSTEXT_RING_LINES;
+        arr.add(statusLines[idx]);
+    }
+    giveMutex();
+}
 
 void FlightController::handle() {
     uint32_t now = millis();
@@ -311,6 +421,8 @@ void FlightController::handle() {
     if (mavlinkActive && (now - lastStreamRequest >= SKYLINK_MAVLINK_STREAM_REQUEST_MS)) {
         lastStreamRequest = now;
         requestDataStreams();
+    } else if (mavlinkActive && !messageIntervalsSent) {
+        requestMessageIntervals();
     }
 
 #ifdef SITL_MODE
@@ -369,13 +481,51 @@ void FlightController::processMavlinkMessage(mavlink_message_t* msg) {
             telemetry.speed = hud.groundspeed;
             break;
         }
+        case MAVLINK_MSG_ID_GLOBAL_POSITION_INT: {
+            mavlink_global_position_int_t pos;
+            mavlink_msg_global_position_int_decode(msg, &pos);
+            telemetry.latitude = pos.lat / 1e7;
+            telemetry.longitude = pos.lon / 1e7;
+            telemetry.relative_alt = pos.relative_alt / 1000.0f;
+            telemetry.altitude = telemetry.relative_alt;
+            const float vx = pos.vx / 100.0f;
+            const float vy = pos.vy / 100.0f;
+            telemetry.speed = sqrtf(vx * vx + vy * vy);
+            break;
+        }
         case MAVLINK_MSG_ID_GPS_RAW_INT: {
             mavlink_gps_raw_int_t gps;
             mavlink_msg_gps_raw_int_decode(msg, &gps);
-            telemetry.latitude = gps.lat / 10000000.0;
-            telemetry.longitude = gps.lon / 10000000.0;
+            if (gps.fix_type >= 2) {
+                telemetry.latitude = gps.lat / 1e7;
+                telemetry.longitude = gps.lon / 1e7;
+            }
             telemetry.gps_sats = gps.satellites_visible;
             telemetry.gps_fix = gps.fix_type;
+            break;
+        }
+        case MAVLINK_MSG_ID_HOME_POSITION: {
+            mavlink_home_position_t home;
+            mavlink_msg_home_position_decode(msg, &home);
+            telemetry.home_latitude = home.latitude / 1e7;
+            telemetry.home_longitude = home.longitude / 1e7;
+            telemetry.home_valid = true;
+            break;
+        }
+        case MAVLINK_MSG_ID_COMMAND_ACK: {
+            mavlink_command_ack_t ack;
+            mavlink_msg_command_ack_decode(msg, &ack);
+            FCEvent ev;
+            ev.type = FCEventType::Ack;
+            ev.ack_command = ack.command;
+            ev.ack_result = ack.result;
+            pushEvent(ev);
+            break;
+        }
+        case MAVLINK_MSG_ID_STATUSTEXT: {
+            mavlink_statustext_t st;
+            mavlink_msg_statustext_decode(msg, &st);
+            pushStatusLine(st.text, st.severity);
             break;
         }
         default:

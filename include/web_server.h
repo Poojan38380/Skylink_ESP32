@@ -17,6 +17,7 @@ public:
     void begin();
     void sendAppState();
     void sendHeartbeat();
+    void sendPendingFcEvents();
     int getWsClientCount() const;
 };
 

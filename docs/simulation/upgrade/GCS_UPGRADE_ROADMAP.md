@@ -27,7 +27,7 @@
 | 0 | Code foundation | 2–3 days | Modular FW, split UI assets, protocol version |
 | 1 | Link & LED ✅ | 1–2 days | WiFi LED, link status bar, SIM banner |
 | 2 | Map shell ✅ | 3–4 days | Leaflet map-first layout, marker, no new FC cmds |
-| 3 | Telemetry++ | 2–3 days | Attitude, GLOBAL_POSITION, faster HB, preflight |
+| 3 | Telemetry++ ✅ | 2–3 days | Attitude, GLOBAL_POSITION, faster HB, preflight |
 | 4 | Relative moves | 4–5 days | Forward/strafe/yaw tap commands |
 | 5 | Map fly + loiter | 4–5 days | Click-to-fly, altitude, LOITER |
 | 6 | Polish & safety | 3–4 days | ACK, STATUSTEXT, arm hold, logs, docs |
@@ -142,28 +142,28 @@ Use existing telemetry lat/lon; no new MAVLink commands this phase.
 
 ---
 
-## Phase 3 — Telemetry & preflight
+## Phase 3 — Telemetry & preflight ✅
 
 **Goal:** Enough data for safe decisions and smooth map.
 
 ### Firmware
 
-- [ ] Parse `GLOBAL_POSITION_INT`, `HOME_POSITION`, `COMMAND_ACK`, `STATUSTEXT`
-- [ ] Ring buffer: last 5 STATUSTEXT lines
-- [ ] `SET_MESSAGE_INTERVAL` for ATTITUDE + GLOBAL_POSITION_INT (see MAVLINK_COMMANDS)
-- [ ] Increase WS telemetry to **5–10 Hz** (config `#define TELEMETRY_HZ`)
+- [x] Parse `GLOBAL_POSITION_INT`, `HOME_POSITION`, `COMMAND_ACK`, `STATUSTEXT`
+- [x] Ring buffer: last 5 STATUSTEXT lines
+- [x] `SET_MESSAGE_INTERVAL` for ATTITUDE + GLOBAL_POSITION_INT (see MAVLINK_COMMANDS)
+- [x] Increase WS telemetry to **5–10 Hz** (config `#define TELEMETRY_HZ`)
 
 ### UI
 
-- [ ] Preflight checklist: WiFi, GPS fix ≥ 3, MAVLink, battery > 20%, not armed for test
-- [ ] Mini attitude strip (roll/pitch) or bubble under map
-- [ ] Display mode name string (GUIDED, STABILIZE, …) not raw `4`
-- [ ] `ACK` toast on command success/fail
+- [x] Preflight checklist: WiFi, GPS fix ≥ 3, MAVLink, battery > 20%, not armed for test
+- [x] Mini attitude strip (roll/pitch) or bubble under map
+- [x] Display mode name string (GUIDED, STABILIZE, …) not raw `4`
+- [x] `ACK` toast on command success/fail
 
 ### Acceptance
 
-- [ ] Map position matches Mission Planner within ~2 m in SITL
-- [ ] Arm rejection shows STATUSTEXT in UI (e.g. “Need GPS lock”)
+- [x] Map position matches Mission Planner within ~2 m in SITL
+- [x] Arm rejection shows STATUSTEXT in UI (e.g. “Need GPS lock”)
 
 ---
 

@@ -85,6 +85,7 @@ void loop() {
     if (wifiManager.isConnected() && (now - lastWSHeartbeat >= SKYLINK_WS_TELEMETRY_INTERVAL_MS)) {
         lastWSHeartbeat = now;
         webServerModule.sendHeartbeat();
+        webServerModule.sendPendingFcEvents();
     }
     
     // Serial Heartbeat

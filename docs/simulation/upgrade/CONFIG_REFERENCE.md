@@ -11,9 +11,9 @@ All user-tunable values in one place. Change constants here — not scattered in
 | C++ firmware | `SKYLINK_FIRMWARE_BUILD` | `include/skylink_config.h` | `pio run --target upload` |
 | Dashboard / FS | `SKYLINK_FS_BUILD` + `fs` in JSON + `fsBuild` in JS | `skylink_config.h`, `data/skylink_build.json`, `data/gcs_config.js` | `pio run --target uploadfs` |
 
-**Serial boot log:** `Build FW:4 | FS flash:5 (expected 5) OK`  
-**Dashboard header:** `FW 4 · FS 5`  
-**HTTP check:** `http://<ESP_IP>/health` → `"fw":4,"fs":5,"fs_ok":true`
+**Serial boot log:** `Build FW:5 | FS flash:6 (expected 6) OK`  
+**Dashboard header:** `FW 5 · FS 6`  
+**HTTP check:** `http://<ESP_IP>/health` → `"fw":5,"fs":6,"fs_ok":true`
 
 If `FS flash:0` or `MISMATCH` → run `uploadfs` and bump `fs` in all three FS files.
 
@@ -23,11 +23,13 @@ If `FS flash:0` or `MISMATCH` → run `uploadfs` and bump `fs` in all three FS f
 
 | Constant | Default | Unit | Used by |
 |----------|---------|------|---------|
-| `SKYLINK_FIRMWARE_BUILD` | 4 | — | Serial log, `/health`, dashboard |
-| `SKYLINK_FS_BUILD` | 5 | — | Expected FS (must match `skylink_build.json`) |
+| `SKYLINK_FIRMWARE_BUILD` | 5 | — | Serial log, `/health`, dashboard |
+| `SKYLINK_FS_BUILD` | 6 | — | Expected FS (must match `skylink_build.json`) |
+| `SKYLINK_JSON_BUFFER_SIZE` | 1152 | bytes | WS JSON (statustext array) |
+| `SKYLINK_WS_TELEMETRY_INTERVAL_MS` | 100 | ms | 10 Hz browser telemetry |
+| `SKYLINK_WS_TELEMETRY_HZ` | 10 | Hz | Alias for docs |
+| `SKYLINK_STATUSTEXT_RING_LINES` | 5 | lines | FC message ring |
 | `SKYLINK_PROTOCOL_VERSION` | 1 | — | WebSocket JSON `v` field |
-| `SKYLINK_JSON_BUFFER_SIZE` | 768 | bytes | WS serialize buffer |
-| `SKYLINK_WS_TELEMETRY_INTERVAL_MS` | 200 | ms | `main.cpp` telemetry to browser (5 Hz) |
 | `SKYLINK_WS_LINK_STATUS_INTERVAL_MS` | 1000 | ms | Reserved Phase 1+ |
 | `SKYLINK_SITL_TCP_PORT` | 5763 | port | ESP32 ↔ ArduPilot SERIAL2 |
 | `SKYLINK_SITL_CONNECT_TIMEOUT_MS` | 3000 | ms | TCP connect timeout |
@@ -60,7 +62,10 @@ Also see `include/config.h` for WiFi reconnect and serial heartbeat logging.
 
 | Key | Default | Purpose |
 |-----|---------|---------|
-| `fsBuild` | 5 | Display / must match `skylink_build.json` |
+| `fsBuild` | 6 | Display / must match `skylink_build.json` |
+| `toastDurationMs` | 4500 | ACK / STATUSTEXT toast TTL |
+| `preflightMinGpsFix` | 3 | Preflight GPS check |
+| `preflightMinBatteryPct` | 20 | Preflight battery check |
 | `simulationBanner` | true | Show SIMULATION MODE bar (SITL) |
 | `mapDefaultLat` / `Lng` | -35.36 / 149.17 | SITL default map center |
 | `mapDefaultZoom` | 17 | Initial zoom |

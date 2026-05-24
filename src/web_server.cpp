@@ -215,6 +215,17 @@ void WebServerModule::sendHeartbeat() {
     doc["pitch"] = fc.pitch;
     doc["yaw"] = fc.yaw;
     doc["flight_mode"] = fc.flight_mode;
+    doc["flight_mode_name"] = FlightController::flightModeName(fc.flight_mode);
+    doc["relative_alt"] = fc.relative_alt;
+    doc["home_valid"] = fc.home_valid;
+    if (fc.home_valid) {
+        doc["home_lat"] = fc.home_latitude;
+        doc["home_lng"] = fc.home_longitude;
+    }
+
+    JsonArray statusArr = doc["statustext"].to<JsonArray>();
+    flightController.appendStatusTexts(statusArr);
+
     doc["sitl_connected"] = flightController.isConnected();
     doc["mav_connected"] = flightController.isConnected();
     doc["sitl_tcp_connected"] = flightController.isSitlTcpConnected();
@@ -229,6 +240,45 @@ void WebServerModule::sendHeartbeat() {
 #endif
 
     wsBroadcastJson(ws, doc);
+}
+
+namespace {
+
+const char* mavResultName(uint8_t result) {
+    switch (result) {
+        case MAV_RESULT_ACCEPTED: return "ACCEPTED";
+        case MAV_RESULT_TEMPORARILY_REJECTED: return "TEMP_REJECTED";
+        case MAV_RESULT_DENIED: return "DENIED";
+        case MAV_RESULT_UNSUPPORTED: return "UNSUPPORTED";
+        case MAV_RESULT_FAILED: return "FAILED";
+        default: return "UNKNOWN";
+    }
+}
+
+}  // namespace
+
+void WebServerModule::sendPendingFcEvents() {
+    FCEvent ev;
+    while (flightController.popEvent(ev)) {
+        JsonDocument doc;
+        doc["v"] = SKYLINK_PROTOCOL_VERSION;
+        doc["type"] = "event";
+        doc["timestamp"] = timeSync.getCurrentTime();
+
+        if (ev.type == FCEventType::Ack) {
+            doc["event"] = "ACK";
+            doc["command"] = ev.ack_command;
+            doc["result"] = ev.ack_result;
+            doc["result_name"] = mavResultName(ev.ack_result);
+            doc["ok"] = (ev.ack_result == MAV_RESULT_ACCEPTED);
+        } else {
+            doc["event"] = "STATUSTEXT";
+            doc["text"] = ev.text;
+            doc["severity"] = ev.severity;
+        }
+
+        wsBroadcastJson(ws, doc);
+    }
 }
 
 void WebServerModule::begin() {

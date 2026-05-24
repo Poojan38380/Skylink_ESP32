@@ -49,6 +49,8 @@
     SIMULATION MODE — SITL only · do not arm real hardware without Pixhawk checks
   </div>
 
+  <div id="toast-stack" class="toast-stack" aria-live="polite"></div>
+
   <main class="gcs-layout">
 
     <aside class="sidebar">
@@ -59,28 +61,28 @@
           PREFLIGHT · LINK
         </div>
         <div class="card-body">
-          <div class="stat-row">
-            <span class="stat-label">STATE</span>
-            <span class="stat-value" id="lnk-state">—</span>
+          <div class="preflight-summary" id="preflight-summary">CHECKING…</div>
+          <ul class="preflight-list" id="preflight-list">
+            <li id="pf-wifi"><span class="pf-icon">○</span> WiFi connected</li>
+            <li id="pf-gps"><span class="pf-icon">○</span> GPS fix ≥ 3D</li>
+            <li id="pf-mav"><span class="pf-icon">○</span> MAVLink live</li>
+            <li id="pf-bat"><span class="pf-icon">○</span> Battery &gt; 20%</li>
+            <li id="pf-safe"><span class="pf-icon">○</span> Disarmed (preflight)</li>
+          </ul>
+          <div class="preflight-meta">
+            <span id="lnk-state">—</span> · <span id="lnk-sitl">—</span>
           </div>
-          <div class="stat-row">
-            <span class="stat-label">SITL</span>
-            <span class="stat-value" id="lnk-sitl">—</span>
-          </div>
-          <div class="stat-row">
-            <span class="stat-label">IP</span>
-            <span class="stat-value" id="lnk-ip">—</span>
-          </div>
-          <div class="stat-row">
+          <div class="stat-row" style="padding-top:8px">
             <span class="stat-label">SIGNAL</span>
             <div class="signal-bars" id="signal-bars">
               <span></span><span></span><span></span><span></span><span></span>
             </div>
           </div>
           <div class="stat-row">
-            <span class="stat-label">UPTIME</span>
-            <span class="stat-value" id="lnk-uptime">—</span>
+            <span class="stat-label">IP / UP</span>
+            <span class="stat-value"><span id="lnk-ip">—</span> · <span id="lnk-uptime">—</span></span>
           </div>
+          <div class="preflight-msgs" id="preflight-msgs" aria-label="Autopilot messages"></div>
         </div>
       </div>
 
@@ -106,6 +108,10 @@
               <div class="battery-bar-wrap">
                 <div class="battery-bar" id="bat-bar" style="width:0%"></div>
               </div>
+            </div>
+            <div class="telem-card">
+              <div class="telem-label">MODE</div>
+              <div><span class="telem-value" id="tl-mode">—</span></div>
             </div>
             <div class="telem-card">
               <div class="telem-label">HDG</div>
@@ -158,6 +164,16 @@
 
     <section class="map-stage">
       <div id="map" aria-label="Live map"></div>
+      <div class="attitude-strip" aria-label="Attitude">
+        <div class="att-bubble" id="att-bubble">
+          <div class="att-horizon" id="att-horizon"></div>
+          <div class="att-drone">▲</div>
+        </div>
+        <div class="att-readouts">
+          <span id="att-roll">R —°</span>
+          <span id="att-pitch">P —°</span>
+        </div>
+      </div>
       <div class="map-hud">
         <span id="map-hud-alt">ALT — m</span>
         <span id="map-hud-spd">SPD — m/s</span>

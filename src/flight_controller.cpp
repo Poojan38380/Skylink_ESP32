@@ -52,7 +52,7 @@ void FlightController::sendRCOverride(uint16_t roll, uint16_t pitch, uint16_t th
         1, 255, &msg,
         1, 1,
         roll, pitch, throttle, yaw,
-        0, 0, 0, 0                  // Channels 5-8 (unused)
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
     );
     sendMavlinkPacket(&msg);
 }

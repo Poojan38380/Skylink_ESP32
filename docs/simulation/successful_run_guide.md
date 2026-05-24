@@ -1,45 +1,119 @@
-# 🛰️ Flight Simulation Successful Run Guide
+# Flight Simulation — Verified Run Guide
 
-This document contains the exact, verified sequence and commands required to start your ArduPilot SITL simulation, flash your ESP32 flight controller bridge, and operate the Ground Control Station dashboard successfully.
+**Last verified:** 24 May 2026 · ArduCopter SITL 4.8.0-dev · ESP32 Skylink bridge · Mission Planner TCP.
 
----
-
-## 📋 Standard Operational Sequence
-
-Due to ArduPilot's safety watchdogs and failsafes, you **must** follow this exact sequence to arm and fly the drone without triggering safety disarms:
-
-1. **Enable WSL mirrored networking** (one-time, see `simulation_test_plan.md` Step 1.2).
-2. **Boot SITL in WSL2** with TCP port **5763** exposed for the ESP32.
-3. **Flash ESP32** (`uploadfs` + `upload`) and open the serial monitor.
-4. **Open the Skylink dashboard** in Chrome (`http://<ESP32_IP>/`) — this sets the SITL host to your PC's LAN IP.
-5. **Connect Mission Planner** via TCP `127.0.0.1:5762` (separate port — no conflict).
-6. Wait for dashboard **SITL LINK → MAVLink OK**.
-7. Select **GUIDED** mode → **SET MODE** → **ARM** → **AUTONOMOUS TAKEOFF** within 10 seconds of arming.
+This is the canonical procedure. Follow the steps in order.
 
 ---
 
-## 💻 1. Critical Commands: WSL2 ArduPilot SITL
+## Prerequisites (one-time)
 
-Run these commands inside your **WSL Ubuntu** terminal:
+1. **WSL2 Ubuntu** with ArduPilot built (`~/ardupilot/ArduCopter`).
+2. **Mirrored networking** in `C:\Users\<you>\.wslconfig`:
+   ```ini
+   [wsl2]
+   networkingMode=mirrored
+   ```
+   Then: `wsl --shutdown` and reopen WSL.
+3. **PlatformIO** on Windows (`d:\btp_skylink\Skylink`).
+4. PC, ESP32, and phone/laptop browser on the **same WiFi**.
+
+---
+
+## Port map (instance `-I0`)
+
+| TCP port | ArduPilot serial | Client |
+|----------|------------------|--------|
+| **5760** | SERIAL0 | MavProxy (internal) |
+| **5762** | SERIAL1 | Mission Planner |
+| **5763** | SERIAL2 | Skylink ESP32 |
+
+> **Critical:** Do **not** run `sim_vehicle.py --out=tcpin:0.0.0.0:5763`. MavProxy and ArduCopter both try to bind 5763 → `bind failed on port 5763` and SITL dies.
+
+---
+
+## Startup sequence (every session)
+
+### Step 1 — WSL: start SITL
 
 ```bash
 cd ~/ardupilot/ArduCopter
-
-# Default SITL — ArduCopter already opens TCP 5763 (SERIAL2) for the ESP32.
-# Do NOT add --out=tcpin:0.0.0.0:5763 (that steals the port and SITL will fail to bind).
 sim_vehicle.py -v ArduCopter
 ```
 
-> **Port map (instance 0):** `5760` = MavProxy · `5762` = Mission Planner (SERIAL1) · `5763` = Skylink ESP32 (SERIAL2)
-
-If you see `bind failed on port 5763 - Address already in use`, kill stale processes first:
-
-```bash
-sim_vehicle.py -v ArduCopter --stop
-# or: fuser -k 5760/tcp 5762/tcp 5763/tcp 2>/dev/null; sleep 1
+**Success in ArduCopter xterm:**
+```text
+SERIAL0 on TCP port 5760
+SERIAL1 on TCP port 5762
+SERIAL2 on TCP port 5763
+Connection on serial port 5760
 ```
 
-### Manual Flight Commands (Inside MAVProxy Terminal)
+**Success in MavProxy:** `STABILIZE>` prompt, `Detected vehicle 1:1`, no `Connection refused`.
+
+**If ports stuck:**
+```bash
+sim_vehicle.py -v ArduCopter --stop
+fuser -k 5760/tcp 5762/tcp 5763/tcp 2>/dev/null; sleep 2
+```
+
+---
+
+### Step 2 — Windows: flash ESP32 (when code/UI changed)
+
+```powershell
+cd d:\btp_skylink\Skylink
+pio run --target uploadfs --target upload
+pio device monitor
+```
+
+Always use **both** `uploadfs` and `upload` if `data/index.html` changed.
+
+---
+
+### Step 3 — Windows: Mission Planner (optional map/HUD)
+
+1. Connection type: **TCP**
+2. Host: `127.0.0.1`
+3. Port: **`5762`**
+4. Connect → wait for parameters and map.
+
+---
+
+### Step 4 — Browser: Skylink dashboard (required for ESP32↔SITL)
+
+1. Open `http://<ESP32_IP>/` (e.g. `http://10.85.201.219/`) on the **same PC that runs WSL/SITL**.
+2. Dashboard header: **LINK ACTIVE**.
+3. Link panel: **SITL LINK → ● MAVLink OK**.
+
+**Success in serial monitor:**
+```text
+[INFO] WebSocket client #1 connected from 10.85.201.74
+[INFO] SITL host set to GCS machine: 10.85.201.74:5763
+[INFO] Attempting connection to SITL at 10.85.201.74:5763
+[INFO] Connected to ArduPilot SITL (TCP 5763)
+```
+
+**Success in Mission Planner messages (when arming from dashboard):**
+```text
+Arming motors
+```
+
+---
+
+### Step 5 — Fly from dashboard
+
+1. Flight mode: **GUIDED (required for arm/takeoff)**
+2. Click **SET MODE**
+3. Click **⚡ ARM DRONE**
+4. Within **~10 seconds**, click **🚀 AUTONOMOUS TAKEOFF** → enter altitude (e.g. `5` m)
+5. To recover: **⬇ LAND** or **🏠 RTL**, or **🛑 DISARM**
+
+**Do not** arm in STABILIZE from the web UI — ArduPilot will auto-disarm on the ground.
+
+---
+
+## Manual control (MAVProxy in WSL)
 
 ```text
 mode guided
@@ -49,53 +123,50 @@ takeoff 5
 
 ---
 
-## 🔌 2. Critical Commands: PlatformIO & ESP32
+## Verification checklist
 
-Run in PowerShell from `d:\btp_skylink\Skylink`:
+| Check | How |
+|-------|-----|
+| SITL ports bound | ArduCopter log: 5760/5762/5763, no bind error |
+| MP connected | Map + HUD live on TCP 5762 |
+| ESP32 WiFi | Serial: `WiFi connected! IP: …` |
+| ESP32 ↔ SITL | Serial: `Connected to ArduPilot SITL (TCP 5763)` |
+| Dashboard telemetry | Altitude, battery, GPS updating |
+| Arm works | MP log: `Arming motors` |
 
-```powershell
-pio run --target uploadfs --target upload
-pio device monitor
-```
-
----
-
-## 🎛️ 3. Connecting Mission Planner (GCS)
-
-1. Open **Mission Planner** on Windows.
-2. Select **TCP** (not UDP).
-3. Click **CONNECT** → IP: `127.0.0.1` → Port: **`5762`**
-4. Click **OK**.
-
-Do **not** use port 5763 — that is reserved for the ESP32 bridge.
-
----
-
-## 🌐 4. Custom GCS Web Dashboard Sequence
-
-1. Open Chrome: `http://10.85.201.219/` (use your ESP32's IP).
-2. Confirm **SITL LINK** shows `MAVLink OK` (may take up to 10s after SITL starts).
-3. Select **GUIDED** → click **SET MODE**.
-4. Click **⚡ ARM DRONE**.
-5. Click **🚀 AUTONOMOUS TAKEOFF** → enter `5` (meters). Takeoff within 10s of arming.
-6. Use **⬇ LAND** or **🏠 RTL** to recover.
-
----
-
-## 🛠️ Troubleshooting
-
-| Symptom | Fix |
-|---------|-----|
-| ESP tries `127.0.0.1` | Open the dashboard first (sets LAN IP from your browser) |
-| `bind failed on port 5763` | Remove `--out=tcpin:...:5763`; run plain `sim_vehicle.py -v ArduCopter` |
-| `SITL connection failed` | Enable WSL mirrored networking; open dashboard first; verify port 5763 |
-| Mission Planner works, ESP32 doesn't | MP uses 5762; ESP32 must use **5763** |
-| Arms then instant disarm | Use **GUIDED** mode, not STABILIZE |
-| Telemetry all zeros | Wait for MAVLink OK; streams are requested automatically |
-
-Verify from Windows PowerShell:
-
+**PowerShell port tests:**
 ```powershell
 Test-NetConnection 127.0.0.1 -Port 5762
 Test-NetConnection <YOUR_PC_LAN_IP> -Port 5763
 ```
+
+---
+
+## Troubleshooting
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| `bind failed on port 5763` | `--out=tcpin:...:5763` used | Plain `sim_vehicle.py -v ArduCopter` only |
+| ESP tries `127.0.0.1:5762` | Old firmware flashed | Re-run `uploadfs` + `upload` (port is **5763**) |
+| `Unknown WebSocket command: SET_FLIGHT_MODE` | Old firmware | Re-flash firmware + LittleFS |
+| `SITL connection failed` | Dashboard not opened / no mirrored WSL | Open dashboard on SITL PC; fix `.wslconfig` |
+| `Connection reset` on 127.0.0.1 | ESP32 targeting itself | Open dashboard to set LAN IP |
+| Arms then instant disarm | STABILIZE mode | GUIDED → SET MODE → ARM |
+| `SIM Hit ground` / disarm | Crash or land command | Normal after failed takeoff; re-arm in GUIDED |
+| Telemetry zeros | No MAVLink yet | Wait for `MAVLink OK`; streams auto-requested |
+
+---
+
+## Shutdown
+
+1. Disarm in dashboard or MP.
+2. WSL: `Ctrl+C` in sim_vehicle terminal, or `sim_vehicle.py -v ArduCopter --stop`.
+3. Optional: close Mission Planner.
+
+---
+
+## Related docs
+
+- [README.md](./README.md) — doc index for AI agents
+- [agent_handoff.md](./agent_handoff.md) — design lessons and code rules
+- [start_simulation.md](./start_simulation.md) — abbreviated Vivobook quick start

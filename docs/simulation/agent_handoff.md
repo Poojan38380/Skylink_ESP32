@@ -1,49 +1,114 @@
-# 🤝 Developer & AI Agent Handoff Retrospective
+# Developer & AI Agent Handoff
 
-This handoff document details the technical lessons, breakthroughs, and architectural errors encountered during this integration session. It is designed to serve as a high-fidelity learning manual for future developers and AI agents working on the Skylink flight controller bridge.
-
----
-
-## 🟢 The "Right Things" (What Went Well & Key Breakthroughs)
-
-These architectural choices proved highly successful and should be preserved in all future iterations:
-
-### 1. FreeRTOS Mutex Synchronization (Thread-Safety)
-*   **The Problem**: The `AsyncWebServer` and WebSocket callbacks execute on Core 0 (LwIP network stack thread), while the main `loop()` and MAVLink socket read/write loops run on Core 1. Performing I/O operations (socket writes, state changes, or Serial prints) concurrently without synchronization resulted in garbled console lines, socket resets (`errno 104`), and hard ESP32 crashes.
-*   **The Fix**: Introduced FreeRTOS Mutexes (`fcMutex` and `serialMutex`) to wrap all public methods in the flight controller and logging, ensuring 100% thread-safe concurrency.
-
-### 2. Autopilot Data Stream Request (`REQUEST_DATA_STREAM`)
-*   **The Problem**: ArduPilot does **not** stream telemetry packets (`SYS_STATUS`, `VFR_HUD`, `GPS_RAW_INT`, `ATTITUDE`) on secondary telemetry lines (Serial 2 / TCP 5763) by default. Without an explicit rate request, all telemetry values on the GCS dashboard remained stuck at zero/empty.
-*   **The Fix**: Implemented the standard MAVLink `REQUEST_DATA_STREAM` packet at 4Hz upon connection and periodically (every 10 seconds) inside `handle()`, ensuring telemetry flows continuously.
-
-### 3. Transition to Autonomous GUIDED Commands
-*   **The Problem**: The initial dashboard used manual virtual-joystick pulse overrides (`RC_OVERRIDE` to $1700\,\text{ms}$) to simulate takeoff. Over high-latency WiFi / WebSockets, raw stick overrides are unstable, dangerous, and instantly trigger throttle failsafes in manual `STABILIZE` mode.
-*   **The Fix**: Upgraded the entire system to support clean, professional autonomous MAVLink commands (`SET_MODE` to GUIDED/LAND/RTL, and `MAV_CMD_NAV_TAKEOFF`).
-
-### 4. Dynamic GCS Host IP Auto-Capture
-*   **The Fix**: Instead of hardcoding the laptop's IP, we captured `client->remoteIP()` inside the ESP32's WebSocket connection callback. This dynamically updates the SITL host IP transparently when the user connects their browser, bypassing all local IP configuration issues.
+High-signal notes for anyone modifying Skylink's SITL bridge, dashboard, or docs.  
+**Verified stack:** WSL2 `sim_vehicle.py -v ArduCopter` + ESP32 `SITL_MODE` + Mission Planner TCP 5762 + dashboard WebSocket.
 
 ---
 
-## 🔴 The "Wrong Things" (Pitfalls, Mistakes, & Gotchas)
+## Architecture (current)
 
-These are the primary architectural bugs and debugging oversights encountered during this session. **Do not repeat these mistakes:**
+```
+Browser (GCS UI)  --WebSocket/json-->  ESP32 (web_server + flight_controller)
+                                           |
+                                           +-- TCP MAVLink --> ArduPilot SITL :5763 (SERIAL2)
+Mission Planner   -- TCP :5762 ---------->  ArduPilot SITL (SERIAL1)
+MavProxy          -- TCP :5760 ---------->  ArduPilot SITL (SERIAL0)
+```
 
-### 1. The Failsafe / STABILIZE Mode Arming Assumption
-*   **The Mistake**: Assuming the drone could be armed in manual `STABILIZE` mode and sit idle on the ground.
-*   **The Lesson**: In manual modes, ArduPilot will instantly disarm itself if it does not receive a continuous stream of RC overrides or if throttle remains at zero. Always use **GUIDED** mode for autonomous or web-controlled arming and operations.
-
-### 2. Overwriting the Target Dropdown with Current Telemetry
-*   **The Mistake**: In the initial Guided mode dashboard design, the live telemetry parser blindly set `modeSelect.value = d.flight_mode`. 
-*   **The Lesson**: Because the flight mode defaults to `0` (STABILIZE) before the first active telemetry packet is parsed, the dropdown was immediately reset to `STABILIZE`. When the user clicked Arm, it read `0` and armed in STABILIZE, leading to instant auto-disarms. **Keep Target Control Selectors isolated from live telemetry readouts.**
-
-### 3. Forgetting the `uploadfs` target
-*   **The Mistake**: Proposing the standard PlatformIO `upload` command without executing `uploadfs`.
-*   **The Lesson**: `upload` only flashes the compiled C++ firmware. It does **not** upload files inside the `/data` folder to the ESP32's LittleFS filesystem. Always execute both targets (`pio run --target uploadfs --target upload`) when frontend assets change.
+- **SITL host IP:** Set when a browser connects via WebSocket (`client->remoteIP()`). Must be the LAN IP of the PC running WSL, not `127.0.0.1` (ESP32 cannot reach Windows loopback as SITL).
+- **Build flag:** `SITL_MODE` in `platformio.ini` selects `WiFiClient` TCP vs `Serial2` UART for Pixhawk.
 
 ---
 
-## 🧭 Recommendations for Future Agents
+## What works (keep these)
 
-1.  **Bench Safety & Portability**: The `flight_controller` code contains a `-D SITL_MODE` build flag in `platformio.ini`. To transition from SITL to the physical Pixhawk 6C (TELEM2 serial lines), simply comment out this flag. The codebase will automatically reconfigure itself to communicate over hardware UART2 (`Serial2` / GPIO16 & GPIO17) instead of TCP sockets.
-2.  **Maintain Mutex Locks**: Any future outbound commands added to `flight_controller.cpp` **must** acquire the `fcMutex` prior to calling `sendMavlinkPacket(...)` to maintain absolute thread safety.
+### 1. FreeRTOS mutex (`fcMutex`)
+WebSocket runs on AsyncTCP thread; `loop()` runs flight_controller. All public FC methods take the mutex. **Never** call `arm()` from inside another locked path without using `sendArmDisarm()` internally.
+
+### 2. `REQUEST_DATA_STREAM` @ 4 Hz
+Secondary serial (5763) does not stream attitude/GPS/battery by default. Re-request every 10s in `handle()`.
+
+### 3. GUIDED + autonomous MAVLink
+- `SET_FLIGHT_MODE` → `MAV_CMD_DO_SET_MODE`
+- `TAKEOFF` → `MAV_CMD_NAV_TAKEOFF`
+- Avoid RC_OVERRIDE takeoff over WiFi.
+
+### 4. Dynamic SITL host
+`setSITLHost()` rejects loopback (`127.0.0.1`, `0.0.0.0`). Valid hosts come from dashboard WebSocket connect.
+
+### 5. Port separation
+| Port | Client |
+|------|--------|
+| 5762 | Mission Planner |
+| 5763 | ESP32 only |
+
+---
+
+## Pitfalls (do not repeat)
+
+### 1. `--out=tcpin:0.0.0.0:5763`
+MavProxy listens on 5763; ArduCopter also binds SERIAL2 on 5763 → **Address already in use**, MavProxy gets **Connection refused** on 5760.  
+**Fix:** `sim_vehicle.py -v ArduCopter` with no tcpin on 5763.
+
+### 2. STABILIZE arming from web
+Ground disarm without continuous RC. Always GUIDED for web arm/takeoff.
+
+### 3. Telemetry overwriting UI mode selector
+Never set `<select id="mode-select">` from incoming `flight_mode` telemetry.
+
+### 4. `upload` without `uploadfs`
+`data/index.html` lives in LittleFS. UI changes need `uploadfs`.
+
+### 5. Old firmware symptoms
+- Log shows port **5762** instead of **5763**
+- `Unknown WebSocket command: SET_FLIGHT_MODE`
+→ Re-flash `uploadfs` + `upload`.
+
+### 6. Opening dashboard from wrong device
+`remoteIP` must be the machine running SITL. Phone on same WiFi but different subnet may set wrong host.
+
+---
+
+## WebSocket command contract
+
+See [README.md](./README.md#websocket-commands-dashboard--esp32). Adding commands: implement in `web_server.cpp` `handleWebSocketMessage`, then `flight_controller` API with mutex.
+
+---
+
+## Files to touch for common tasks
+
+| Task | Files |
+|------|-------|
+| New MAVLink command | `flight_controller.h/cpp`, `web_server.cpp`, `data/index.html` |
+| SITL port change | `flight_controller.h` (`sitlPort`), all docs in `docs/simulation/` |
+| Hardware Pixhawk | `platformio.ini` (remove `SITL_MODE`), wire UART2 16/17 |
+| WiFi networks | `data/wifi_networks.json` |
+| Startup docs | `successful_run_guide.md`, this file |
+
+---
+
+## Success signals (regression test)
+
+**ESP32 serial:**
+```text
+[INFO] Connected to ArduPilot SITL (TCP 5763)
+[INFO] Setting flight mode: 4
+[INFO] Sending command: ARM Drone
+[INFO] Sending command: TAKEOFF to 5.00m
+```
+
+**Mission Planner:**
+```text
+Arming motors
+```
+
+**ArduCopter xterm:** No `bind failed on port 5763`.
+
+---
+
+## Recommendations for future agents
+
+1. Read [successful_run_guide.md](./successful_run_guide.md) before editing startup flow.
+2. After code changes, run `.venv\Scripts\platformio.exe run` and document any new ports/commands in `docs/simulation/README.md`.
+3. Prefer GUIDED autonomous commands over RC_OVERRIDE for anything user-triggered from the web UI.
+4. Physical hardware: comment `-D SITL_MODE`, configure Pixhawk `SERIAL2_PROTOCOL=2`, 115200 baud.

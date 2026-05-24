@@ -1,6 +1,9 @@
 # Skylink ESP32 — Flight Controller Simulation Test Plan
 ## Software-in-the-Loop (SITL) & GCS Dashboard Integration Guide
 
+> **Operational quick start (verified May 2026):** Use [successful_run_guide.md](./successful_run_guide.md) for day-to-day startup.  
+> **AI agents:** Read [README.md](./README.md) first. Do **not** use `sim_vehicle.py --out=tcpin:0.0.0.0:5763`.
+
 This guide provides a detailed, phase-wise implementation and testing workflow to build and test a bidirectional flight controller bridge on your ESP32. You will bridge a real-time ArduPilot flight simulator running on your computer directly to your physical ESP32 via WiFi, and view live physics-based telemetry on your custom Ground Control Station (GCS) dashboard—all **before** purchasing or wiring a physical Pixhawk 6C flight controller.
 
 ---

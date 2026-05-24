@@ -179,7 +179,6 @@ void WebServerModule::sendAppState() {
     doc["type"] = "event";
     doc["event"] = "LED_STATE";
     doc["value"] = ledController.getState();
-    doc["led_mode"] = ledController.getPatternName();
     doc["timestamp"] = timeSync.getCurrentTime();
     wsBroadcastJson(ws, doc);
 }
@@ -222,7 +221,6 @@ void WebServerModule::sendHeartbeat() {
     doc["wifi_rssi"] = wifiManager.getSignalStrength();
     doc["ws_connected"] = (getWsClientCount() > 0);
     doc["ws_clients"] = getWsClientCount();
-    doc["led_mode"] = ledController.getPatternName();
 #ifdef SITL_MODE
     doc["sitl_host"] = flightController.getSitlHost();
     doc["sitl_port"] = flightController.getSitlPort();

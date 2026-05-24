@@ -90,28 +90,6 @@ function setLinkState(state) {
   }
 }
 
-// ── LED UI (ESP32 onboard link LED) ───────────────────────────────
-const LED_MODE_LABELS = {
-  off: 'ESP32 LED · OFF',
-  solid: 'ESP32 LED · ON (link OK)',
-  blink_slow: 'ESP32 LED · SLOW BLINK (no MAVLink)',
-  blink_fast: 'ESP32 LED · FAST BLINK (armed)',
-};
-
-function updateEspLed(mode) {
-  const orb = document.getElementById('led-orb');
-  const label = document.getElementById('led-status-text');
-  if (!orb || !label) return;
-  const m = mode || 'off';
-  let cls = 'led-orb';
-  if (m === 'solid') cls += ' on';
-  else if (m === 'blink_slow') cls += ' on blink-slow';
-  else if (m === 'blink_fast') cls += ' on blink-fast';
-  orb.className = cls;
-  label.className = 'led-status-text' + (m !== 'off' ? ' on' : '');
-  label.textContent = LED_MODE_LABELS[m] || ('ESP32 LED · ' + m);
-}
-
 function setChip(el, state, text) {
   if (!el) return;
   el.className = 'link-chip ' + state;
@@ -183,7 +161,6 @@ function updateTelemetry(d) {
     stateBadge.className = 'stat-value good';
   }
 
-  updateEspLed(d.led_mode);
   updateLinkChips(d);
 
   // Battery
@@ -298,8 +275,6 @@ function connect() {
               updateBuildTag(d);
               break;
         case 'LED_STATE':
-          updateEspLed(d.led_mode || (d.value ? 'solid' : 'off'));
-          log('LED', 'tag-led', 'ESP32 LED → ' + (d.led_mode || (d.value ? 'on' : 'off')));
           break;
         case 'PONG': {
           const latency = pingTimestamp ? Math.round(performance.now() - pingTimestamp) : '?';

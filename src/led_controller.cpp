@@ -1,6 +1,5 @@
 #include "led_controller.h"
 #include "config.h"
-#include "logger.h"
 #include "skylink_config.h"
 
 LedController::LedController(int pin)
@@ -47,15 +46,12 @@ void LedController::setAutoPattern(LedPattern pattern) {
     } else {
         applyPin(false);
     }
-
-    logger.info(String("LED auto → ") + getPatternName());
 }
 
 void LedController::setManual(bool on) {
     manualOverride = true;
     activePattern = on ? LedPattern::Solid : LedPattern::Off;
     applyPin(on);
-    logger.info(String("LED manual → ") + (on ? "ON" : "OFF"));
 }
 
 void LedController::toggle() {

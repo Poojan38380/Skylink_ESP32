@@ -8,7 +8,7 @@
 
 ## Success criteria (project complete for SITL)
 
-- [ ] Map shows live drone position + heading + home
+- [x] Map shows live drone position + heading + home
 - [ ] Preflight panel gates arming with clear reasons
 - [ ] Tap: takeoff, land, RTL, loiter, click-to-fly
 - [ ] Tap: forward/back/strafe N m, yaw ±90°
@@ -26,7 +26,7 @@
 |-------|------|-----------------|--------|
 | 0 | Code foundation | 2–3 days | Modular FW, split UI assets, protocol version |
 | 1 | Link & LED ✅ | 1–2 days | WiFi LED, link status bar, SIM banner |
-| 2 | Map shell | 3–4 days | Leaflet map-first layout, marker, no new FC cmds |
+| 2 | Map shell ✅ | 3–4 days | Leaflet map-first layout, marker, no new FC cmds |
 | 3 | Telemetry++ | 2–3 days | Attitude, GLOBAL_POSITION, faster HB, preflight |
 | 4 | Relative moves | 4–5 days | Forward/strafe/yaw tap commands |
 | 5 | Map fly + loiter | 4–5 days | Click-to-fly, altitude, LOITER |
@@ -95,7 +95,7 @@ Implement in `wifi_manager` (on connect → `ledController.set(true)`) and `flig
 
 ---
 
-## Phase 2 — Map-first UI shell
+## Phase 2 — Map-first UI shell ✅
 
 **Goal:** Layout revolution — map is the hero; controls orbit the map.
 
@@ -136,9 +136,9 @@ Use existing telemetry lat/lon; no new MAVLink commands this phase.
 
 ### Acceptance
 
-- [ ] Map loads from ESP32 IP without internet (if tiles vendored) OR with internet (CDN)
-- [ ] Drone marker moves in SITL when copter flies
-- [ ] No regression to arm/takeoff/land
+- [x] Map loads from ESP32 IP without internet (if tiles vendored) OR with internet (CDN)
+- [x] Drone marker moves in SITL when copter flies
+- [x] No regression to arm/takeoff/land
 
 ---
 

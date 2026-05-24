@@ -4,8 +4,15 @@
  */
 const SKYLINK_GCS_CONFIG = {
   protocolVersion: 1,
-  fsBuild: 4,  // Must match data/skylink_build.json — bump before uploadfs
+  fsBuild: 5,  // Must match data/skylink_build.json — bump before uploadfs
   simulationBanner: true,
+
+  mapDefaultLat: -35.363261,
+  mapDefaultLng: 149.16523,
+  mapDefaultZoom: 17,
+  mapFollowDrone: true,
+  mapTrailMaxPoints: 60,
+  mapTileUrl: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
 
   wsReconnectInitialMs: 1500,
   wsReconnectMaxMs: 20000,

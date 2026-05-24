@@ -26,13 +26,30 @@ function updateBuildTag(d) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  const el = document.getElementById('proto-ver');
-  if (el) el.textContent = String(CFG.protocolVersion || 1);
-  const portLbl = document.getElementById('sitl-port-label');
-  if (portLbl) portLbl.textContent = String(CFG.sitlPortDefault || 5763);
   const simBanner = document.getElementById('sim-banner');
   if (simBanner && CFG.simulationBanner) simBanner.hidden = false;
   updateBuildTag(null);
+
+  const logToggle = document.getElementById('log-toggle');
+  const logPanel = document.getElementById('log-panel');
+  const logIcon = document.getElementById('log-collapse-icon');
+  if (logToggle && logPanel) {
+    const toggleLog = () => {
+      const collapsed = logPanel.classList.toggle('collapsed');
+      logToggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+      if (logIcon) logIcon.textContent = collapsed ? '▲' : '▼';
+      if (typeof SkylinkMap !== 'undefined' && window.L) {
+        setTimeout(() => window.dispatchEvent(new Event('resize')), 300);
+      }
+    };
+    logToggle.addEventListener('click', toggleLog);
+    logToggle.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        toggleLog();
+      }
+    });
+  }
 });
 
 // ── CLOCK ──────────────────────────────────────────────────────────
@@ -112,9 +129,6 @@ function updateLinkChips(d) {
   const wifiText = wifiOk ? ('WiFi ' + rssi + ' dBm') : 'WiFi —';
   setChip(document.getElementById('chip-wifi'), wifiOk ? 'ok' : 'bad', wifiText);
 
-  const stackWifi = document.getElementById('link-stack-wifi');
-  if (stackWifi) stackWifi.textContent = wifiOk ? ('802.11 · ' + rssi + ' dBm') : 'WiFi down';
-
   if (d.simulation && document.getElementById('sim-banner')) {
     document.getElementById('sim-banner').hidden = false;
   }
@@ -129,11 +143,14 @@ function updateTelemetry(d) {
   const bat = Number(d.battery) || 0;
   const batV = Number(d.battery_v) || 0;
   const sats = Number(d.sats) || 0;
+  const yaw = Number(d.yaw);
 
   document.getElementById('tl-alt').textContent = alt.toFixed(1);
   document.getElementById('tl-speed').textContent = spd.toFixed(1);
-  document.getElementById('tl-lat').textContent = lat.toFixed(6) + '°N';
-  document.getElementById('tl-lng').textContent = lng.toFixed(6) + '°E';
+  document.getElementById('tl-lat').textContent = lat.toFixed(6);
+  document.getElementById('tl-lng').textContent = lng.toFixed(6);
+  const hdgEl = document.getElementById('tl-hdg');
+  if (hdgEl) hdgEl.textContent = Number.isFinite(yaw) ? String(Math.round(yaw % 360)) : '—';
   document.getElementById('lnk-ip').textContent = connectedIP;
   document.getElementById('lnk-uptime').textContent = fmtUptime(d.uptime || 0);
 
@@ -163,8 +180,7 @@ function updateTelemetry(d) {
 
   updateLinkChips(d);
 
-  // Battery
-  document.getElementById('tl-bat').textContent = bat + "% (" + batV.toFixed(1) + "V)";
+  document.getElementById('tl-bat').textContent = bat + '% · ' + batV.toFixed(1) + 'V';
   const bar = document.getElementById('bat-bar');
   bar.style.width = bat + '%';
   bar.style.background = bat > 50 ? 'var(--green)' : bat > 20 ? 'var(--orange)' : 'var(--red)';
@@ -177,8 +193,10 @@ function updateTelemetry(d) {
   else if (sats > 3) sb.className = 'signal-bars s3';
   else sb.className = 'signal-bars s1';
 
-  const sitlNote = d.sitl_connected ? 'MAVLink live' : 'SITL pending';
-  document.getElementById('last-hb-text').textContent = sitlNote + ' | Sats: ' + sats;
+  const sitlNote = d.sitl_connected ? 'MAVLink' : 'SITL pending';
+  document.getElementById('last-hb-text').textContent = sitlNote + ' · ' + sats + ' sats';
+
+  if (typeof SkylinkMap !== 'undefined') SkylinkMap.updateFromTelemetry(d);
 }
 
 // ── LOG ────────────────────────────────────────────────────────────

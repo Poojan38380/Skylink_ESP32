@@ -213,6 +213,7 @@ void WebServerModule::sendHeartbeat() {
     doc["gps_fix"] = fc.gps_fix;
     doc["roll"] = fc.roll;
     doc["pitch"] = fc.pitch;
+    doc["yaw"] = fc.yaw;
     doc["flight_mode"] = fc.flight_mode;
     doc["sitl_connected"] = flightController.isConnected();
     doc["mav_connected"] = flightController.isConnected();

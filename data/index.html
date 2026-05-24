@@ -10,6 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&display=swap"
     rel="stylesheet">
+  <link rel="stylesheet" href="/lib/leaflet/leaflet.css">
   <link rel="stylesheet" href="/gcs.css">
 </head>
 
@@ -45,16 +46,17 @@
   </header>
 
   <div class="sim-banner" id="sim-banner" hidden>
-  SIMULATION MODE — SITL only · do not arm real hardware without Pixhawk checks
+    SIMULATION MODE — SITL only · do not arm real hardware without Pixhawk checks
   </div>
 
-  <main>
-    <div class="left-col">
+  <main class="gcs-layout">
 
-      <div class="card">
+    <aside class="sidebar">
+
+      <div class="card card-compact">
         <div class="card-header">
           <div class="dot-indicator"></div>
-          LINK STATUS
+          PREFLIGHT · LINK
         </div>
         <div class="card-body">
           <div class="stat-row">
@@ -62,7 +64,11 @@
             <span class="stat-value" id="lnk-state">—</span>
           </div>
           <div class="stat-row">
-            <span class="stat-label">IP ADDRESS</span>
+            <span class="stat-label">SITL</span>
+            <span class="stat-value" id="lnk-sitl">—</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">IP</span>
             <span class="stat-value" id="lnk-ip">—</span>
           </div>
           <div class="stat-row">
@@ -75,122 +81,107 @@
             <span class="stat-label">UPTIME</span>
             <span class="stat-value" id="lnk-uptime">—</span>
           </div>
-          <div class="stat-row">
-            <span class="stat-label">SITL LINK</span>
-            <span class="stat-value" id="lnk-sitl">—</span>
-          </div>
-          <div class="stat-row">
-            <span class="stat-label">DEVICE</span>
-            <span class="stat-value" style="color:var(--muted)">ESP32-SKYLINK</span>
+        </div>
+      </div>
+
+      <div class="card card-compact">
+        <div class="card-header">
+          <div class="dot-indicator" style="background:var(--green)"></div>
+          TELEMETRY
+          <span class="card-header-meta" id="last-hb-text">—</span>
+        </div>
+        <div class="card-body">
+          <div class="telemetry-grid telemetry-grid-compact">
+            <div class="telem-card">
+              <div class="telem-label">ALT</div>
+              <div><span class="telem-value" id="tl-alt">—</span><span class="telem-unit">m</span></div>
+            </div>
+            <div class="telem-card">
+              <div class="telem-label">SPD</div>
+              <div><span class="telem-value" id="tl-speed">—</span><span class="telem-unit">m/s</span></div>
+            </div>
+            <div class="telem-card">
+              <div class="telem-label">BAT</div>
+              <div><span class="telem-value" id="tl-bat">—</span></div>
+              <div class="battery-bar-wrap">
+                <div class="battery-bar" id="bat-bar" style="width:0%"></div>
+              </div>
+            </div>
+            <div class="telem-card">
+              <div class="telem-label">HDG</div>
+              <div><span class="telem-value" id="tl-hdg">—</span><span class="telem-unit">°</span></div>
+            </div>
+            <div class="telem-card telem-card-wide">
+              <div class="telem-label">GPS</div>
+              <div class="gps-row">
+                <span class="gps-coord" id="tl-lat">—</span>
+                <span class="gps-coord" id="tl-lng">—</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      <div class="card">
+      <div class="card card-compact">
         <div class="card-header">
           <div class="dot-indicator" style="background:var(--orange)"></div>
-          FLIGHT ACTUATOR · AUTOPILOT
+          FLIGHT CONTROLS
         </div>
         <div class="card-body">
-          <div class="stat-row" style="margin-bottom:10px">
-            <span class="stat-label">FLIGHT MODE</span>
+          <div class="stat-row" style="margin-bottom:8px;padding-top:0">
+            <span class="stat-label">MODE</span>
           </div>
           <select id="mode-select" disabled class="mode-select">
-            <option value="GUIDED" selected>GUIDED (required for arm/takeoff)</option>
+            <option value="GUIDED" selected>GUIDED</option>
             <option value="STABILIZE">STABILIZE</option>
             <option value="LAND">LAND</option>
-            <option value="RTL">RTL (return home)</option>
+            <option value="RTL">RTL</option>
           </select>
-
           <div class="btn-row">
             <button class="btn-toggle" id="btn-set-mode" disabled onclick="applyFlightMode()">SET MODE</button>
           </div>
           <div class="btn-row">
-            <button class="btn-on" id="btn-arm" disabled onclick="armSequence()">⚡ ARM DRONE</button>
+            <button class="btn-on" id="btn-arm" disabled onclick="armSequence()">⚡ ARM</button>
             <button class="btn-off" id="btn-disarm" disabled onclick="sendCmd('DISARM_DRONE')">🛑 DISARM</button>
           </div>
           <div class="btn-row">
-            <button class="btn-toggle" id="btn-liftoff" disabled onclick="autonomousTakeoff()">🚀 AUTONOMOUS TAKEOFF</button>
+            <button class="btn-toggle" id="btn-liftoff" disabled onclick="autonomousTakeoff()">🚀 TAKEOFF</button>
           </div>
-          <div class="btn-row" style="margin-top:4px">
+          <div class="btn-row">
             <button class="btn-ping" id="btn-land" disabled onclick="sendCmd('LAND')">⬇ LAND</button>
             <button class="btn-ping" id="btn-rtl" disabled onclick="sendCmd('RTL')">🏠 RTL</button>
           </div>
         </div>
       </div>
 
-    </div>
+    </aside>
 
-    <div class="right-col">
-
-      <div class="card">
-        <div class="card-header">
-          <div class="dot-indicator" style="background:var(--green)"></div>
-          TELEMETRY · REAL-TIME
-          <span style="margin-left:auto;font-size:10px;color:var(--muted)" id="last-hb-text">No data yet</span>
-        </div>
-        <div class="card-body">
-          <div class="telemetry-grid">
-            <div class="telem-card">
-              <div class="telem-label">🛩 ALTITUDE</div>
-              <div><span class="telem-value" id="tl-alt">—</span><span class="telem-unit">m</span></div>
-            </div>
-            <div class="telem-card">
-              <div class="telem-label">⚡ BATTERY</div>
-              <div><span class="telem-value" id="tl-bat">—</span><span class="telem-unit">%</span></div>
-              <div class="battery-bar-wrap">
-                <div class="battery-bar" id="bat-bar" style="width:0%"></div>
-              </div>
-            </div>
-            <div class="telem-card">
-              <div class="telem-label">💨 SPEED</div>
-              <div><span class="telem-value" id="tl-speed">—</span><span class="telem-unit">m/s</span></div>
-            </div>
-            <div class="telem-card" style="grid-column: 1 / -1">
-              <div class="telem-label">📍 GPS COORDINATES</div>
-              <div class="gps-row">
-                <span>LAT:</span><span class="gps-coord" id="tl-lat">—</span>
-                <span style="margin-left:12px">LNG:</span><span class="gps-coord" id="tl-lng">—</span>
-              </div>
-            </div>
-          </div>
-        </div>
+    <section class="map-stage">
+      <div id="map" aria-label="Live map"></div>
+      <div class="map-hud">
+        <span id="map-hud-alt">ALT — m</span>
+        <span id="map-hud-spd">SPD — m/s</span>
+        <span id="map-hud-sats">GPS — sats</span>
+        <button type="button" class="map-btn" id="btn-map-center" title="Center on drone">⌖ CENTER</button>
+        <button type="button" class="map-btn" id="btn-map-follow" title="Follow drone">◎ FOLLOW</button>
       </div>
+    </section>
 
-      <div class="card">
-        <div class="card-header">
-          <div class="dot-indicator" style="background:#a371f7"></div>
-          LINK STACK
-        </div>
-        <div class="card-body" style="display:flex;align-items:center;gap:20px">
-          <div class="radar-wrap">
-            <div class="radar">
-              <div class="radar-sweep"></div>
-              <div class="radar-blip"></div>
-            </div>
-          </div>
-          <div class="link-stack-diagram" style="font-size:11px;line-height:2;color:var(--muted)">
-            <div>PATH: <span style="color:var(--text)">Browser → WS → ESP32 → TCP :<span id="sitl-port-label">5763</span> → SITL</span></div>
-            <div>PROTOCOL: <span style="color:var(--text)">JSON v<span id="proto-ver">1</span> + MAVLink</span></div>
-            <div>RADIO: <span style="color:var(--text)" id="link-stack-wifi">WiFi —</span></div>
-          </div>
-        </div>
-      </div>
-
-    </div>
-
-    <div class="card log-card">
-      <div class="card-header">
+    <div class="log-panel card" id="log-panel">
+      <div class="card-header log-header-toggle" id="log-toggle" role="button" tabindex="0" aria-expanded="true">
         <div class="dot-indicator" style="background:var(--red)"></div>
         COMMUNICATION LOG
-        <span style="margin-left:auto;font-size:10px;color:var(--muted)">LAST 40 MESSAGES</span>
+        <span class="card-header-meta">LAST 40</span>
+        <span class="log-collapse-icon" id="log-collapse-icon">▼</span>
       </div>
       <div class="log-body" id="log"></div>
     </div>
 
   </main>
 
+  <script src="/lib/leaflet/leaflet.js"></script>
   <script src="/gcs_config.js"></script>
+  <script src="/gcs_map.js"></script>
   <script src="/gcs.js"></script>
 </body>
 

@@ -306,6 +306,166 @@ void FlightController::yawRelative(float degrees) {
     giveMutex();
 }
 
+namespace {
+
+constexpr double kDegToRad = 0.017453292519943295;
+
+double haversineMeters(double lat1, double lon1, double lat2, double lon2) {
+    const double p1 = lat1 * kDegToRad;
+    const double p2 = lat2 * kDegToRad;
+    const double dlat = (lat2 - lat1) * kDegToRad;
+    const double dlon = (lon2 - lon1) * kDegToRad;
+    const double a = sin(dlat * 0.5) * sin(dlat * 0.5) +
+                   cos(p1) * cos(p2) * sin(dlon * 0.5) * sin(dlon * 0.5);
+    const double c = 2.0 * atan2(sqrt(a), sqrt(1.0 - a));
+    return 6371000.0 * c;
+}
+
+float clampGotoAlt(float altRelM) {
+    if (altRelM < SKYLINK_MOVE_MIN_AGL_M) return SKYLINK_MOVE_MIN_AGL_M;
+    if (altRelM > SKYLINK_GOTO_ALT_MAX_M) return SKYLINK_GOTO_ALT_MAX_M;
+    return altRelM;
+}
+
+}  // namespace
+
+void FlightController::gotoLatLon(double lat, double lon, float altRelMeters) {
+    if (!takeMutex()) return;
+
+    const uint32_t now = millis();
+    if (now - lastGuidedCmdMs < SKYLINK_CMD_DEBOUNCE_MS) {
+        giveMutex();
+        return;
+    }
+
+    if (!mavlinkActive || !telemetry.armed || telemetry.gps_fix < 3) {
+        logger.warning("GOTO_LATLON rejected (need armed + GPS 3D)");
+        giveMutex();
+        return;
+    }
+
+    if (!telemetry.home_valid) {
+        logger.warning("GOTO_LATLON rejected (home not set)");
+        giveMutex();
+        return;
+    }
+
+    const double dist = haversineMeters(telemetry.home_latitude, telemetry.home_longitude, lat, lon);
+    if (dist > SKYLINK_GOTO_MAX_RADIUS_M) {
+        logger.warning("GOTO_LATLON rejected (beyond geofence)");
+        giveMutex();
+        return;
+    }
+
+    const float alt = clampGotoAlt(altRelMeters);
+
+    if (telemetry.flight_mode != COPTER_MODE_GUIDED) {
+        setCopterMode(COPTER_MODE_GUIDED);
+    }
+
+    const uint16_t typeMask =
+        POSITION_TARGET_TYPEMASK_VX_IGNORE |
+        POSITION_TARGET_TYPEMASK_VY_IGNORE |
+        POSITION_TARGET_TYPEMASK_VZ_IGNORE |
+        POSITION_TARGET_TYPEMASK_AX_IGNORE |
+        POSITION_TARGET_TYPEMASK_AY_IGNORE |
+        POSITION_TARGET_TYPEMASK_AZ_IGNORE |
+        POSITION_TARGET_TYPEMASK_YAW_IGNORE |
+        POSITION_TARGET_TYPEMASK_YAW_RATE_IGNORE;
+
+    mavlink_message_t msg;
+    mavlink_msg_set_position_target_global_int_pack(
+        1, 255, &msg,
+        millis(),
+        1, 1,
+        MAV_FRAME_GLOBAL_RELATIVE_ALT_INT,
+        typeMask,
+        (int32_t)(lat * 1e7),
+        (int32_t)(lon * 1e7),
+        alt,
+        0, 0, 0,
+        0, 0, 0,
+        0, 0
+    );
+    sendMavlinkPacket(&msg);
+    lastGuidedCmdMs = now;
+    logger.info("GOTO_LATLON " + String(lat, 7) + "," + String(lon, 7) + " @ " + String(alt) + "m");
+    giveMutex();
+}
+
+void FlightController::gotoAlt(float altRelMeters) {
+    if (!takeMutex()) return;
+
+    const uint32_t now = millis();
+    if (now - lastGuidedCmdMs < SKYLINK_CMD_DEBOUNCE_MS) {
+        giveMutex();
+        return;
+    }
+
+    if (!canExecuteGuidedMoveUnlocked()) {
+        logger.warning("GOTO_ALT rejected (need armed GUIDED, GPS 3D, min AGL)");
+        giveMutex();
+        return;
+    }
+
+    if (fabs(telemetry.latitude) < 1e-6 && fabs(telemetry.longitude) < 1e-6) {
+        logger.warning("GOTO_ALT rejected (no position)");
+        giveMutex();
+        return;
+    }
+
+    const float alt = clampGotoAlt(altRelMeters);
+
+    const uint16_t typeMask =
+        POSITION_TARGET_TYPEMASK_VX_IGNORE |
+        POSITION_TARGET_TYPEMASK_VY_IGNORE |
+        POSITION_TARGET_TYPEMASK_VZ_IGNORE |
+        POSITION_TARGET_TYPEMASK_AX_IGNORE |
+        POSITION_TARGET_TYPEMASK_AY_IGNORE |
+        POSITION_TARGET_TYPEMASK_AZ_IGNORE |
+        POSITION_TARGET_TYPEMASK_YAW_IGNORE |
+        POSITION_TARGET_TYPEMASK_YAW_RATE_IGNORE;
+
+    mavlink_message_t msg;
+    mavlink_msg_set_position_target_global_int_pack(
+        1, 255, &msg,
+        millis(),
+        1, 1,
+        MAV_FRAME_GLOBAL_RELATIVE_ALT_INT,
+        typeMask,
+        (int32_t)(telemetry.latitude * 1e7),
+        (int32_t)(telemetry.longitude * 1e7),
+        alt,
+        0, 0, 0,
+        0, 0, 0,
+        0, 0
+    );
+    sendMavlinkPacket(&msg);
+    lastGuidedCmdMs = now;
+    logger.info("GOTO_ALT " + String(alt) + "m");
+    giveMutex();
+}
+
+void FlightController::loiterHere() {
+    if (!takeMutex()) return;
+
+    if (!mavlinkActive || !telemetry.armed) {
+        logger.warning("LOITER rejected (need armed + MAVLink)");
+        giveMutex();
+        return;
+    }
+
+    if (telemetry.gps_fix < 3) {
+        logger.warning("LOITER rejected (need GPS 3D)");
+        giveMutex();
+        return;
+    }
+
+    logger.info("Setting flight mode: LOITER");
+    setCopterMode(COPTER_MODE_LOITER);
+    giveMutex();
+}
+
 void FlightController::sendRCOverride(uint16_t roll, uint16_t pitch, uint16_t throttle, uint16_t yaw) {
     if (!takeMutex()) return;
 

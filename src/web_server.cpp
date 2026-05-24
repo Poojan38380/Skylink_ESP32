@@ -13,6 +13,7 @@ namespace {
 
 uint8_t parseFlightMode(const String& modeName) {
     if (modeName == "GUIDED") return COPTER_MODE_GUIDED;
+    if (modeName == "LOITER") return COPTER_MODE_LOITER;
     if (modeName == "RTL") return COPTER_MODE_RTL;
     if (modeName == "LAND") return COPTER_MODE_LAND;
     return COPTER_MODE_STABILIZE;
@@ -92,6 +93,26 @@ void handleYawRelative(JsonDocument& doc, AsyncWebSocketClient* client) {
     flightController.yawRelative(doc["deg"] | 0.0f);
 }
 
+void handleGotoLatLon(JsonDocument& doc, AsyncWebSocketClient* client) {
+    (void)client;
+    flightController.gotoLatLon(
+        doc["lat"] | 0.0,
+        doc["lon"] | 0.0,
+        doc["alt"] | 5.0f
+    );
+}
+
+void handleGotoAlt(JsonDocument& doc, AsyncWebSocketClient* client) {
+    (void)client;
+    flightController.gotoAlt(doc["alt"] | 5.0f);
+}
+
+void handleLoiterHere(JsonDocument& doc, AsyncWebSocketClient* client) {
+    (void)doc;
+    (void)client;
+    flightController.loiterHere();
+}
+
 void handlePing(JsonDocument& doc, AsyncWebSocketClient* client) {
     (void)doc;
     JsonDocument response;
@@ -118,6 +139,9 @@ const WsCommandEntry kCommands[] = {
     {"RTL", handleRtl},
     {"MOVE_BODY", handleMoveBody},
     {"YAW_RELATIVE", handleYawRelative},
+    {"GOTO_LATLON", handleGotoLatLon},
+    {"GOTO_ALT", handleGotoAlt},
+    {"LOITER_HERE", handleLoiterHere},
     {"RC_OVERRIDE", handleRcOverride},
     {"PING", handlePing},
 };

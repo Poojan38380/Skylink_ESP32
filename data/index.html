@@ -96,12 +96,30 @@
           <button type="button" class="map-btn" id="btn-map-center">Center</button>
           <button type="button" class="map-btn active" id="btn-map-follow">Follow</button>
         </div>
+        <div class="map-overlay map-overlay-bottom" role="toolbar" aria-label="Quick flight actions">
+          <button type="button" class="map-btn map-btn-action" id="btn-map-loiter" disabled title="Hold position (LOITER)">Loiter</button>
+          <button type="button" class="map-btn map-btn-action" id="btn-map-land" disabled title="Land in place">Land</button>
+          <button type="button" class="map-btn map-btn-action map-btn-danger" id="btn-map-rtl" disabled title="Return to home">RTL</button>
+        </div>
+        <div class="goto-sheet" id="goto-sheet" hidden>
+          <div class="goto-sheet-inner">
+            <h3 class="goto-title">Fly here</h3>
+            <p class="goto-meta" id="goto-coords">—</p>
+            <p class="goto-meta" id="goto-dist">—</p>
+            <label class="goto-label" for="goto-alt">Altitude (m, relative to home)</label>
+            <input type="number" id="goto-alt" class="goto-alt-input" min="2" max="50" step="0.5" value="5">
+            <div class="goto-actions">
+              <button type="button" class="btn btn-primary" id="goto-confirm">Go</button>
+              <button type="button" class="btn btn-secondary" id="goto-cancel">Cancel</button>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div class="map-dock" id="move-section">
         <div class="map-dock-header">
           <h2 class="section-title">Drone control</h2>
-          <p class="section-desc">Relative moves in body frame (nose = forward). Use <strong>Fly</strong> tab to arm and takeoff first. Keyboard works on this tab when not typing in a field.</p>
+          <p class="section-desc">Tap the map to <strong>fly here</strong> (within geofence). Relative moves below use body frame. Arm in <strong>GUIDED</strong> from the Fly tab first.</p>
         </div>
         <p class="move-hint" id="move-hint">Requires armed + GUIDED + 3D GPS + 2 m altitude.</p>
 
@@ -114,10 +132,10 @@
             <button type="button" class="preset-btn" data-move-m="10">10 m</button>
           </div>
           <div class="distance-custom">
-            <label class="custom-dist-label" for="move-dist-custom">Custom</label>
-            <input type="number" id="move-dist-custom" class="custom-dist-input" min="0.5" max="100" step="0.5" placeholder="0.5–100" inputmode="decimal">
+            <label class="custom-dist-label" for="move-dist-custom">Custom (0.5–200 m)</label>
+            <input type="number" id="move-dist-custom" class="custom-dist-input" min="0.5" max="200" step="0.5" placeholder="e.g. 25" inputmode="decimal" title="Type a distance — used automatically for moves and keyboard">
             <span class="custom-dist-unit">m</span>
-            <button type="button" class="btn btn-secondary btn-apply-dist" id="btn-apply-custom-dist">Use</button>
+            <button type="button" class="btn btn-secondary btn-apply-dist" id="btn-apply-custom-dist" title="Optional — distance applies as you type">Apply</button>
           </div>
           <div class="distance-active" id="distance-active-label">Active: 1 m</div>
         </div>
@@ -181,6 +199,7 @@
           <p class="section-desc">Use GUIDED for arm and autonomous takeoff. Other modes are for manual or recovery.</p>
           <select id="mode-select" disabled class="field-select">
             <option value="GUIDED" selected>GUIDED</option>
+            <option value="LOITER">LOITER (hold)</option>
             <option value="STABILIZE">STABILIZE</option>
             <option value="LAND">LAND</option>
             <option value="RTL">RTL (return home)</option>

@@ -11,8 +11,26 @@ const SkylinkMap = (function () {
   let trailLine = null;
   let followDrone = CFG.mapFollowDrone !== false;
   let homeSet = false;
+  let homeLatLng = null;
   const trail = [];
   let lastDronePos = null;
+  let geofenceCircle = null;
+  let targetMarker = null;
+  let gotoClickHandler = null;
+
+  function haversineM(lat1, lon1, lat2, lon2) {
+    const r = Math.PI / 180;
+    const p1 = lat1 * r;
+    const p2 = lat2 * r;
+    const dlat = (lat2 - lat1) * r;
+    const dlon = (lon2 - lon1) * r;
+    const a = Math.sin(dlat / 2) ** 2 + Math.cos(p1) * Math.cos(p2) * Math.sin(dlon / 2) ** 2;
+    return 6371000 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+
+  function onMapClick(e) {
+    if (gotoClickHandler) gotoClickHandler(e.latlng.lat, e.latlng.lng);
+  }
 
   function isValidCoord(lat, lng) {
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return false;
@@ -54,6 +72,7 @@ const SkylinkMap = (function () {
     const zoom = CFG.mapDefaultZoom != null ? CFG.mapDefaultZoom : 17;
 
     map = L.map(el, { zoomControl: true, attributionControl: true }).setView([lat, lng], zoom);
+    map.on('click', onMapClick);
 
     const tileUrl = CFG.mapTileUrl || 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
     L.tileLayer(tileUrl, {
@@ -103,16 +122,60 @@ const SkylinkMap = (function () {
     trailLine.setLatLngs(trail);
   }
 
+  function updateGeofence(lat, lng) {
+    if (!map || !isValidCoord(lat, lng)) return;
+    const radiusM = CFG.geofenceRadiusM != null ? CFG.geofenceRadiusM : 1000;
+    homeLatLng = [lat, lng];
+    if (geofenceCircle) {
+      geofenceCircle.setLatLng([lat, lng]);
+      geofenceCircle.setRadius(radiusM);
+      return;
+    }
+    geofenceCircle = L.circle([lat, lng], {
+      radius: radiusM,
+      color: '#00d4ff',
+      weight: 1,
+      opacity: 0.85,
+      fillColor: '#00d4ff',
+      fillOpacity: 0.06,
+      dashArray: '6 6',
+    }).addTo(map);
+    geofenceCircle.bindTooltip('Geofence ' + radiusM + ' m', { direction: 'top' });
+  }
+
   function setHome(lat, lng) {
     if (!map || !isValidCoord(lat, lng)) return;
     if (homeMarker) {
       homeMarker.setLatLng([lat, lng]);
       homeSet = true;
+      updateGeofence(lat, lng);
       return;
     }
     homeSet = true;
     homeMarker = L.marker([lat, lng], { icon: homeIcon(), zIndexOffset: 500 }).addTo(map);
     homeMarker.bindTooltip('Home', { permanent: false, direction: 'top' });
+    updateGeofence(lat, lng);
+  }
+
+  function showTargetMarker(lat, lng) {
+    if (!map || !isValidCoord(lat, lng)) return;
+    if (targetMarker) {
+      targetMarker.setLatLng([lat, lng]);
+      return;
+    }
+    targetMarker = L.circleMarker([lat, lng], {
+      radius: 8,
+      color: '#ff9900',
+      weight: 2,
+      fillColor: '#ff9900',
+      fillOpacity: 0.35,
+    }).addTo(map);
+    targetMarker.bindTooltip('Target', { direction: 'top' });
+  }
+
+  function distanceFromHomeM(lat, lng) {
+    if (!homeLatLng) return null;
+    return haversineM(homeLatLng[0], homeLatLng[1], lat, lng);
   }
 
   function updateFromTelemetry(d) {
@@ -146,7 +209,13 @@ const SkylinkMap = (function () {
 
   document.addEventListener('DOMContentLoaded', init);
 
-  return { updateFromTelemetry, centerOnDrone: () => {
-    if (map && lastDronePos) map.setView(lastDronePos, Math.max(map.getZoom(), 17));
-  }};
+  return {
+    updateFromTelemetry,
+    centerOnDrone: () => {
+      if (map && lastDronePos) map.setView(lastDronePos, Math.max(map.getZoom(), 17));
+    },
+    showTargetMarker,
+    distanceFromHomeM,
+    setGotoClickHandler: (fn) => { gotoClickHandler = fn; },
+  };
 })();

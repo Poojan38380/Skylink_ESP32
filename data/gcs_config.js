@@ -4,9 +4,13 @@
  */
 const SKYLINK_GCS_CONFIG = {
   protocolVersion: 1,
-  fsBuild: 12,  // Must match data/skylink_build.json — bump before uploadfs
+  fsBuild: 15,  // Must match data/skylink_build.json — bump before uploadfs
   moveMinM: 0.5,
-  moveMaxM: 100,
+  moveMaxM: 200,
+  geofenceRadiusM: 1000,
+  gotoAltMinM: 2,
+  gotoAltMaxM: 50,
+  gotoAltOffsetM: 5,
   keyboardMoveThrottleMs: 500,
   flightStateStableSamples: 3,  // heartbeats before UI toggles armed/mode
   moveAltStepM: 2,

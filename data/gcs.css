@@ -595,6 +595,49 @@ body {
 .map-overlay-right .map-btn { pointer-events: auto; }
 .map-overlay-left { left: 16px; bottom: 16px; }
 .map-overlay-top { top: 16px; left: 16px; right: 16px; }
+.map-overlay-bottom {
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  pointer-events: none;
+}
+.map-overlay-bottom .map-btn-action { pointer-events: auto; }
+.map-btn-danger { border-color: var(--orange); color: var(--orange); }
+.map-btn-danger:hover { background: rgba(255, 153, 0, 0.15); }
+
+.goto-sheet {
+  position: absolute;
+  z-index: 600;
+  left: 16px;
+  right: 16px;
+  bottom: 72px;
+  max-width: 360px;
+  margin: 0 auto;
+  pointer-events: auto;
+}
+.goto-sheet-inner {
+  background: rgba(12, 18, 28, 0.94);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+}
+.goto-title { margin: 0 0 8px; font-size: 1rem; color: var(--text); }
+.goto-meta { margin: 0 0 4px; font-size: 0.8rem; color: var(--muted); }
+.goto-label { display: block; margin: 10px 0 6px; font-size: 0.75rem; color: var(--muted); }
+.goto-alt-input {
+  width: 100%;
+  max-width: 120px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  font-family: inherit;
+}
+.goto-actions { display: flex; gap: 8px; margin-top: 12px; }
 
 .attitude-card {
   display: flex;

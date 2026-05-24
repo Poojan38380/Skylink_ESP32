@@ -10,11 +10,11 @@
 
 - [x] Map shows live drone position + heading + home
 - [ ] Preflight panel gates arming with clear reasons
-- [ ] Tap: takeoff, land, RTL, loiter, click-to-fly
-- [ ] Tap: forward/back/strafe N m, yaw ±90°
+- [x] Tap: takeoff, land, RTL, loiter, click-to-fly
+- [x] Tap: forward/back/strafe N m, yaw ±90°
 - [x] ESP32 LED reflects WiFi + MAVLink state
 - [ ] Arm failures shown from autopilot text
-- [ ] Smooth telemetry ≥ 5 Hz on map
+- [x] Smooth telemetry ≥ 5 Hz on map
 - [ ] Code split into maintainable modules (see [ARCHITECTURE.md](./ARCHITECTURE.md))
 - [ ] Documented in `docs/simulation/upgrade/` and ops guide updated
 
@@ -29,7 +29,7 @@
 | 2 | Map shell ✅ | 3–4 days | Leaflet map-first layout, marker, no new FC cmds |
 | 3 | Telemetry++ ✅ | 2–3 days | Attitude, GLOBAL_POSITION, faster HB, preflight |
 | 4 | Relative moves ✅ | 4–5 days | Forward/strafe/yaw tap commands |
-| 5 | Map fly + loiter | 4–5 days | Click-to-fly, altitude, LOITER |
+| 5 | Map fly + loiter ✅ | 4–5 days | Click-to-fly, altitude, LOITER |
 | 6 | Polish & safety | 3–4 days | ACK, STATUSTEXT, arm hold, logs, docs |
 | 7+ | *(Deferred)* | — | Missions, AUTO, Pixhawk hardening |
 
@@ -187,7 +187,7 @@ Require **armed + GUIDED**; disable otherwise.
 
 - [x] `MOVE_BODY` → `SET_POSITION_TARGET_LOCAL_NED` body offset
 - [x] `YAW_RELATIVE` → `MAV_CMD_CONDITION_YAW`
-- [x] Enforce caps: max 20 m, min altitude 2 m, GPS 3D
+- [x] Enforce caps: max 200 m, min altitude 2 m, GPS 3D
 
 ### Safety
 
@@ -201,26 +201,26 @@ Require **armed + GUIDED**; disable otherwise.
 
 ---
 
-## Phase 5 — Map-based guided flight
+## Phase 5 — Map-based guided flight ✅
 
 **Goal:** Click map → fly there; loiter; altitude control.
 
 ### UI
 
-- [ ] Map click → “Fly here” context (altitude input, default current+5 m)
-- [ ] **LOITER** button (hover at current position)
-- [ ] **RTL** / **LAND** always visible on map overlay (floating)
-- [ ] Geofence circle (100 m default) drawn around home
+- [x] Map click → “Fly here” sheet (altitude input, default current+5 m)
+- [x] **LOITER** button (hover at current position)
+- [x] **RTL** / **LAND** always visible on map overlay (floating)
+- [x] Geofence circle (100 m default) drawn around home
 
 ### Firmware
 
-- [ ] `GOTO_LATLON` with distance check from home
-- [ ] `GOTO_ALT` / change altitude
-- [ ] LOITER mode support in mode map
+- [x] `GOTO_LATLON` with distance check from home (`SET_POSITION_TARGET_GLOBAL_INT`)
+- [x] `GOTO_ALT` / change altitude at current lat/lon
+- [x] `LOITER_HERE` + `SET_FLIGHT_MODE` LOITER in mode map
 
 ### Acceptance
 
-- [ ] Click 50 m east → copter flies in GUIDED
+- [ ] Click 50 m east → copter flies in GUIDED *(verify in SITL)*
 - [ ] LOITER holds position with wind in SITL
 - [ ] RTL returns home from map mission
 
@@ -322,4 +322,11 @@ Follow ARCHITECTURE.md performance rules. Update OPEN_DECISIONS if defaults chan
 
 ---
 
-*Last updated: May 2026 — post-MVP SITL verified.*
+### Post–Phase 4 fixes (stability)
+
+- WebSocket telemetry **5 Hz**; skip broadcast when no clients / queue full; discard-on-full vs close (ESP Async WebServer 3.x).
+- `MOVE_BODY` cap **200 m** ([OPEN_DECISIONS.md](./OPEN_DECISIONS.md)); geofence **1000 m**.
+
+---
+
+*Last updated: May 2026 — Phase 5 implemented; SITL acceptance pending.*

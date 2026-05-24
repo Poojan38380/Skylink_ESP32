@@ -37,9 +37,9 @@ If `FS flash:0` or `MISMATCH` → run `uploadfs` and bump `fs` in all three FS f
 | `SKYLINK_MAVLINK_GCS_HEARTBEAT_MS` | 1000 | ms | GCS heartbeat to FC |
 | `SKYLINK_MAVLINK_STREAM_REQUEST_MS` | 10000 | ms | Re-request telemetry streams |
 | `SKYLINK_MAVLINK_TIMEOUT_MS` | 5000 | ms | MAVLink link dead detection |
-| `SKYLINK_MOVE_BODY_MAX_M` | 20 | m | Phase 4 relative moves |
+| `SKYLINK_MOVE_BODY_MAX_M` | 200 | m | Phase 4 relative moves |
 | `SKYLINK_MOVE_MIN_AGL_M` | 2 | m | Phase 4 minimum altitude |
-| `SKYLINK_GOTO_MAX_RADIUS_M` | 100 | m | Phase 5 click-to-fly |
+| `SKYLINK_GOTO_MAX_RADIUS_M` | 1000 | m | Phase 5 click-to-fly / geofence |
 | `SKYLINK_YAW_MAX_DEG` | 90 | deg | Phase 4 yaw cap |
 | `SKYLINK_CMD_RATE_LIMIT_PER_SEC` | 2 | cmd/s | Phase 6 rate limit |
 | `SKYLINK_CMD_DEBOUNCE_MS` | 500 | ms | Phase 6 debounce |

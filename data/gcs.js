@@ -14,6 +14,8 @@ let wsConnected = false;
 let moveControlsEnabled = false;
 let lastKeyMoveMs = 0;
 let lastStatusSnapshot = '';
+let pendingGoto = null;
+let lastHbForGoto = null;
 let activeTab = 'map';
 
 const flightUiState = {
@@ -96,24 +98,52 @@ function selectPresetDistance(m) {
   updateDistanceLabel();
 }
 
-function applyCustomDistance() {
+function moveDistanceLimits() {
+  return { min: CFG.moveMinM || 0.5, max: CFG.moveMaxM || 200 };
+}
+
+/** Read custom field if it has a valid number (no separate "Use" required). */
+function readCustomDistanceFromInput() {
   const input = document.getElementById('move-dist-custom');
-  if (!input) return;
-  const min = CFG.moveMinM || 0.5;
-  const max = CFG.moveMaxM || 100;
+  if (!input || String(input.value).trim() === '') return null;
+  const { min, max } = moveDistanceLimits();
+  const v = parseFloat(input.value);
+  if (isNaN(v) || v < min || v > max) return null;
+  return v;
+}
+
+function applyCustomDistance(silent) {
+  const input = document.getElementById('move-dist-custom');
+  if (!input) return false;
+  const { min, max } = moveDistanceLimits();
   const v = parseFloat(input.value);
   if (isNaN(v) || v < min || v > max) {
-    log('ERR', 'tag-err', 'Distance must be between ' + min + ' and ' + max + ' m');
-    return;
+    if (!silent) {
+      log('ERR', 'tag-err', 'Distance must be between ' + min + ' and ' + max + ' m');
+    }
+    return false;
   }
   selectedMoveM = v;
   usingCustomDist = true;
   input.classList.add('active-source');
   document.querySelectorAll('.preset-btn[data-move-m]').forEach((b) => b.classList.remove('active'));
   updateDistanceLabel();
+  return true;
 }
 
 function getMoveDistanceM() {
+  const custom = readCustomDistanceFromInput();
+  if (custom != null) {
+    if (!usingCustomDist || custom !== selectedMoveM) {
+      selectedMoveM = custom;
+      usingCustomDist = true;
+      const input = document.getElementById('move-dist-custom');
+      if (input) input.classList.add('active-source');
+      document.querySelectorAll('.preset-btn[data-move-m]').forEach((b) => b.classList.remove('active'));
+      updateDistanceLabel();
+    }
+    return custom;
+  }
   return selectedMoveM;
 }
 
@@ -126,10 +156,27 @@ function initMoveControls() {
 
   const applyBtn = document.getElementById('btn-apply-custom-dist');
   const customInput = document.getElementById('move-dist-custom');
-  if (applyBtn) applyBtn.addEventListener('click', applyCustomDistance);
+  if (applyBtn) applyBtn.addEventListener('click', () => applyCustomDistance(false));
   if (customInput) {
     customInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') applyCustomDistance();
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        applyCustomDistance(false);
+        customInput.blur();
+      }
+    });
+    customInput.addEventListener('input', () => {
+      const v = readCustomDistanceFromInput();
+      if (v != null) {
+        selectedMoveM = v;
+        usingCustomDist = true;
+        customInput.classList.add('active-source');
+        document.querySelectorAll('.preset-btn[data-move-m]').forEach((b) => b.classList.remove('active'));
+        updateDistanceLabel();
+      }
+    });
+    customInput.addEventListener('blur', () => {
+      if (String(customInput.value).trim() !== '') applyCustomDistance(true);
     });
   }
 
@@ -285,6 +332,97 @@ function sendYawRelative(deg) {
   log('SYS', 'tag-sys', 'YAW_RELATIVE ' + deg + '°');
 }
 
+function closeGotoSheet() {
+  pendingGoto = null;
+  const sheet = document.getElementById('goto-sheet');
+  if (sheet) sheet.hidden = true;
+}
+
+function openGotoSheet(lat, lng) {
+  if (!wsConnected) return;
+  if (!moveControlsEnabled) {
+    log('ERR', 'tag-err', 'Fly here: arm in GUIDED, 3D GPS, and at least 2 m altitude');
+    return;
+  }
+  const radius = CFG.geofenceRadiusM != null ? CFG.geofenceRadiusM : 1000;
+  const dist = typeof SkylinkMap !== 'undefined' ? SkylinkMap.distanceFromHomeM(lat, lng) : null;
+  if (dist == null) {
+    log('ERR', 'tag-err', 'Home not set — wait for GPS/home on map');
+    return;
+  }
+  if (dist > radius) {
+    log('ERR', 'tag-err', 'Target ' + dist.toFixed(0) + ' m from home (max ' + radius + ' m)');
+    return;
+  }
+
+  pendingGoto = { lat, lng };
+  if (typeof SkylinkMap !== 'undefined') SkylinkMap.showTargetMarker(lat, lng);
+
+  const coords = document.getElementById('goto-coords');
+  const distEl = document.getElementById('goto-dist');
+  const altInput = document.getElementById('goto-alt');
+  const sheet = document.getElementById('goto-sheet');
+  if (coords) coords.textContent = lat.toFixed(6) + ', ' + lng.toFixed(6);
+  if (distEl) distEl.textContent = dist.toFixed(1) + ' m from home (inside geofence)';
+  if (altInput) {
+    const relAlt = Number(lastHbForGoto?.relative_alt) || Number(lastHbForGoto?.altitude) || 0;
+    const minA = CFG.gotoAltMinM != null ? CFG.gotoAltMinM : 2;
+    const maxA = CFG.gotoAltMaxM != null ? CFG.gotoAltMaxM : 50;
+    const offset = CFG.gotoAltOffsetM != null ? CFG.gotoAltOffsetM : 5;
+    const defAlt = Math.min(maxA, Math.max(minA, relAlt + offset));
+    altInput.value = String(defAlt);
+    altInput.min = String(minA);
+    altInput.max = String(maxA);
+  }
+  if (sheet) sheet.hidden = false;
+}
+
+function confirmGoto() {
+  if (!pendingGoto) return;
+  const altInput = document.getElementById('goto-alt');
+  const alt = parseFloat(altInput?.value);
+  const minA = CFG.gotoAltMinM != null ? CFG.gotoAltMinM : 2;
+  const maxA = CFG.gotoAltMaxM != null ? CFG.gotoAltMaxM : 50;
+  if (!Number.isFinite(alt) || alt < minA || alt > maxA) {
+    log('ERR', 'tag-err', 'Altitude must be ' + minA + '–' + maxA + ' m');
+    return;
+  }
+  sendCmd('GOTO_LATLON', { lat: pendingGoto.lat, lon: pendingGoto.lng, alt });
+  log('SYS', 'tag-sys', 'GOTO_LATLON @ ' + alt + ' m');
+  closeGotoSheet();
+}
+
+function updateMapFlightActions(d) {
+  lastHbForGoto = d;
+  const armed = d.armed === true;
+  const loiterBtn = document.getElementById('btn-map-loiter');
+  const landBtn = document.getElementById('btn-map-land');
+  const rtlBtn = document.getElementById('btn-map-rtl');
+  if (loiterBtn) loiterBtn.disabled = !wsConnected || !armed;
+  if (landBtn) landBtn.disabled = !wsConnected;
+  if (rtlBtn) rtlBtn.disabled = !wsConnected;
+}
+
+function initMapGoto() {
+  if (typeof SkylinkMap !== 'undefined') {
+    SkylinkMap.setGotoClickHandler(openGotoSheet);
+  }
+  document.getElementById('goto-cancel')?.addEventListener('click', closeGotoSheet);
+  document.getElementById('goto-confirm')?.addEventListener('click', confirmGoto);
+  document.getElementById('btn-map-loiter')?.addEventListener('click', () => {
+    sendCmd('LOITER_HERE');
+    log('SYS', 'tag-sys', 'LOITER_HERE');
+  });
+  document.getElementById('btn-map-land')?.addEventListener('click', () => {
+    sendCmd('LAND');
+    log('SYS', 'tag-sys', 'LAND');
+  });
+  document.getElementById('btn-map-rtl')?.addEventListener('click', () => {
+    sendCmd('RTL');
+    log('SYS', 'tag-sys', 'RTL');
+  });
+}
+
 function updateClock() {
   const el = document.getElementById('sys-time');
   if (el) el.textContent = new Date().toLocaleTimeString('en-GB', { hour12: false });
@@ -340,6 +478,11 @@ function setLinkState(state) {
       if (el) el.disabled = true;
     });
     moveBtns.forEach((el) => { el.disabled = true; });
+    ['btn-map-loiter', 'btn-map-land', 'btn-map-rtl'].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.disabled = true;
+    });
+    closeGotoSheet();
     if (overlay) overlay.classList.add('show');
   } else {
     wsConnected = false;
@@ -561,6 +704,7 @@ function updateTelemetry(d) {
   updateLiveStrip(d);
 
   updateMoveControls(d);
+  updateMapFlightActions(d);
 
   if (typeof SkylinkMap !== 'undefined') SkylinkMap.updateFromTelemetry(d);
 }
@@ -701,3 +845,4 @@ function connect() {
 }
 
 connect();
+initMapGoto();

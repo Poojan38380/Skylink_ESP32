@@ -4,12 +4,12 @@
 
 | # | Decision | Value |
 |---|----------|-------|
-| 1 | Max single relative move | **20 m** |
+| 1 | Max single relative move | **200 m** |
 | 2 | Max yaw step | **90°** (presets 45 / 90 / 180) |
 | 3 | Min altitude for moves | **2 m** AGL |
 | 4 | Map tiles | **OpenStreetMap** + Leaflet |
 | 5 | Home position | First **3D GPS fix** |
-| 6 | Click-to-fly radius | **100 m** |
+| 6 | Click-to-fly radius | **1000 m** |
 | 7 | Command rate limit | **2 / s** |
 | 8 | Split dashboard assets | **Yes** (`index.html`, `gcs.css`, `gcs.js`, `gcs_config.js`) |
 | 9 | Arm confirmation | **Hold 1.5 s** (Phase 6 UI) |

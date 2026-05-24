@@ -31,9 +31,10 @@
 #define SKYLINK_MAVLINK_VEHICLE_COMPID      1
 
 // --- Flight safety caps (enforced in firmware from Phase 4+) ---
-#define SKYLINK_MOVE_BODY_MAX_M         100.0f
+#define SKYLINK_MOVE_BODY_MAX_M         200.0f
+#define SKYLINK_GOTO_ALT_MAX_M          50.0f
 #define SKYLINK_MOVE_MIN_AGL_M          2.0f
-#define SKYLINK_GOTO_MAX_RADIUS_M       100.0f
+#define SKYLINK_GOTO_MAX_RADIUS_M       1000.0f
 #define SKYLINK_YAW_MAX_DEG             90
 
 // --- Command rate limit (Phase 6 enforcement; constant defined now) ---
@@ -46,9 +47,9 @@
 
 // --- Build identity (bump when flashing; see CONFIG_REFERENCE.md) ---
 // FIRMWARE: increment before `pio run --target upload`
-#define SKYLINK_FIRMWARE_BUILD          9
+#define SKYLINK_FIRMWARE_BUILD          12
 // FS: increment before `pio run --target uploadfs` (must match data/skylink_build.json + gcs_config.js)
-#define SKYLINK_FS_BUILD                12
+#define SKYLINK_FS_BUILD                15
 
 #ifdef SITL_MODE
 constexpr bool SKYLINK_SIMULATION = true;

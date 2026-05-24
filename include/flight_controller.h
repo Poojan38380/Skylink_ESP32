@@ -123,6 +123,9 @@ public:
     void returnToLaunch();
     void moveBody(float xMeters, float yMeters, float zMeters);
     void yawRelative(float degrees);
+    void gotoLatLon(double lat, double lon, float altRelMeters);
+    void gotoAlt(float altRelMeters);
+    void loiterHere();
     void sendRCOverride(uint16_t roll, uint16_t pitch, uint16_t throttle, uint16_t yaw);
     void sendHeartbeat();
     void emergencyStop();

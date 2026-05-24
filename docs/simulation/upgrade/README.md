@@ -19,6 +19,7 @@ Post-MVP roadmap to evolve the web dashboard into a **map-first, tap-to-fly GCS*
 
 | Document | Contents |
 |----------|----------|
+| [IMPLEMENTATION_HANDOFF.md](./IMPLEMENTATION_HANDOFF.md) | **Agent handoff** — what was built, bugs fixed, lessons, current builds |
 | [GCS_UPGRADE_ROADMAP.md](./GCS_UPGRADE_ROADMAP.md) | **Main plan** — phases, deliverables, acceptance tests, file map |
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | Modular code layout, performance rules, WebSocket protocol |
 | [MAVLINK_COMMANDS.md](./MAVLINK_COMMANDS.md) | Per-feature MAVLink messages and safety caps |
@@ -30,9 +31,10 @@ Post-MVP roadmap to evolve the web dashboard into a **map-first, tap-to-fly GCS*
 
 ## Suggested read order
 
-1. [OPEN_DECISIONS.md](./OPEN_DECISIONS.md) — answer or accept defaults  
-2. [GCS_UPGRADE_ROADMAP.md](./GCS_UPGRADE_ROADMAP.md) — implement phase by phase  
-3. [ARCHITECTURE.md](./ARCHITECTURE.md) — when touching firmware or splitting files  
+1. [IMPLEMENTATION_HANDOFF.md](./IMPLEMENTATION_HANDOFF.md) — **start here** if resuming work or onboarding an AI agent  
+2. [OPEN_DECISIONS.md](./OPEN_DECISIONS.md) — answer or accept defaults  
+3. [GCS_UPGRADE_ROADMAP.md](./GCS_UPGRADE_ROADMAP.md) — implement phase by phase  
+4. [ARCHITECTURE.md](./ARCHITECTURE.md) — when touching firmware or splitting files  
 
 ---
 

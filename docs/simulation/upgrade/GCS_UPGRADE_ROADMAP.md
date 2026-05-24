@@ -329,4 +329,4 @@ Follow ARCHITECTURE.md performance rules. Update OPEN_DECISIONS if defaults chan
 
 ---
 
-*Last updated: May 2026 — Phase 5 implemented; SITL acceptance pending.*
+*Last updated: May 2026 — Phase 5 implemented; SITL acceptance pending. Session log: [IMPLEMENTATION_HANDOFF.md](./IMPLEMENTATION_HANDOFF.md).*

@@ -97,6 +97,78 @@
           <button type="button" class="map-btn active" id="btn-map-follow">Follow</button>
         </div>
       </div>
+
+      <div class="map-dock" id="move-section">
+        <div class="map-dock-header">
+          <h2 class="section-title">Drone control</h2>
+          <p class="section-desc">Relative moves in body frame (nose = forward). Use <strong>Fly</strong> tab to arm and takeoff first. Keyboard works on this tab when not typing in a field.</p>
+        </div>
+        <p class="move-hint" id="move-hint">Requires armed + GUIDED + 3D GPS + 2 m altitude.</p>
+
+        <div class="distance-picker" role="group" aria-label="Move distance">
+          <span class="preset-label">Distance</span>
+          <div class="distance-presets">
+            <button type="button" class="preset-btn active" data-move-m="1">1 m</button>
+            <button type="button" class="preset-btn" data-move-m="3">3 m</button>
+            <button type="button" class="preset-btn" data-move-m="5">5 m</button>
+            <button type="button" class="preset-btn" data-move-m="10">10 m</button>
+          </div>
+          <div class="distance-custom">
+            <label class="custom-dist-label" for="move-dist-custom">Custom</label>
+            <input type="number" id="move-dist-custom" class="custom-dist-input" min="0.5" max="100" step="0.5" placeholder="0.5–100" inputmode="decimal">
+            <span class="custom-dist-unit">m</span>
+            <button type="button" class="btn btn-secondary btn-apply-dist" id="btn-apply-custom-dist">Use</button>
+          </div>
+          <div class="distance-active" id="distance-active-label">Active: 1 m</div>
+        </div>
+
+        <div class="map-dock-controls">
+          <div class="move-pad">
+            <div class="move-row move-row-single">
+              <button type="button" class="btn btn-move move-dir" data-move="x" data-sign="1" disabled>
+                <span class="btn-label">Forward</span>
+                <kbd class="key-hint">↑</kbd>
+              </button>
+            </div>
+            <div class="move-row move-row-triple">
+              <button type="button" class="btn btn-move move-dir" data-move="y" data-sign="-1" disabled>
+                <span class="btn-label">Left</span>
+                <kbd class="key-hint">←</kbd>
+              </button>
+              <button type="button" class="btn btn-move move-dir" data-move="x" data-sign="-1" disabled>
+                <span class="btn-label">Back</span>
+                <kbd class="key-hint">↓</kbd>
+              </button>
+              <button type="button" class="btn btn-move move-dir" data-move="y" data-sign="1" disabled>
+                <span class="btn-label">Right</span>
+                <kbd class="key-hint">→</kbd>
+              </button>
+            </div>
+            <div class="move-row move-row-triple">
+              <button type="button" class="btn btn-move move-dir" data-move="z" data-sign="-1" disabled>
+                <span class="btn-label">Up</span>
+                <kbd class="key-hint">Num 8</kbd>
+              </button>
+              <span class="move-pad-center">BODY</span>
+              <button type="button" class="btn btn-move move-dir" data-move="z" data-sign="1" disabled>
+                <span class="btn-label">Down</span>
+                <kbd class="key-hint">Num 2</kbd>
+              </button>
+            </div>
+          </div>
+          <div class="yaw-row" role="group" aria-label="Yaw">
+            <span class="preset-label">Yaw (90°)</span>
+            <button type="button" class="btn btn-move btn-yaw" data-yaw="-90" disabled>
+              <span class="btn-label">Yaw left</span>
+              <kbd class="key-hint">Num 4</kbd>
+            </button>
+            <button type="button" class="btn btn-move btn-yaw" data-yaw="90" disabled>
+              <span class="btn-label">Yaw right</span>
+              <kbd class="key-hint">Num 6</kbd>
+            </button>
+          </div>
+        </div>
+      </div>
     </section>
 
     <!-- FLY -->
@@ -135,41 +207,6 @@
           </div>
         </div>
 
-        <div class="section-block" id="move-section">
-          <h2 class="section-title">Relative moves</h2>
-          <p class="section-desc">Nose-forward / strafe / climb in GUIDED while armed. Pick a distance, then tap a direction. Moves over 10 m ask for confirmation.</p>
-          <p class="move-hint" id="move-hint">Requires armed + GUIDED + 3D GPS + 2 m altitude.</p>
-
-          <div class="preset-row" role="group" aria-label="Move distance">
-            <span class="preset-label">Distance</span>
-            <button type="button" class="preset-btn active" data-move-m="1">1 m</button>
-            <button type="button" class="preset-btn" data-move-m="3">3 m</button>
-            <button type="button" class="preset-btn" data-move-m="5">5 m</button>
-            <button type="button" class="preset-btn" data-move-m="10">10 m</button>
-          </div>
-
-          <div class="move-pad">
-            <div class="move-row move-row-single">
-              <button type="button" class="btn btn-move move-dir" data-move="x" data-sign="1" disabled>↑ Forward</button>
-            </div>
-            <div class="move-row move-row-triple">
-              <button type="button" class="btn btn-move move-dir" data-move="y" data-sign="-1" disabled>← Left</button>
-              <button type="button" class="btn btn-move move-dir" data-move="x" data-sign="-1" disabled>↓ Back</button>
-              <button type="button" class="btn btn-move move-dir" data-move="y" data-sign="1" disabled>Right →</button>
-            </div>
-            <div class="move-row move-row-triple">
-              <button type="button" class="btn btn-move move-dir" data-move="z" data-sign="-1" disabled>↑ Up</button>
-              <span class="move-pad-center">BODY</span>
-              <button type="button" class="btn btn-move move-dir" data-move="z" data-sign="1" disabled>↓ Down</button>
-            </div>
-          </div>
-
-          <div class="preset-row" style="margin-top:20px" role="group" aria-label="Yaw">
-            <span class="preset-label">Yaw</span>
-            <button type="button" class="btn btn-move btn-yaw" data-yaw="-90" disabled>↺ 90° left</button>
-            <button type="button" class="btn btn-move btn-yaw" data-yaw="90" disabled>90° right ↻</button>
-          </div>
-        </div>
       </div>
     </section>
 
@@ -178,7 +215,7 @@
       <div class="panel-scroll">
         <div class="section-block">
           <h2 class="section-title">Preflight checklist</h2>
-          <p class="section-desc">All items should be green before arming on the Fly tab.</p>
+          <p class="section-desc">All items should be green before arming (Fly tab).</p>
           <ul class="preflight-list" id="preflight-list">
             <li id="pf-wifi"><span class="pf-icon">○</span><span>Wi‑Fi link to ESP32</span></li>
             <li id="pf-gps"><span class="pf-icon">○</span><span>GPS 3D fix</span></li>

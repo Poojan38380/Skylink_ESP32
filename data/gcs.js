@@ -9,7 +9,11 @@ let countdownTimer;
 let pingTimestamp = 0;
 let connectedIP = location.hostname;
 let selectedMoveM = 1;
+let usingCustomDist = false;
 let wsConnected = false;
+let moveControlsEnabled = false;
+let lastKeyMoveMs = 0;
+let activeTab = 'map';
 function updateBuildTag(d) {
   const el = document.getElementById('build-tag');
   if (!el) return;
@@ -31,6 +35,7 @@ function initTabs() {
   const panels = document.querySelectorAll('.tab-panel');
 
   function showTab(name) {
+    activeTab = name;
     buttons.forEach((btn) => {
       const on = btn.dataset.tab === name;
       btn.classList.toggle('active', on);
@@ -60,31 +65,144 @@ document.addEventListener('DOMContentLoaded', () => {
   updateBuildTag(null);
   initTabs();
   initMoveControls();
+  initKeyboardControls();
 });
+
+function updateDistanceLabel() {
+  const el = document.getElementById('distance-active-label');
+  if (!el) return;
+  const text = usingCustomDist
+    ? ('Active: ' + selectedMoveM + ' m (custom)')
+    : ('Active: ' + selectedMoveM + ' m');
+  el.textContent = text;
+}
+
+function selectPresetDistance(m) {
+  selectedMoveM = m;
+  usingCustomDist = false;
+  const input = document.getElementById('move-dist-custom');
+  if (input) input.classList.remove('active-source');
+  document.querySelectorAll('.preset-btn[data-move-m]').forEach((b) => {
+    b.classList.toggle('active', parseFloat(b.dataset.moveM) === m);
+  });
+  updateDistanceLabel();
+}
+
+function applyCustomDistance() {
+  const input = document.getElementById('move-dist-custom');
+  if (!input) return;
+  const min = CFG.moveMinM || 0.5;
+  const max = CFG.moveMaxM || 100;
+  const v = parseFloat(input.value);
+  if (isNaN(v) || v < min || v > max) {
+    log('ERR', 'tag-err', 'Distance must be between ' + min + ' and ' + max + ' m');
+    return;
+  }
+  selectedMoveM = v;
+  usingCustomDist = true;
+  input.classList.add('active-source');
+  document.querySelectorAll('.preset-btn[data-move-m]').forEach((b) => b.classList.remove('active'));
+  updateDistanceLabel();
+}
+
+function getMoveDistanceM() {
+  return selectedMoveM;
+}
 
 function initMoveControls() {
   document.querySelectorAll('.preset-btn[data-move-m]').forEach((btn) => {
     btn.addEventListener('click', () => {
-      selectedMoveM = parseFloat(btn.dataset.moveM) || 1;
-      document.querySelectorAll('.preset-btn[data-move-m]').forEach((b) => {
-        b.classList.toggle('active', b === btn);
-      });
+      selectPresetDistance(parseFloat(btn.dataset.moveM) || 1);
     });
   });
+
+  const applyBtn = document.getElementById('btn-apply-custom-dist');
+  const customInput = document.getElementById('move-dist-custom');
+  if (applyBtn) applyBtn.addEventListener('click', applyCustomDistance);
+  if (customInput) {
+    customInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') applyCustomDistance();
+    });
+  }
 
   document.querySelectorAll('.move-dir').forEach((btn) => {
     btn.addEventListener('click', () => {
       const axis = btn.dataset.move;
       const sign = parseFloat(btn.dataset.sign) || 1;
-      sendMoveBody(axis, sign * selectedMoveM);
+      sendMoveBody(axis, sign * getMoveDistanceM());
     });
   });
 
   document.querySelectorAll('.btn-yaw').forEach((btn) => {
     btn.addEventListener('click', () => {
-      const deg = parseFloat(btn.dataset.yaw) || 0;
-      sendYawRelative(deg);
+      sendYawRelative(parseFloat(btn.dataset.yaw) || 0);
     });
+  });
+
+  updateDistanceLabel();
+}
+
+function isTypingInField() {
+  const el = document.activeElement;
+  if (!el) return false;
+  const tag = el.tagName;
+  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable;
+}
+
+function initKeyboardControls() {
+  document.addEventListener('keydown', (e) => {
+    if (activeTab !== 'map') return;
+    if (isTypingInField()) return;
+    if (!moveControlsEnabled) return;
+
+    const throttle = CFG.keyboardMoveThrottleMs || 500;
+    const now = performance.now();
+    if (now - lastKeyMoveMs < throttle) return;
+
+    let handled = false;
+    const dist = getMoveDistanceM();
+
+    switch (e.code) {
+      case 'ArrowUp':
+        sendMoveBody('x', dist);
+        handled = true;
+        break;
+      case 'ArrowDown':
+        sendMoveBody('x', -dist);
+        handled = true;
+        break;
+      case 'ArrowLeft':
+        sendMoveBody('y', -dist);
+        handled = true;
+        break;
+      case 'ArrowRight':
+        sendMoveBody('y', dist);
+        handled = true;
+        break;
+      case 'Numpad8':
+        sendMoveBody('z', -dist);
+        handled = true;
+        break;
+      case 'Numpad2':
+        sendMoveBody('z', dist);
+        handled = true;
+        break;
+      case 'Numpad4':
+        sendYawRelative(-90);
+        handled = true;
+        break;
+      case 'Numpad6':
+        sendYawRelative(90);
+        handled = true;
+        break;
+      default:
+        break;
+    }
+
+    if (handled) {
+      e.preventDefault();
+      lastKeyMoveMs = now;
+    }
   });
 }
 
@@ -98,6 +216,7 @@ function updateMoveControls(d) {
     (Number(d.gps_fix) || 0) >= (CFG.preflightMinGpsFix || 3) &&
     alt >= minAgl;
 
+  moveControlsEnabled = canMove;
   document.querySelectorAll('.move-dir, .btn-yaw').forEach((el) => {
     el.disabled = !canMove;
   });
@@ -105,7 +224,7 @@ function updateMoveControls(d) {
   const hint = document.getElementById('move-hint');
   if (hint) {
     if (canMove) {
-      hint.textContent = 'Ready — ' + selectedMoveM + ' m steps (body frame, nose = forward).';
+      hint.textContent = 'Ready — ' + getMoveDistanceM() + ' m per move. Arrows = translate, Num 4/6 = yaw.';
       hint.className = 'move-hint ready';
     } else if (!d.armed) {
       hint.textContent = 'Arm in GUIDED after preflight checks to enable moves.';
@@ -121,10 +240,6 @@ function updateMoveControls(d) {
 }
 
 function sendMoveBody(axis, meters) {
-  const m = Math.abs(meters);
-  const confirmAbove = CFG.moveConfirmAboveM || 10;
-  if (m > confirmAbove && !confirm('Move ' + m + ' meters?')) return;
-
   const payload = { x: 0, y: 0, z: 0 };
   if (axis === 'x') payload.x = meters;
   else if (axis === 'y') payload.y = meters;
@@ -135,9 +250,6 @@ function sendMoveBody(axis, meters) {
 }
 
 function sendYawRelative(deg) {
-  const abs = Math.abs(deg);
-  const confirmAbove = CFG.moveConfirmAboveM || 10;
-  if (abs > confirmAbove && !confirm('Yaw ' + abs + '°?')) return;
   sendCmd('YAW_RELATIVE', { deg });
   log('SYS', 'tag-sys', 'YAW_RELATIVE ' + deg + '°');
 }

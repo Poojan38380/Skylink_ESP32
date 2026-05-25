@@ -47,3 +47,4 @@
 - Move controls use body-frame reference (forward/back/left/right)
 - Distance presets: 1m, 3m, 5m, 10m + custom input field
 - Keyboard throttled at 500ms to prevent command flooding
+- Geofence tooltip shows radius in meters

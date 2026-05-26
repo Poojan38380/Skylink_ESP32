@@ -362,6 +362,7 @@ Hardware roadmap (this document)
 | [components/kits/f450_quadcopter_frame_kit.md](components/kits/f450_quadcopter_frame_kit.md) | F450 Quadcopter Frame & Propulsion Kit Reference |
 | [components/networking/waveshare_sim7600g_h_4g_dongle.md](components/networking/waveshare_sim7600g_h_4g_dongle.md) | Waveshare SIM7600G-H 4G LTE Dongle & GNSS Reference |
 | [components/networking/7semi_ec200u_4g_dongle.md](components/networking/7semi_ec200u_4g_dongle.md) | 7Semi EC200U 4G LTE Cat 1 Dongle & GNSS Reference |
+| [components/networking/7semi_ec200u_mini_industrial_modem.md](components/networking/7semi_ec200u_mini_industrial_modem.md) | 7Semi EC200U LTE 4G GNSS Mini Industrial Modem (26V Range) Reference |
 | [components/kits/pixhawk_248_robokits_combo.md](components/kits/pixhawk_248_robokits_combo.md) | Pixhawk 2.4.8 Basic GPS Combo Kit Reference (Robokits) |
 
 ---

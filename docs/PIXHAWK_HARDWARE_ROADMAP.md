@@ -360,10 +360,14 @@ Hardware roadmap (this document)
 | [components/kits/pixhawk_248_evelta_combo.md](components/kits/pixhawk_248_evelta_combo.md) | Pixhawk 2.4.8 Full Combo Set Reference |
 | [components/kits/readytosky_fc110_pixhawk_set.md](components/kits/readytosky_fc110_pixhawk_set.md) | ReadytoSky Pixhawk 2.4.8 Base Autopilot Set Reference |
 | [components/kits/f450_quadcopter_frame_kit.md](components/kits/f450_quadcopter_frame_kit.md) | F450 Quadcopter Frame & Propulsion Kit Reference |
+| [components/kits/power_and_insulation_accessories.md](components/kits/power_and_insulation_accessories.md) | Power Routing & Insulation Accessories Reference (XT60 & Heat Shrink) |
 | [components/networking/waveshare_sim7600g_h_4g_dongle.md](components/networking/waveshare_sim7600g_h_4g_dongle.md) | Waveshare SIM7600G-H 4G LTE Dongle & GNSS Reference |
 | [components/networking/7semi_ec200u_4g_dongle.md](components/networking/7semi_ec200u_4g_dongle.md) | 7Semi EC200U 4G LTE Cat 1 Dongle & GNSS Reference |
 | [components/networking/7semi_ec200u_mini_industrial_modem.md](components/networking/7semi_ec200u_mini_industrial_modem.md) | 7Semi EC200U LTE 4G GNSS Mini Industrial Modem (26V Range) Reference |
 | [components/kits/pixhawk_248_robokits_combo.md](components/kits/pixhawk_248_robokits_combo.md) | Pixhawk 2.4.8 Basic GPS Combo Kit Reference (Robokits) |
+| [components/final_reports/skylink_final_bom_report.md](components/final_reports/skylink_final_bom_report.md) | Skylink Final BOM & Internet-Flight Integration Reference |
+| [components/final_reports/cellular_modems_and_premium_alternatives.md](components/final_reports/cellular_modems_and_premium_alternatives.md) | High-End Cellular Modems & Premium UAV Upgrades Brainstorming |
+| [components/final_reports/modem_vs_dongle_comparison.md](components/final_reports/modem_vs_dongle_comparison.md) | 7Semi EC200U Industrial Modem vs USB Dongle Comparison |
 
 ---
 

@@ -31,6 +31,7 @@ Optional (recommended for setup & safety):
 ## 2. Kit reference (Pixhawk 2.4.8 set)
 
 Typical [Pixhawk 2.4.8 kit](https://evelta.com/pixhawk-2-4-8-px4-autopilot-32-bit-flight-controller-for-rc-drone-uav/) includes:
+*(See detailed research reports: [Pixhawk 2.4.8 Full Combo Set](file:///d:/btp_skylink/Skylink/docs/components/kits/pixhawk_248_evelta_combo.md) and [ReadytoSky Pixhawk 2.4.8 Flight Controller Set](file:///d:/btp_skylink/Skylink/docs/components/kits/readytosky_fc110_pixhawk_set.md))*
 
 | Item | Role |
 |------|------|
@@ -41,6 +42,7 @@ Typical [Pixhawk 2.4.8 kit](https://evelta.com/pixhawk-2-4-8-px4-autopilot-32-bi
 | Shock mount, SD card | Logging, mechanical isolation |
 
 **You still need (not always in FC-only listing):**
+*(See detailed frame/propulsion research report: [F450 Quadcopter Frame Kit](file:///d:/btp_skylink/Skylink/docs/components/kits/f450_quadcopter_frame_kit.md))*
 
 | Component | Why |
 |-----------|-----|
@@ -355,6 +357,12 @@ Hardware roadmap (this document)
 | [simulation/successful_run_guide.md](simulation/successful_run_guide.md) | SITL ports 5760/5762/5763 |
 | [simulation/upgrade/MAVLINK_COMMANDS.md](simulation/upgrade/MAVLINK_COMMANDS.md) | Command ↔ MAVLink table |
 | [simulation/upgrade/CONFIG_REFERENCE.md](simulation/upgrade/CONFIG_REFERENCE.md) | Tunables |
+| [components/kits/pixhawk_248_evelta_combo.md](components/kits/pixhawk_248_evelta_combo.md) | Pixhawk 2.4.8 Full Combo Set Reference |
+| [components/kits/readytosky_fc110_pixhawk_set.md](components/kits/readytosky_fc110_pixhawk_set.md) | ReadytoSky Pixhawk 2.4.8 Base Autopilot Set Reference |
+| [components/kits/f450_quadcopter_frame_kit.md](components/kits/f450_quadcopter_frame_kit.md) | F450 Quadcopter Frame & Propulsion Kit Reference |
+| [components/networking/waveshare_sim7600g_h_4g_dongle.md](components/networking/waveshare_sim7600g_h_4g_dongle.md) | Waveshare SIM7600G-H 4G LTE Dongle & GNSS Reference |
+| [components/networking/7semi_ec200u_4g_dongle.md](components/networking/7semi_ec200u_4g_dongle.md) | 7Semi EC200U 4G LTE Cat 1 Dongle & GNSS Reference |
+| [components/kits/pixhawk_248_robokits_combo.md](components/kits/pixhawk_248_robokits_combo.md) | Pixhawk 2.4.8 Basic GPS Combo Kit Reference (Robokits) |
 
 ---
 

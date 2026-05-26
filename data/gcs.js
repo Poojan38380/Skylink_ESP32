@@ -515,7 +515,7 @@ function updatePreflight(d) {
   const gpsOk = (Number(d.gps_fix) || 0) >= minFix;
   const mavOk = d.mav_connected === true;
   const bat = Number(d.battery);
-  const batOk = bat < 0 || bat > minBat;
+  const batOk = bat < 0 || bat >= minBat || d.simulation === true;
   syncFlightUiState(d);
   const safeOk = !flightUiState.armed;
 

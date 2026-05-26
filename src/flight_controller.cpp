@@ -231,7 +231,19 @@ void FlightController::moveBody(float xMeters, float yMeters, float zMeters) {
     const float x = clampMove(xMeters);
     const float y = clampMove(yMeters);
     const float z = clampMove(zMeters);
-    if (x == 0.0f && y == 0.0f && z == 0.0f) {
+if (x == 0.0f && y == 0.0f && z == 0.0f) {
+        giveMutex();
+        return;
+    }
+
+    // Safety: prevent Z-axis descent below min AGL
+    float agl = telemetry.relative_alt > 0.0f ? telemetry.relative_alt : telemetry.altitude;
+    if (agl < SKYLINK_MOVE_MIN_AGL_M) {
+        giveMutex();
+        return;
+    }
+    if (z > 0.0f && (agl - z) < SKYLINK_MOVE_MIN_AGL_M) {
+        logger.warning("MOVE_BODY Z rejected: would descend below min AGL (" + String(SKYLINK_MOVE_MIN_AGL_M) + "m)");
         giveMutex();
         return;
     }
@@ -778,7 +790,7 @@ void FlightController::processMavlinkMessage(mavlink_message_t* msg) {
             telemetry.latitude = pos.lat / 1e7;
             telemetry.longitude = pos.lon / 1e7;
             telemetry.relative_alt = pos.relative_alt / 1000.0f;
-            telemetry.altitude = telemetry.relative_alt;
+            // altitude (barometric from VFR_HUD) is kept separate — not overwritten here
             const float vx = pos.vx / 100.0f;
             const float vy = pos.vy / 100.0f;
             telemetry.speed = sqrtf(vx * vx + vy * vy);

@@ -366,6 +366,7 @@ Hardware roadmap (this document)
 | [components/networking/7semi_ec200u_mini_industrial_modem.md](components/networking/7semi_ec200u_mini_industrial_modem.md) | 7Semi EC200U LTE 4G GNSS Mini Industrial Modem (26V Range) Reference |
 | [components/networking/7semi_ec200u_nano_modem.md](components/networking/7semi_ec200u_nano_modem.md) | 7Semi EC200U-CN LTE 4G GNSS Ultra-compact Nano Modem Reference |
 | [components/kits/pixhawk_248_robokits_combo.md](components/kits/pixhawk_248_robokits_combo.md) | Pixhawk 2.4.8 Basic GPS Combo Kit Reference (Robokits) |
+| [components/kits/pixhawk_quartz_standalone_comparison.md](components/kits/pixhawk_quartz_standalone_comparison.md) | Quartz Components Standalone Pixhawk 2.4.8 Comparison Reference |
 | [components/final_reports/skylink_final_bom_report.md](components/final_reports/skylink_final_bom_report.md) | Skylink Final BOM & Internet-Flight Integration Reference |
 | [components/final_reports/cellular_modems_and_premium_alternatives.md](components/final_reports/cellular_modems_and_premium_alternatives.md) | High-End Cellular Modems & Premium UAV Upgrades Brainstorming |
 | [components/final_reports/modem_vs_dongle_comparison.md](components/final_reports/modem_vs_dongle_comparison.md) | 7Semi EC200U Industrial Modem vs USB Dongle Comparison |

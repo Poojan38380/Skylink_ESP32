@@ -236,14 +236,23 @@ Current build (Phase 4):
 - **RAM**: ~51KB / 327KB (15.5%)
 - **Flash**: ~860KB / 1.3MB (65.6%)
 
-## 🔄 Development Phases
+## 🔄 Development Roadmap
 
-This project was built in 5 phases:
-1. **Foundation**: Modular architecture, WiFi manager, logger
-2. **Web Server**: HTTP dashboard and REST API
-3. **Interactive Controls**: LED control, WiFi config page, EEPROM storage
-4. **Advanced Features**: OTA updates, NTP time sync
-5. **Polish**: Documentation and error handling
+This project was built across **6 GCS upgrade phases + hardware roadmap**:
+
+| Phase | Name | Status |
+|-------|------|--------|
+| 0 | Code foundation (modular FW, split UI, protocol version) | ✅ Done |
+| 1 | Link & LED (link chips, SIM banner, LED patterns) | ✅ Done |
+| 2 | Map shell (Leaflet map-first layout, drone/home markers, trail) | ✅ Done |
+| 3 | Telemetry & preflight (MAVLink streams, attitude, preflight checklist) | ✅ Done |
+| 4 | Relative moves (MOVE_BODY, YAW_RELATIVE, keyboard controls) | ✅ Done |
+| 5 | Map click-to-fly (GOTO_LATLON, LOITER, geofence circle) | ✅ Done |
+| 6 | Polish & safety (hold-to-arm, rate limiter, log, docs) | ❌ Not started |
+| 7+ | Missions / AUTO mode | 📋 Deferred |
+| H0–H6 | **Pixhawk hardware bring-up** (see [PIXHAWK_HARDWARE_ROADMAP.md](docs/PIXHAWK_HARDWARE_ROADMAP.md)) | 📋 Planned |
+
+See [docs/simulation/upgrade/GCS_UPGRADE_ROADMAP.md](docs/simulation/upgrade/GCS_UPGRADE_ROADMAP.md) for full details.
 
 ## 📝 License
 

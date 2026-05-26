@@ -3,6 +3,9 @@
 > [!NOTE]
 > This reference document details the technical specifications, pinout configurations, and integration procedures for the **Waveshare SIM7600G-H 4G Dongle with GNSS Global Band Support (SKU: TIFCC0236)** sold by Robocraze. It highlights its role, power considerations, and hardware wiring in the context of the **Skylink** companion computer (ESP32) and Pixhawk autopilot ecosystem.
 >
+> **🚧 STATUS: FUTURE / NOT YET IMPLEMENTED IN FIRMWARE**
+> The ESP32 firmware does **not** currently have AT-command drivers or 4G telemetry routing code. This doc is research-only for future BVLOS expansion. Do not purchase this dongle until firmware support is implemented (planned post-Pixhawk Phase H5).
+>
 > **Product URL:** [Robocraze Waveshare SIM7600G-H 4G Dongle](https://robocraze.com/products/waveshare-sim7600g-h-4g-dongle-with-gnss-global-band-support)
 > **Retail Price:** ₹5,196 INR (inc. GST, 20% off from ₹6,499)
 > **Last Updated:** May 26, 2026

@@ -305,7 +305,7 @@ See [../start_simulation.md](../start_simulation.md) and [../successful_run_guid
 
 ---
 
-## 11. What is NOT done (Phase 6 — next agent)
+## What is NOT done (Phase 6 — next agent)
 
 From [GCS_UPGRADE_ROADMAP.md](./GCS_UPGRADE_ROADMAP.md):
 
@@ -316,6 +316,11 @@ From [GCS_UPGRADE_ROADMAP.md](./GCS_UPGRADE_ROADMAP.md):
 - [ ] Update `successful_run_guide.md` and simulation README WebSocket table.
 - [ ] Full regression script + 10 min heap-stability check.
 - [ ] Optional: `GOTO_ALT` UI, vendored offline map tiles, structured error codes (`ERR_NOT_ARMED`).
+
+**Bugs fixed May 26, 2026 (see PROJECT_ANALYSIS_AND_ORDERING_GUIDE.md):**
+- [x] MOVE_BODY Z-axis safety — firmware rejects descent below 2m AGL
+- [x] altitude/relative_alt separation — barometric altitude no longer overwritten by GPS relative altitude
+- [x] SITL battery preflight bypass — unknown battery (0%) no longer blocks arming in simulation
 
 Success criteria still open: preflight “gates” arming in UI only (not firmware lockout); arm failures via STATUSTEXT in log (works if MP/SITL sends text).
 

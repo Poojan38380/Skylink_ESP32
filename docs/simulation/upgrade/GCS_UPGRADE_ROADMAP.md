@@ -220,9 +220,9 @@ Require **armed + GUIDED**; disable otherwise.
 
 ### Acceptance
 
-- [ ] Click 50 m east → copter flies in GUIDED *(verify in SITL)*
-- [ ] LOITER holds position with wind in SITL
-- [ ] RTL returns home from map mission
+- [x] Click 50 m east → copter flies in GUIDED *(verified in SITL)*
+- [x] LOITER holds position with wind in SITL
+- [x] RTL returns home from map mission
 
 ---
 
@@ -248,6 +248,7 @@ Require **armed + GUIDED**; disable otherwise.
 - [ ] Update `successful_run_guide.md` with new UI flow
 - [ ] Update `docs/simulation/README.md` WebSocket table
 - [ ] Screenshot/GIF checklist for BTP report
+- [x] `upgrade/IMPLEMENTATION_HANDOFF.md` — comprehensive handoff doc written
 
 ### Acceptance
 

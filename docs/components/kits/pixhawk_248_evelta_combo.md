@@ -3,8 +3,9 @@
 > [!NOTE]
 > This reference document details the components included in the **Pixhawk 2.4.8 Full Combo Set** from Evelta. It lists each item's physical role, connection details, and significance to the **Skylink** companion computer bridge ecosystem.
 >
-> **Product URL:** [Evelta Pixhawk 2.4.8 Full Combo Set](https://evelta.com/pixhawk-2-4-8-px4-autopilot-32-bit-flight-controller-for-rc-drone-uav/)
-> **Last Updated:** May 25, 2026
+> **Product URL (may point to base set — verify before ordering):** [Evelta Pixhawk 2.4.8 Autopilot](https://evelta.com/pixhawk-2-4-8-px4-autopilot-32-bit-flight-controller-for-rc-drone-uav/)
+> **⚠️ Note:** This Evelta URL may show the **ReadytoSky FC-110 base set** (no GPS). Confirm the listing includes **Neo-M8N GPS + compass, buzzer, safety switch, shock mount, I2C splitter, OLED, PPM encoder, SD card, RGB LED** before purchasing as "Full Combo Set". If it only lists the bare FC items, purchase the base set + a separate Neo-M8N GPS module.
+> **Last Updated:** May 26, 2026
 
 ---
 

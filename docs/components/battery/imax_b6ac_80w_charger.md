@@ -116,6 +116,9 @@ For the Skylink F450 battery pack (3S 5200mAh LiPo), configure the charger setti
 
 ## 5. Safety Checklist & Troubleshooting Warnings
 
+> [!NOTE]
+> For a detailed wiring diagram, step-by-step programming sequence, and storage maintenance workflows, see the combined [LiPo Battery & Charger Operational Manual](file:///d:/btp_skylink/Skylink/docs/components/battery/lipo_battery_charger_guide.md).
+
 ### 🚨 Crucial Safety Rules:
 1.  **Correct Chemistry Selection:** Never charge a LiPo battery using the NiMH or NiCd program. LiPos require a Constant Current / Constant Voltage (CC/CV) charging curve. Charging on a NiMH pulse curve will cause the LiPo battery to swell and catch fire.
 2.  **Safety Cutoff Timers:** Navigate to **User Set Program** and ensure the **Safety Timer** is enabled and set to **120 minutes**, and the **Capacity Cutoff** is enabled and set to **5500mAh**. This acts as a physical fail-safe if a battery cell fails to signal a full charge.

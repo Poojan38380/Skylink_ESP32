@@ -116,9 +116,12 @@ The GenX battery integrates into the Skylink power distribution bus as shown in 
 
 ## 5. Storage & Safety Guide
 
-LiPo batteries are chemically sensitive energy storage devices and require careful handling:
+LiPo batteries are chemically sensitive energy storage devices and require careful handling. 
 
-1.  **Charging Safety:** Always balance-charge the GenX battery using the **IMAX B6AC** charger at a safe **1C rate (5.2 Amps)**. Never charge a warm battery immediately after flight; allow it to cool down to ambient temperature.
+> [!NOTE]
+> For a step-by-step programming and calibration walkthrough, see the combined [LiPo Battery & Charger Operational Manual](file:///d:/btp_skylink/Skylink/docs/components/battery/lipo_battery_charger_guide.md).
+
+1.  **Charging Safety:** Always balance-charge the GenX battery using the **IMAX B6AC** charger at a safe **1C rate (5.2 Amps)** (which auto-limits to 3.9A under the 50W limit). Never charge a warm battery immediately after flight; allow it to cool down to ambient temperature.
 2.  **Storage Voltage:** If the drone is going to sit idle for more than 48 hours, use the IMAX B6AC's **Storage Mode** to discharge/charge each cell to **3.8V – 3.85V** (approx. 11.5V total). Storing a LiPo fully charged (12.6V) or fully discharged (<10.5V) causes cell swelling, internal shorts, and dramatic capacity loss.
 3.  **Physical Protection:** Store and charge the battery inside a fireproof **LiPo Safe Bag**. Keep it away from combustible materials.
 4.  **No Heat:** Do not expose the pack to direct sunlight or temperatures above 60°C.

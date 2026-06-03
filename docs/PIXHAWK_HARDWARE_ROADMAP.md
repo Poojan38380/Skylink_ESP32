@@ -364,7 +364,12 @@ Hardware roadmap (this document)
 | [components/networking/waveshare_sim7600g_h_4g_dongle.md](components/networking/waveshare_sim7600g_h_4g_dongle.md) | Waveshare SIM7600G-H 4G LTE Dongle & GNSS Reference |
 | [components/networking/7semi_ec200u_4g_dongle.md](components/networking/7semi_ec200u_4g_dongle.md) | 7Semi EC200U 4G LTE Cat 1 Dongle & GNSS Reference |
 | [components/networking/7semi_ec200u_mini_industrial_modem.md](components/networking/7semi_ec200u_mini_industrial_modem.md) | 7Semi EC200U LTE 4G GNSS Mini Industrial Modem (26V Range) Reference |
+| [components/networking/7semi_ec200g_mini_industrial_modem.md](components/networking/7semi_ec200g_mini_industrial_modem.md) | 7Semi EC200G-CN LTE Cat 1 4G GNSS Mini Industrial Modem Reference |
 | [components/networking/7semi_ec200u_nano_modem.md](components/networking/7semi_ec200u_nano_modem.md) | 7Semi EC200U-CN LTE 4G GNSS Ultra-compact Nano Modem Reference |
+| [components/networking/graylogix_ec200u_usb_modem.md](components/networking/graylogix_ec200u_usb_modem.md) | Graylogix EC200U 4G USB Modem Reference |
+| [components/networking/7semi_ec200u_enclosed_usb_modem.md](components/networking/7semi_ec200u_enclosed_usb_modem.md) | 7Semi EC200U Enclosed USB-C Modem Reference |
+| [components/networking/7semi_ec200u_smart_modem_arduino.md](components/networking/7semi_ec200u_smart_modem_arduino.md) | 7Semi EC200U IoT Smart Modem with Inbuilt Arduino Reference |
+| [components/networking/internet_connectivity_alternatives.md](components/networking/internet_connectivity_alternatives.md) | Skylink Internet Connectivity Alternatives Evaluation |
 | [components/kits/pixhawk_248_robokits_combo.md](components/kits/pixhawk_248_robokits_combo.md) | Pixhawk 2.4.8 Basic GPS Combo Kit Reference (Robokits) |
 | [components/kits/pixhawk_quartz_standalone_comparison.md](components/kits/pixhawk_quartz_standalone_comparison.md) | Quartz Components Standalone Pixhawk 2.4.8 Comparison Reference |
 | [components/final_reports/skylink_final_bom_report.md](components/final_reports/skylink_final_bom_report.md) | Skylink Final BOM & Internet-Flight Integration Reference |

@@ -116,26 +116,88 @@ This is a **strong disclaimer against any warranty**. There is no separate warra
 
 ---
 
-## 3. Side-by-Side Comparison
+## 3. Evelta (evelta.com)
 
-| Factor | SemiComponent | Robodo |
-|--------|---------------|--------|
-| **Price (incl. GST)** | **₹1,988.30** | **₹1,769.00** |
-| **Return window** | Discretionary | **7 days guaranteed** |
-| **Covers DOA/defective?** | Unclear / discretionary | ✅ Yes |
-| **Return shipping covered?** | ❌ Buyer pays | ✅ Seller provides label |
-| **Explicit warranty** | ❌ "As Is" — disclaimed | Not stated explicitly |
-| **Physical store** | Online only | ✅ Bombay Electronics, Lamington Rd, Mumbai |
-| **Cancellation fee** | 5% | Not stated |
-| **Free shipping threshold** | ₹999 | Not stated |
+### Pricing
+
+| Component | Amount |
+|-----------|--------|
+| Regular Price (excl. GST) | ₹1,858.00 |
+| GST @ 18% | ₹334.44 |
+| **Total (incl. GST)** | **₹2,192.44** |
+| Shipping | Flat rates apply (Calculated at checkout) |
+| Cashback | 3% store cashback |
+
+### Warranty
+
+**14-day replacement warranty** in case of manufacturing defects:
+> *"We offer 14 days replacement warranty in case of manufacturing defects. For more details, please visit our cancellation and returns page."*
+
+### Return & Refund Policy
+
+| Scenario | Policy |
+|----------|--------|
+| **Defective / Damaged** | ✅ **14-day replacement window** for manufacturing defects. |
+| **Change of mind / Unused** | Requires approval per cancellation & returns policy. |
+| **Shipping Origin** | Shipped in 24 hours from Mumbai Warehouse. |
+| **In Stock** | High stock levels (e.g., 113 units in stock). |
+
+### Arthur's Assessment: RISK — LOW
+- **14-day replacement warranty** provides the best and longest coverage for manufacturing defects (compared to Robodo's 7-day return policy and SemiComponent's lack of warranty).
+- **Evelta** is a highly reputable industrial distributor in India with a dedicated warehouse in Mumbai, ensuring extremely fast fulfillment (shipped in 24 hours).
+- **The only downside:** It is the most expensive of the options (₹2,192.44 vs Robodo's ₹1,769.00), resulting in a **₹423.44 premium**.
 
 ---
 
-## 4. Arthur's Verdict
+## 4. Vishaworld (vishaworld.com)
 
-**Order from Robodo.in, not SemiComponent.**
+### Pricing
 
-Even though Robodo is ₹219.30 more expensive (including GST), their **7-day guaranteed return policy with seller-paid return shipping** is worth significantly more than the price difference. SemiComponent's "AS IS, no warranties" terms leave you with no protection if the modem arrives dead.
+| Component | Amount |
+|-----------|--------|
+| Regular Price (excl. GST) | ₹1,374.58 |
+| GST @ 18% | ₹247.42 |
+| **Total (incl. GST)** | **₹1,622.00** |
+| Shipping | **Free Shipping** on orders above ₹999 |
+
+### Warranty & Returns
+
+**Standard Return Policy:**
+- Covers wrong/damaged items on reception.
+- Return shipping is borne by the buyer.
+- Physical office located at 357, Lamington Road, Ganesh Bhavan, 1st Floor, Opp. Lamington Road Police Station, Mumbai – 400007.
+
+### Arthur's Assessment: RISK — LOW
+- **The Absolute Cheapest:** At **₹1,622.00 (incl. GST)**, this is the most cost-effective flight-ready industrial cellular modem option.
+- **Free Shipping:** The unit price of ₹1,622 easily clears Vishaworld's ₹999 free shipping threshold, saving an additional ~₹100 in shipping fees compared to Robodo and Evelta.
+- **Chipset Platform Difference:** Uses the **Quectel EC200G-CN (ASR chipset)** instead of the EC200U-CN (Unisoc). While AT commands over UART serial are identical and 100% compatible with the ESP32 code, connecting via USB to a PC or a Raspberry Pi will require different (ASR) USB serial drivers.
+- **Lamington Road Presence:** Like Robodo, Vishaworld is an established physical retail store in Mumbai's Lamington Road market, ensuring high vendor credibility.
+
+---
+
+## 5. Side-by-Side Comparison
+
+| Factor | SemiComponent | Robodo | Evelta | Vishaworld |
+|--------|---------------|--------|--------|------------|
+| **Price (incl. GST)** | ₹1,988.30 | ₹1,769.00 | ₹2,192.44 | **₹1,622.00** |
+| **Module / Chip** | EC200U-CN (Unisoc) | EC200U-CN (Unisoc) | EC200U-CN (Unisoc) | **EC200G-CN (ASR)** |
+| **Return window** | Discretionary | 7 days guaranteed | **14 days (replacement)** | Standard Policy |
+| **Covers DOA/defective?** | Unclear / discretionary | ✅ Yes | ✅ Yes (Replacement) | ✅ Yes |
+| **Return shipping covered?** | ❌ Buyer pays | ✅ Seller provides label | ❌ Buyer pays | ❌ Buyer pays |
+| **Explicit warranty** | ❌ "As Is" — disclaimed | ❌ None stated | ✅ **14-day replacement** | ❌ None stated |
+| **Physical store / Whse** | Online only | ✅ Lamington Rd, Mumbai | ✅ Mumbai Warehouse | ✅ Lamington Rd, Mumbai |
+| **Free Shipping** | Yes (Over ₹999) | ❌ No | ❌ No | **Yes (Over ₹999)** |
+| **Stock Status** | Low (1 unit) | In Stock | **High (113+ units)** | In Stock |
+
+---
+
+## 6. Arthur's Verdict
+
+**Order from Vishaworld to get the absolute lowest price (and free shipping). Order from Robodo if you prefer the standard Unisoc EC200U-CN module with seller-paid return shipping protection. Order from Evelta if you want a longer 14-day warranty window.**
+
+*   **Option A: Vishaworld (₹1,622.00) — Best Value:** You save **₹147** over Robodo and **₹570** over Evelta, plus you get free shipping. The ASR chipset (EC200G) behaves identically to the Unisoc chipset (EC200U) for the UART serial AT commands used in the Skylink firmware.
+*   **Option B: Robodo (₹1,769.00) — Best Standard Option:** You get the standard Unisoc EC200U-CN module, which is the most widely documented in the community, and you are fully protected by a 7-day return window where the seller covers return shipping.
+*   **Option C: Evelta (₹2,192.44) — Best Protection:** You pay a premium but gain a 14-day replacement warranty.
 
 ### If You Order from Robodo — Action Plan
 

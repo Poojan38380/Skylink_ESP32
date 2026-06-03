@@ -1,11 +1,11 @@
 # 7Semi EC200U LTE 4G GNSS Mini Industrial Modem (26V Range) — Component Research & Reference
 
 > [!NOTE]
-> This reference document details the technical specifications, power management solutions, and integration guidelines for the **7Semi EC200U LTE 4G GNSS Mini Industrial Modem with USB-C, 26V Range (SKU: CM-10132)** sold by Robodo. It highlights its unique industrial board layout, wide-voltage input capabilities, and hardware interfacing in the context of the **Skylink** companion computer (ESP32) and Pixhawk autopilot ecosystem.
+> This reference document details the technical specifications, power management solutions, and integration guidelines for the **7Semi EC200U LTE 4G GNSS Mini Industrial Modem with USB-C, 26V Range (SKU: CM-10132 / 004-CM-10132)** manufactured by 7Semis and distributed by Robodo and Evelta. It highlights its unique industrial board layout, wide-voltage input capabilities, and hardware interfacing in the context of the **Skylink** companion computer (ESP32) and Pixhawk autopilot ecosystem.
 >
-> **Product URL:** [Robodo 7Semi EC200U LTE 4G GNSS Mini Industrial Modem](https://robodo.in/products/7semi-ec200u-lte-4g-gnss-mini-industrial-modem-usb-c-26v-range)
-> **Retail Price:** ₹1,769.00 INR (including GST, 20% off from ₹2,199.00)
-> **Last Updated:** May 26, 2026
+> * **Robodo URL:** [Robodo 7Semi EC200U LTE 4G GNSS Mini Industrial Modem](https://robodo.in/products/7semi-ec200u-lte-4g-gnss-mini-industrial-modem-usb-c-26v-range) (Retail Price: ₹1,769.00 INR inc. GST)
+> * **Evelta URL:** [Evelta 7Semi EC200U LTE 4G GNSS Mini Industrial Modem](https://evelta.com/7semi-ec200u-lte-4g-cat-1-gnss-mini-industrial-modem-usb-c/?sku=004-CM-10132) (Retail Price: ₹2,192.44 INR inc. GST)
+> * **Last Updated:** June 2, 2026
 
 ---
 
@@ -265,3 +265,4 @@ Verify the following inventory items upon opening the product package:
 * **Pixhawk 2.4.8 Hardware Roadmap:** [PIXHAWK_HARDWARE_ROADMAP.md](file:///d:/btp_skylink/Skylink/docs/PIXHAWK_HARDWARE_ROADMAP.md)
 * **SIM7600G-H 4G Reference:** [waveshare_sim7600g_h_4g_dongle.md](file:///d:/btp_skylink/Skylink/docs/components/networking/waveshare_sim7600g_h_4g_dongle.md)
 * **Robocraze EC200U 4G Dongle Reference:** [7semi_ec200u_4g_dongle.md](file:///d:/btp_skylink/Skylink/docs/components/networking/7semi_ec200u_4g_dongle.md)
+* **Graylogix EC200U 4G USB Modem Reference:** [graylogix_ec200u_usb_modem.md](file:///d:/btp_skylink/Skylink/docs/components/networking/graylogix_ec200u_usb_modem.md)

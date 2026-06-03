@@ -160,3 +160,12 @@ When receiving the 7Semi package (SKU: TIFCC0297), verify that you have all of t
 * `[ ]` **1 x Flexible/Foldable Cellular Antenna**
 * `[ ]` **1 x Nano-SIM Card** (Purchased separately with active data plan, e.g., Jio, Airtel)
 * `[ ]` **1 x Active GPS/GNSS Antenna with U.FL/IPEX connector** (Sourced separately; mandatory for the dongle's built-in GPS function)
+
+---
+
+### Associated Documentation Links:
+* **7Semi EC200U Mini Industrial Modem Reference:** [7semi_ec200u_mini_industrial_modem.md](file:///d:/btp_skylink/Skylink/docs/components/networking/7semi_ec200u_mini_industrial_modem.md)
+* **7Semi EC200U-CN Nano Modem Reference:** [7semi_ec200u_nano_modem.md](file:///d:/btp_skylink/Skylink/docs/components/networking/7semi_ec200u_nano_modem.md)
+* **Graylogix EC200U 4G USB Modem Reference:** [graylogix_ec200u_usb_modem.md](file:///d:/btp_skylink/Skylink/docs/components/networking/graylogix_ec200u_usb_modem.md)
+* **Waveshare SIM7600G-H Reference:** [waveshare_sim7600g_h_4g_dongle.md](file:///d:/btp_skylink/Skylink/docs/components/networking/waveshare_sim7600g_h_4g_dongle.md)
+* **Project Ordering & Assembly Guide:** [PROJECT_ANALYSIS_AND_ORDERING_GUIDE.md](file:///d:/btp_skylink/Skylink/docs/PROJECT_ANALYSIS_AND_ORDERING_GUIDE.md)

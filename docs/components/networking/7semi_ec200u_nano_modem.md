@@ -203,5 +203,6 @@ Verify the following inventory items when unpacking the Nano Modem:
 ### Associated Documentation Links:
 * **7Semi EC200U Mini Industrial Modem Report:** [7semi_ec200u_mini_industrial_modem.md](file:///d:/btp_skylink/Skylink/docs/components/networking/7semi_ec200u_mini_industrial_modem.md)
 * **Robocraze EC200U 4G Dongle Report:** [7semi_ec200u_4g_dongle.md](file:///d:/btp_skylink/Skylink/docs/components/networking/7semi_ec200u_4g_dongle.md)
+* **Graylogix EC200U 4G USB Modem Reference:** [graylogix_ec200u_usb_modem.md](file:///d:/btp_skylink/Skylink/docs/components/networking/graylogix_ec200u_usb_modem.md)
 * **Waveshare SIM7600G-H 4G Dongle Report:** [waveshare_sim7600g_h_4g_dongle.md](file:///d:/btp_skylink/Skylink/docs/components/networking/waveshare_sim7600g_h_4g_dongle.md)
 * **Pixhawk 2.4.8 Hardware Roadmap:** [PIXHAWK_HARDWARE_ROADMAP.md](file:///d:/btp_skylink/Skylink/docs/PIXHAWK_HARDWARE_ROADMAP.md)

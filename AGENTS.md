@@ -1,0 +1,1 @@
+dont try to run cmd commands yourself. Ask me to run them if required. 

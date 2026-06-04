@@ -75,13 +75,15 @@ If the Pixhawk prevents you from arming the motors (e.g., red flashing LED), the
 
 ## Configuration & Parameter Tuning (Mission Planner)
 
-To enable the OLED display to print ArduPilot telemetry, you must configure the following parameter in Mission Planner:
+To enable the OLED display to print ArduPilot telemetry, you must configure the display parameter in Mission Planner:
 
 1. Connect the Pixhawk via USB.
 2. Go to **Config** $\rightarrow$ **Full Parameter List**.
-3. Search for **`DISPLAY_TYPE`**.
-4. Set the value to **`1`** (which enables the SSD1306 driver).
-5. Click **Write Params**.
+3. Search for the display parameter depending on your ArduCopter firmware version:
+   * **For Copter 3.6.x (your version):** Search for **`NTF_DISPLAY_TYPE`**
+   * **For Copter 4.x+:** Search for **`DISPLAY_TYPE`**
+4. Set the value to **`1`** (which enables the SSD1306 OLED driver).
+5. Click **Write Params** on the right side.
 6. **Reboot the Pixhawk** to initialize the display. The screen will turn on and display the ArduPilot logo, followed by the live status screen.
 
 ---

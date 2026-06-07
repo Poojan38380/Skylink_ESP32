@@ -91,8 +91,6 @@ private:
     void handleIncomingByte(uint8_t byte);
     void processMavlinkMessage(mavlink_message_t* msg);
     void requestDataStreams();
-    void requestMessageIntervals();
-    void setMessageInterval(uint32_t msgId, int32_t intervalUs);
     void setCopterMode(uint8_t customMode);
     void sendArmDisarm(bool state);
     bool canExecuteGuidedMoveUnlocked() const;

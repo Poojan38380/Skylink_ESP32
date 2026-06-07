@@ -39,17 +39,27 @@ void FlightController::begin() {
     sitlClient.setTimeout(SKYLINK_SITL_CONNECT_TIMEOUT_MS);
 #else
     logger.info("Initializing FlightController in [HARDWARE MODE] via UART2");
+    fcSerial.setRxBufferSize(2048);
     fcSerial.begin(115200, SERIAL_8N1, 16, 17);
 #endif
 
     mavlinkActive = false;
     messageIntervalsSent = false;
     lastMavlinkRx = 0;
+    lastStreamRequest = 0;
+    lastGcsHeartbeat = 0;
     statusLineCount = 0;
     statusLineHead = 0;
     eventQueueHead = 0;
     eventQueueTail = 0;
 }
+
+// GCS identity used on ALL outgoing MAVLink packets.
+// sysid=255 is the standard GCS system ID (matches our heartbeat).
+// Using sysid=1 (the autopilot's own ID) causes ArduPilot to deprioritize
+// or delay processing — this was the root cause of 24-second ACK latency.
+#define GCS_SYSID  255
+#define GCS_COMPID MAV_COMP_ID_MISSIONPLANNER  // 190
 
 void FlightController::sendMavlinkPacket(mavlink_message_t* msg) {
     uint8_t buf[MAVLINK_MAX_PACKET_LEN];
@@ -63,30 +73,12 @@ void FlightController::sendMavlinkPacket(mavlink_message_t* msg) {
 #endif
 }
 
-void FlightController::setMessageInterval(uint32_t msgId, int32_t intervalUs) {
-    mavlink_message_t msg;
-    mavlink_msg_command_long_pack(
-        1, 255, &msg,
-        1, 1,
-        MAV_CMD_SET_MESSAGE_INTERVAL,
-        0,
-        (float)msgId,
-        (float)intervalUs,
-        0, 0, 0, 0, 0
-    );
-    sendMavlinkPacket(&msg);
-}
-
-void FlightController::requestMessageIntervals() {
-    setMessageInterval(MAVLINK_MSG_ID_ATTITUDE, 100000);
-    setMessageInterval(MAVLINK_MSG_ID_GLOBAL_POSITION_INT, 200000);
-    setMessageInterval(MAVLINK_MSG_ID_GPS_RAW_INT, 500000);
-    messageIntervalsSent = true;
-}
-
 void FlightController::requestDataStreams() {
     mavlink_message_t msg;
 
+    // REQUEST_DATA_STREAM is the legacy (but universally supported) method.
+    // MAV_CMD_SET_MESSAGE_INTERVAL (511) is NOT used here because this FC
+    // firmware returns UNSUPPORTED for it, flooding the dashboard with ERR logs.
     const uint8_t streams[] = {
         MAV_DATA_STREAM_ALL,
         MAV_DATA_STREAM_RAW_SENSORS,
@@ -98,7 +90,7 @@ void FlightController::requestDataStreams() {
 
     for (uint8_t stream : streams) {
         mavlink_msg_request_data_stream_pack(
-            1, 255, &msg,
+            GCS_SYSID, GCS_COMPID, &msg,
             1, 1,
             stream,
             4,
@@ -107,13 +99,13 @@ void FlightController::requestDataStreams() {
         sendMavlinkPacket(&msg);
     }
 
-    requestMessageIntervals();
+    messageIntervalsSent = true;
 }
 
 void FlightController::setCopterMode(uint8_t customMode) {
     mavlink_message_t msg;
     mavlink_msg_command_long_pack(
-        1, 255, &msg,
+        GCS_SYSID, GCS_COMPID, &msg,
         1, 1,
         MAV_CMD_DO_SET_MODE,
         0,
@@ -134,7 +126,7 @@ void FlightController::setFlightMode(uint8_t customMode) {
 void FlightController::sendArmDisarm(bool state) {
     mavlink_message_t msg;
     mavlink_msg_command_long_pack(
-        1, 255, &msg,
+        GCS_SYSID, GCS_COMPID, &msg,
         1, 1,
         MAV_CMD_COMPONENT_ARM_DISARM,
         0,
@@ -171,7 +163,7 @@ void FlightController::takeoff(float altitudeMeters) {
 
     mavlink_message_t msg;
     mavlink_msg_command_long_pack(
-        1, 255, &msg,
+        GCS_SYSID, GCS_COMPID, &msg,
         1, 1,
         MAV_CMD_NAV_TAKEOFF,
         0,
@@ -260,7 +252,7 @@ if (x == 0.0f && y == 0.0f && z == 0.0f) {
 
     mavlink_message_t msg;
     mavlink_msg_set_position_target_local_ned_pack(
-        1, 255, &msg,
+        GCS_SYSID, GCS_COMPID, &msg,
         millis(),
         1, 1,
         MAV_FRAME_BODY_OFFSET_NED,
@@ -303,7 +295,7 @@ void FlightController::yawRelative(float degrees) {
 
     mavlink_message_t msg;
     mavlink_msg_command_long_pack(
-        1, 255, &msg,
+        GCS_SYSID, GCS_COMPID, &msg,
         1, 1,
         MAV_CMD_CONDITION_YAW,
         0,
@@ -387,7 +379,7 @@ void FlightController::gotoLatLon(double lat, double lon, float altRelMeters) {
 
     mavlink_message_t msg;
     mavlink_msg_set_position_target_global_int_pack(
-        1, 255, &msg,
+        GCS_SYSID, GCS_COMPID, &msg,
         millis(),
         1, 1,
         MAV_FRAME_GLOBAL_RELATIVE_ALT_INT,
@@ -440,7 +432,7 @@ void FlightController::gotoAlt(float altRelMeters) {
 
     mavlink_message_t msg;
     mavlink_msg_set_position_target_global_int_pack(
-        1, 255, &msg,
+        GCS_SYSID, GCS_COMPID, &msg,
         millis(),
         1, 1,
         MAV_FRAME_GLOBAL_RELATIVE_ALT_INT,
@@ -483,7 +475,7 @@ void FlightController::sendRCOverride(uint16_t roll, uint16_t pitch, uint16_t th
 
     mavlink_message_t msg;
     mavlink_msg_rc_channels_override_pack(
-        1, 255, &msg,
+        GCS_SYSID, GCS_COMPID, &msg,
         1, 1,
         roll, pitch, throttle, yaw,
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
@@ -511,20 +503,16 @@ namespace {
 bool isAutopilotHeartbeat(const mavlink_message_t* msg, const mavlink_heartbeat_t& hb) {
     if (msg->sysid != SKYLINK_MAVLINK_VEHICLE_SYSID) return false;
     if (msg->compid != SKYLINK_MAVLINK_VEHICLE_COMPID) return false;
-    if (hb.type == MAV_TYPE_GCS) return false;
-    if (hb.type == MAV_TYPE_ONBOARD_CONTROLLER) return false;
 
-    switch (hb.type) {
-        case MAV_TYPE_QUADROTOR:
-        case MAV_TYPE_HELICOPTER:
-        case MAV_TYPE_FIXED_WING:
-        case MAV_TYPE_GROUND_ROVER:
-        case MAV_TYPE_SUBMARINE:
-        case MAV_TYPE_COAXIAL:
-            return true;
-        default:
-            return false;
+    // Exclude components that are not the vehicle itself
+    if (hb.type == MAV_TYPE_GCS ||
+        hb.type == MAV_TYPE_ONBOARD_CONTROLLER ||
+        hb.type == MAV_TYPE_GIMBAL ||
+        hb.type == MAV_TYPE_ADSB ||
+        hb.type == MAV_TYPE_PARACHUTE) {
+        return false;
     }
+    return true;
 }
 
 }  // namespace
@@ -711,18 +699,19 @@ void FlightController::handle() {
     if (!sitlClient.connected()) return;
 #endif
 
+    // Link timeout detection (common for both SITL and Hardware modes)
+    if (mavlinkActive && (now - lastMavlinkRx > SKYLINK_MAVLINK_TIMEOUT_MS)) {
+        logger.warning("MAVLink link timed out — connection lost");
+        mavlinkActive = false;
+        messageIntervalsSent = false;
+        lastStreamRequest = 0;
+    }
+
     if (!takeMutex(0)) return;
 
     if (mavlinkActive && (now - lastGcsHeartbeat >= SKYLINK_MAVLINK_GCS_HEARTBEAT_MS)) {
         lastGcsHeartbeat = now;
         sendHeartbeat();
-    }
-
-    if (mavlinkActive && (now - lastStreamRequest >= SKYLINK_MAVLINK_STREAM_REQUEST_MS)) {
-        lastStreamRequest = now;
-        requestDataStreams();
-    } else if (mavlinkActive && !messageIntervalsSent) {
-        requestMessageIntervals();
     }
 
 #ifdef SITL_MODE
@@ -748,8 +737,15 @@ void FlightController::handleIncomingByte(uint8_t byte) {
 }
 
 void FlightController::processMavlinkMessage(mavlink_message_t* msg) {
-    lastMavlinkRx = millis();
-    mavlinkActive = true;
+    uint32_t now = millis();
+    lastMavlinkRx = now;
+    
+    if (!mavlinkActive) {
+        mavlinkActive = true;
+        logger.info("MAVLink link active — connection established");
+        requestDataStreams();
+        lastStreamRequest = now;
+    }
 
     switch (msg->msgid) {
         case MAVLINK_MSG_ID_HEARTBEAT: {
@@ -758,8 +754,17 @@ void FlightController::processMavlinkMessage(mavlink_message_t* msg) {
             if (!isAutopilotHeartbeat(msg, hb)) {
                 break;
             }
+            bool prevArmed = telemetry.armed;
+            uint8_t prevMode = telemetry.flight_mode;
+
             telemetry.armed = (hb.base_mode & MAV_MODE_FLAG_SAFETY_ARMED);
             telemetry.flight_mode = hb.custom_mode;
+
+            if (telemetry.armed != prevArmed || telemetry.flight_mode != prevMode) {
+                logger.info("Autopilot state change: Armed=" + String(telemetry.armed ? "YES" : "NO") +
+                            " | Mode=" + String(flightModeName(telemetry.flight_mode)) +
+                            " (" + String(telemetry.flight_mode) + ")");
+            }
             break;
         }
         case MAVLINK_MSG_ID_SYS_STATUS: {
@@ -799,12 +804,19 @@ void FlightController::processMavlinkMessage(mavlink_message_t* msg) {
         case MAVLINK_MSG_ID_GPS_RAW_INT: {
             mavlink_gps_raw_int_t gps;
             mavlink_msg_gps_raw_int_decode(msg, &gps);
+            int prevFix = telemetry.gps_fix;
+
             if (gps.fix_type >= 2) {
                 telemetry.latitude = gps.lat / 1e7;
                 telemetry.longitude = gps.lon / 1e7;
             }
             telemetry.gps_sats = gps.satellites_visible;
             telemetry.gps_fix = gps.fix_type;
+
+            if (telemetry.gps_fix != prevFix) {
+                logger.info("GPS Fix state changed: " + String(prevFix) + " -> " + String(telemetry.gps_fix) +
+                            " (Sats: " + String(telemetry.gps_sats) + ")");
+            }
             break;
         }
         case MAVLINK_MSG_ID_HOME_POSITION: {
@@ -818,6 +830,9 @@ void FlightController::processMavlinkMessage(mavlink_message_t* msg) {
         case MAVLINK_MSG_ID_COMMAND_ACK: {
             mavlink_command_ack_t ack;
             mavlink_msg_command_ack_decode(msg, &ack);
+            
+            logger.info("Autopilot ACK: Command=" + String(ack.command) + ", Result=" + String(ack.result));
+
             FCEvent ev;
             ev.type = FCEventType::Ack;
             ev.ack_command = ack.command;
@@ -828,6 +843,21 @@ void FlightController::processMavlinkMessage(mavlink_message_t* msg) {
         case MAVLINK_MSG_ID_STATUSTEXT: {
             mavlink_statustext_t st;
             mavlink_msg_statustext_decode(msg, &st);
+            
+            // Format clean string
+            char textClean[SKYLINK_STATUSTEXT_MAX_LEN + 1];
+            strncpy(textClean, st.text, SKYLINK_STATUSTEXT_MAX_LEN);
+            textClean[SKYLINK_STATUSTEXT_MAX_LEN] = '\0';
+            for (int i = 0; textClean[i]; ++i) {
+                if (textClean[i] < 32 && textClean[i] != '\t') textClean[i] = ' ';
+            }
+            
+            if (st.severity <= 4) { // Warning or higher severity
+                logger.warning("Autopilot MSG: " + String(textClean) + " (sev=" + String(st.severity) + ")");
+            } else {
+                logger.info("Autopilot MSG: " + String(textClean));
+            }
+
             pushStatusLine(st.text, st.severity);
             break;
         }

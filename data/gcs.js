@@ -17,6 +17,8 @@ let lastStatusSnapshot = '';
 let pendingGoto = null;
 let lastHbForGoto = null;
 let activeTab = 'map';
+let _takeoffInProgress = false;
+let lastLoggedState = { armed: null, mode: null, gps: null, connected: null };
 
 const flightUiState = {
   armed: false,
@@ -508,6 +510,22 @@ function escapeHtml(s) {
     .replace(/>/g, '&gt;');
 }
 
+function getGpsFixName(fix) {
+  const f = Number(fix) || 0;
+  switch (f) {
+    case 0: return 'No GPS';
+    case 1: return 'No Fix';
+    case 2: return '2D Fix';
+    case 3: return '3D Fix';
+    case 4: return 'DGPS';
+    case 5: return 'RTK Float';
+    case 6: return 'RTK Fixed';
+    case 7: return 'Static';
+    case 8: return 'PPP';
+    default: return 'Unknown (' + f + ')';
+  }
+}
+
 function updatePreflight(d) {
   const wifiOk = d.wifi_connected === true;
   const minFix = CFG.preflightMinGpsFix || 3;
@@ -646,6 +664,36 @@ function updateTelemetry(d) {
   const sats = Number(d.sats) || 0;
   const yaw = Number(d.yaw);
 
+  // Log important telemetry state changes in dashboard log pane
+  if (lastLoggedState.connected !== d.mav_connected) {
+    if (lastLoggedState.connected !== null) {
+      log('SYS', 'tag-sys', 'MAVLink Link: ' + (d.mav_connected ? 'CONNECTED' : 'LOST'));
+    }
+    lastLoggedState.connected = d.mav_connected;
+  }
+  if (d.mav_connected) {
+    if (lastLoggedState.armed !== d.armed) {
+      if (lastLoggedState.armed !== null) {
+        log('SYS', 'tag-sys', 'Vehicle status: ' + (d.armed ? 'ARMED' : 'DISARMED'));
+      }
+      lastLoggedState.armed = d.armed;
+    }
+    const modeName = d.flight_mode_name || 'UNKNOWN';
+    if (lastLoggedState.mode !== modeName) {
+      if (lastLoggedState.mode !== null) {
+        log('SYS', 'tag-sys', 'Flight Mode: ' + modeName);
+      }
+      lastLoggedState.mode = modeName;
+    }
+    const gpsFixText = getGpsFixName(d.gps_fix) + ' (' + sats + ' sats)';
+    if (lastLoggedState.gps !== gpsFixText) {
+      if (lastLoggedState.gps !== null) {
+        log('SYS', 'tag-sys', 'GPS Fix: ' + gpsFixText);
+      }
+      lastLoggedState.gps = gpsFixText;
+    }
+  }
+
   const set = (id, text) => {
     const el = document.getElementById(id);
     if (el) el.textContent = text;
@@ -745,7 +793,54 @@ function armSequence() {
   setTimeout(() => sendCmd('ARM_DRONE'), CFG.armModeDelayMs || 400);
 }
 
+function _doArmAndTakeoff(meters) {
+  // FIX: Invalidate stale armed state before arming.
+  // Without this, if the drone was armed in a prior attempt, flightUiState.armed
+  // is already true and the poll below fires on the first tick — sending TAKEOFF
+  // before the new ARM command is even acknowledged by the FC.
+  flightUiState.armed = false;
+  flightUiState.stableCount = 0;
+
+  sendCmd('ARM_DRONE');
+
+  const armTimeoutMs = CFG.takeoffArmTimeoutMs || 10000;
+  const armDeadline = Date.now() + armTimeoutMs;
+
+  const waitForArm = setInterval(() => {
+    if (flightUiState.armed && flightUiState.guided) {
+      // Both confirmed via fresh heartbeats — safe to send TAKEOFF
+      clearInterval(waitForArm);
+      _takeoffInProgress = false;
+      sendCmd('TAKEOFF', { altitude: meters });
+      log('SYS', 'tag-sys',
+        '[TAKEOFF 3/3] Armed in GUIDED confirmed — TAKEOFF sent to ' + meters + ' m');
+    } else if (flightUiState.armed && !flightUiState.guided) {
+      // Armed but FC fell back out of GUIDED — silent failure mode
+      clearInterval(waitForArm);
+      _takeoffInProgress = false;
+      log('ERR', 'tag-err',
+        '[TAKEOFF ABORTED] Armed but NOT in GUIDED (FC: ' +
+        (flightUiState.pendingKey || '?') + '). ' +
+        'Check GPS fix, ARMING_CHECK, and prearm messages in Status tab.');
+    } else if (Date.now() > armDeadline) {
+      clearInterval(waitForArm);
+      _takeoffInProgress = false;
+      log('ERR', 'tag-err',
+        '[TAKEOFF ABORTED] ARM timed out (' + (armTimeoutMs / 1000) + ' s). ' +
+        'Check prearm failures in Status tab → Autopilot messages.');
+    }
+  }, 200);
+}
+
 function autonomousTakeoff() {
+  // FIX: Mutex — prevent multiple concurrent takeoff state machines.
+  // Each call creates new setInterval instances; without this guard, rapid
+  // button clicks stack up and race each other to ARM + TAKEOFF.
+  if (_takeoffInProgress) {
+    log('ERR', 'tag-err', 'Takeoff already in progress — wait or disarm first.');
+    return;
+  }
+
   const alt = prompt('Takeoff altitude (meters)?', String(CFG.defaultTakeoffAltM || 5));
   if (alt === null) return;
   const meters = parseFloat(alt);
@@ -755,12 +850,36 @@ function autonomousTakeoff() {
     log('ERR', 'tag-err', 'Altitude must be between ' + altMin + ' and ' + altMax + ' m');
     return;
   }
+
+  _takeoffInProgress = true;
+
+  // FIX: Invalidate stale guided state before switching mode.
+  // If GUIDED was already active from a prior attempt, flightUiState.guided
+  // would be true and waitForGuided would fire on the first tick — skipping
+  // the mode-switch confirmation and proceeding with stale state.
+  flightUiState.guided = false;
+  flightUiState.stableCount = 0;
+
+  log('SYS', 'tag-sys', '[TAKEOFF 1/3] Switching to GUIDED mode…');
   sendCmd('SET_FLIGHT_MODE', { mode: 'GUIDED' });
-  setTimeout(() => {
-    sendCmd('ARM_DRONE');
-    setTimeout(() => sendCmd('TAKEOFF', { altitude: meters }), CFG.takeoffArmDelayMs || 500);
-  }, CFG.armModeDelayMs || 400);
-  log('SYS', 'tag-sys', 'Takeoff: GUIDED → arm → ' + meters + ' m');
+
+  const modeTimeoutMs = 10000;
+  const modeDeadline = Date.now() + modeTimeoutMs;
+
+  const waitForGuided = setInterval(() => {
+    if (flightUiState.guided) {
+      clearInterval(waitForGuided);
+      log('SYS', 'tag-sys', '[TAKEOFF 2/3] GUIDED confirmed — sending ARM…');
+      _doArmAndTakeoff(meters);
+    } else if (Date.now() > modeDeadline) {
+      clearInterval(waitForGuided);
+      _takeoffInProgress = false;
+      log('ERR', 'tag-err',
+        '[TAKEOFF ABORTED] GUIDED mode not confirmed after ' +
+        (modeTimeoutMs / 1000) + ' s. ' +
+        'Check: GPS 3D fix required for GUIDED, verify ARMING_CHECK in Mission Planner.');
+    }
+  }, 200);
 }
 
 function startCountdown(seconds) {

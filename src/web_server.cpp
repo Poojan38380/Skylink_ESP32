@@ -164,6 +164,7 @@ WebServerModule::WebServerModule(int port) : server(port), ws("/ws") {
 void WebServerModule::onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len) {
     switch (type) {
         case WS_EVT_CONNECT:
+            ws.cleanupClients(1); // Evict stale connections — enforce max 1 active client
             client->setCloseClientOnQueueFull(false);
             logger.info("WebSocket client #" + String(client->id()) + " connected from " + client->remoteIP().toString());
 #ifdef SITL_MODE

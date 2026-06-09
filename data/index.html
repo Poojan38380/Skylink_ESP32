@@ -7,7 +7,8 @@
   <title>Skylink GCS</title>
   <link rel="icon" href="/favicon.ico" type="image/x-icon">
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/lib/leaflet/leaflet.css">
   <link rel="stylesheet" href="/gcs.css">
 </head>
@@ -15,14 +16,18 @@
 <body>
 
   <div id="reconnect-overlay">
-    <div class="reconnect-icon">📡</div>
+    <div class="reconnect-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="reconnect-svg"><path d="M2 16.242a7.5 7.5 0 0 1 0-10.485M4.828 13.414a4 4 0 0 1 0-5.656M12 11a1 1 0 1 0 0-2 1 1 0 0 0 0 2z"/><path d="M19.172 13.414a4 4 0 0 1 0-5.656M22 16.242a7.5 7.5 0 0 1 0-10.485"/></svg>
+    </div>
     <div class="reconnect-text">Connection lost</div>
     <div class="reconnect-sub">Reconnecting in <span id="countdown">5</span>s…</div>
   </div>
 
   <header class="app-header">
     <div class="logo">
-      <div class="logo-mark">🛰</div>
+      <div class="logo-mark">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="logo-svg"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+      </div>
       <div>
         <div class="logo-title">Skylink GCS</div>
         <div class="logo-sub">Build <span id="build-tag">FW ? · FS ?</span></div>
@@ -70,13 +75,103 @@
 
     <!-- MAP -->
     <section class="tab-panel active" id="tab-map" role="tabpanel" aria-labelledby="tab-btn-map">
+      
+      <!-- Quick Control Bar -->
+      <div class="quick-control-bar" id="quick-control-bar">
+        <!-- Preflight Panel -->
+        <div class="qc-group qc-preflight">
+          <div class="qc-title">System Checks</div>
+          <div class="qc-leds-row">
+            <span class="qc-led-item" id="qc-pf-wifi" title="Wi-Fi link to ESP32">
+              <span class="qc-led-dot"></span>
+              <span class="qc-led-name">WIFI</span>
+            </span>
+            <span class="qc-led-item" id="qc-pf-gps" title="GPS 3D Fix">
+              <span class="qc-led-dot"></span>
+              <span class="qc-led-name">GPS</span>
+            </span>
+            <span class="qc-led-item" id="qc-pf-mav" title="MAVLink Link">
+              <span class="qc-led-dot"></span>
+              <span class="qc-led-name">MAV</span>
+            </span>
+            <span class="qc-led-item" id="qc-pf-bat" title="Battery Check">
+              <span class="qc-led-dot"></span>
+              <span class="qc-led-name">BAT</span>
+            </span>
+            <span class="qc-led-item" id="qc-pf-safe" title="Disarmed/Safety Status">
+              <span class="qc-led-dot"></span>
+              <span class="qc-led-name">SAFE</span>
+            </span>
+          </div>
+          <div class="qc-banner" id="qc-preflight-summary">Checking systems…</div>
+        </div>
+
+        <!-- Telemetry HUD -->
+        <div class="qc-group qc-telemetry">
+          <div class="qc-title">Telemetry</div>
+          <div class="qc-telem-grid">
+            <div class="qc-telem-item" title="Altitude">
+              <span class="qc-telem-lbl">ALT</span>
+              <span class="qc-telem-val" id="qc-tl-alt">—</span>
+              <span class="qc-telem-unit">m</span>
+            </div>
+            <div class="qc-telem-item" title="Speed">
+              <span class="qc-telem-lbl">SPD</span>
+              <span class="qc-telem-val" id="qc-tl-speed">—</span>
+              <span class="qc-telem-unit">m/s</span>
+            </div>
+            <div class="qc-telem-item qc-telem-wide" title="Battery Percentage">
+              <span class="qc-telem-lbl">BAT</span>
+              <span class="qc-telem-val" id="qc-tl-bat">—</span>
+              <div class="qc-bat-bar-wrap"><div class="qc-bat-bar" id="qc-bat-bar" style="width:0%"></div></div>
+            </div>
+            <div class="qc-telem-item" title="GPS Fix Type & Satellites">
+              <span class="qc-telem-lbl">GPS</span>
+              <span class="qc-telem-val" id="qc-tl-gps">—</span>
+            </div>
+            <div class="qc-telem-item" title="Flight Mode">
+              <span class="qc-telem-lbl">MODE</span>
+              <span class="qc-telem-val qc-mode-glow" id="qc-tl-mode">—</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Flight Commands -->
+        <div class="qc-group qc-commands">
+          <div class="qc-title">Flight Mode & Control</div>
+          <div class="qc-controls-row">
+            <div class="qc-select-wrap">
+              <select id="qc-mode-select" disabled class="qc-field-select">
+                <option value="GUIDED" selected>GUIDED</option>
+                <option value="LOITER">LOITER (hold)</option>
+                <option value="STABILIZE">STABILIZE</option>
+                <option value="LAND">LAND</option>
+                <option value="RTL">RTL (return)</option>
+              </select>
+              <button type="button" class="qc-btn qc-btn-secondary" id="qc-btn-set-mode" disabled onclick="applyFlightMode('qc-mode-select')">Set</button>
+            </div>
+            <div class="qc-btn-group">
+              <button type="button" class="qc-btn qc-btn-arm" id="qc-btn-arm" disabled onclick="armSequence('qc-mode-select')">Arm</button>
+              <button type="button" class="qc-btn qc-btn-disarm" id="qc-btn-disarm" disabled onclick="sendCmd('DISARM_DRONE')">Disarm</button>
+            </div>
+            <button type="button" class="qc-btn qc-btn-primary" id="qc-btn-liftoff" disabled onclick="autonomousTakeoff()">Takeoff</button>
+            <div class="qc-btn-group">
+              <button type="button" class="qc-btn qc-btn-danger" id="qc-btn-land" disabled onclick="sendCmd('LAND')">Land</button>
+              <button type="button" class="qc-btn qc-btn-danger" id="qc-btn-rtl" disabled onclick="sendCmd('RTL')">RTL</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="map-stage">
         <div id="map" aria-label="Live map"></div>
         <div class="map-overlay map-overlay-left">
           <div class="attitude-card">
             <div class="att-bubble" id="att-bubble">
               <div class="att-horizon" id="att-horizon"></div>
-              <div class="att-drone">▲</div>
+              <div class="att-drone">
+                <svg class="att-drone-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M2 12h20M12 12m-6 0a6 6 0 1 0 12 0 6 6 0 1 0-12 0"/></svg>
+              </div>
             </div>
             <div class="att-readouts">
               <span id="att-roll">Roll —°</span>
@@ -180,6 +275,7 @@
               <span class="btn-label">Yaw left</span>
               <kbd class="key-hint">Num 4</kbd>
             </button>
+
             <button type="button" class="btn btn-move btn-yaw" data-yaw="90" disabled>
               <span class="btn-label">Yaw right</span>
               <kbd class="key-hint">Num 6</kbd>
@@ -204,14 +300,14 @@
             <option value="LAND">LAND</option>
             <option value="RTL">RTL (return home)</option>
           </select>
-          <button type="button" class="btn btn-secondary" id="btn-set-mode" disabled onclick="applyFlightMode()">Apply mode</button>
+          <button type="button" class="btn btn-secondary" id="btn-set-mode" disabled onclick="applyFlightMode('mode-select')">Apply mode</button>
         </div>
 
         <div class="section-block">
           <h2 class="section-title">Arm / disarm</h2>
           <p class="section-desc">Arm only when preflight checks pass (Status tab). Disarm to stop motors.</p>
           <div class="btn-grid-2">
-            <button type="button" class="btn btn-arm" id="btn-arm" disabled onclick="armSequence()">Arm</button>
+            <button type="button" class="btn btn-arm" id="btn-arm" disabled onclick="armSequence('mode-select')">Arm</button>
             <button type="button" class="btn btn-disarm" id="btn-disarm" disabled onclick="sendCmd('DISARM_DRONE')">Disarm</button>
           </div>
         </div>
@@ -236,11 +332,11 @@
           <h2 class="section-title">Preflight checklist</h2>
           <p class="section-desc">All items should be green before arming (Fly tab).</p>
           <ul class="preflight-list" id="preflight-list">
-            <li id="pf-wifi"><span class="pf-icon">○</span><span>Wi‑Fi link to ESP32</span></li>
-            <li id="pf-gps"><span class="pf-icon">○</span><span>GPS 3D fix</span></li>
-            <li id="pf-mav"><span class="pf-icon">○</span><span>MAVLink to autopilot</span></li>
-            <li id="pf-bat"><span class="pf-icon">○</span><span>Battery above 20%</span></li>
-            <li id="pf-safe"><span class="pf-icon">○</span><span>Disarmed</span></li>
+            <li id="pf-wifi"><span class="pf-icon"></span><span>Wi‑Fi link to ESP32</span></li>
+            <li id="pf-gps"><span class="pf-icon"></span><span>GPS 3D fix</span></li>
+            <li id="pf-mav"><span class="pf-icon"></span><span>MAVLink to autopilot</span></li>
+            <li id="pf-bat"><span class="pf-icon"></span><span>Battery above 20%</span></li>
+            <li id="pf-safe"><span class="pf-icon"></span><span>Disarmed</span></li>
           </ul>
         </div>
 

@@ -78,6 +78,14 @@ document.addEventListener('DOMContentLoaded', () => {
   initTabs();
   initMoveControls();
   initKeyboardControls();
+
+  // Sync mode selectors
+  const modeSelect = document.getElementById('mode-select');
+  const qcModeSelect = document.getElementById('qc-mode-select');
+  if (modeSelect && qcModeSelect) {
+    modeSelect.addEventListener('change', (e) => { qcModeSelect.value = e.target.value; });
+    qcModeSelect.addEventListener('change', (e) => { modeSelect.value = e.target.value; });
+  }
 });
 
 function updateDistanceLabel() {
@@ -397,12 +405,40 @@ function confirmGoto() {
 function updateMapFlightActions(d) {
   lastHbForGoto = d;
   const armed = d.armed === true;
+  const guided = d.flight_mode_name === 'GUIDED' || Number(d.flight_mode) === 4;
+
   const loiterBtn = document.getElementById('btn-map-loiter');
   const landBtn = document.getElementById('btn-map-land');
   const rtlBtn = document.getElementById('btn-map-rtl');
   if (loiterBtn) loiterBtn.disabled = !wsConnected || !armed;
   if (landBtn) landBtn.disabled = !wsConnected;
   if (rtlBtn) rtlBtn.disabled = !wsConnected;
+
+  // Quick control buttons
+  const qcArm = document.getElementById('qc-btn-arm');
+  const qcDisarm = document.getElementById('qc-btn-disarm');
+  const qcLiftoff = document.getElementById('qc-btn-liftoff');
+  const qcLand = document.getElementById('qc-btn-land');
+  const qcRtl = document.getElementById('qc-btn-rtl');
+
+  if (qcArm) qcArm.disabled = !wsConnected || armed;
+  if (qcDisarm) qcDisarm.disabled = !wsConnected || !armed;
+  if (qcLiftoff) qcLiftoff.disabled = !wsConnected || !armed || !guided;
+  if (qcLand) qcLand.disabled = !wsConnected || !armed;
+  if (qcRtl) qcRtl.disabled = !wsConnected || !armed;
+
+  // Sync the Fly tab ones for parity and premium behavior
+  const btnArm = document.getElementById('btn-arm');
+  const btnDisarm = document.getElementById('btn-disarm');
+  const btnLiftoff = document.getElementById('btn-liftoff');
+  const btnLand = document.getElementById('btn-land');
+  const btnRtl = document.getElementById('btn-rtl');
+
+  if (btnArm) btnArm.disabled = !wsConnected || armed;
+  if (btnDisarm) btnDisarm.disabled = !wsConnected || !armed;
+  if (btnLiftoff) btnLiftoff.disabled = !wsConnected || !armed || !guided;
+  if (btnLand) btnLand.disabled = !wsConnected || !armed;
+  if (btnRtl) btnRtl.disabled = !wsConnected || !armed;
 }
 
 function initMapGoto() {
@@ -454,6 +490,7 @@ function setLinkState(state) {
   const lnkState = document.getElementById('lnk-state');
   const btns = [
     'btn-arm', 'btn-disarm', 'btn-liftoff', 'btn-land', 'btn-rtl', 'btn-set-mode', 'mode-select',
+    'qc-btn-arm', 'qc-btn-disarm', 'qc-btn-liftoff', 'qc-btn-land', 'qc-btn-rtl', 'qc-btn-set-mode', 'qc-mode-select',
   ];
   const moveBtns = document.querySelectorAll('.move-dir, .btn-yaw');
   const overlay = document.getElementById('reconnect-overlay');
@@ -497,10 +534,15 @@ function setLinkState(state) {
 
 function setPreflightItem(id, pass) {
   const el = document.getElementById(id);
-  if (!el) return;
-  el.className = pass ? 'pass' : 'fail';
-  const icon = el.querySelector('.pf-icon');
-  if (icon) icon.textContent = pass ? '●' : '○';
+  if (el) {
+    el.className = pass ? 'pass' : 'fail';
+    const icon = el.querySelector('.pf-icon');
+    if (icon) icon.textContent = pass ? '●' : '○';
+  }
+  const qcEl = document.getElementById('qc-' + id);
+  if (qcEl) {
+    qcEl.className = pass ? 'qc-led-item pass' : 'qc-led-item fail';
+  }
 }
 
 function escapeHtml(s) {
@@ -545,17 +587,29 @@ function updatePreflight(d) {
 
   const ready = wifiOk && gpsOk && mavOk && batOk && safeOk;
   const summary = document.getElementById('preflight-summary');
+  const qcSummary = document.getElementById('qc-preflight-summary');
+
+  let text = '';
+  let className = '';
+
+  if (ready) {
+    text = 'All checks passed — you may arm.';
+    className = 'ready';
+  } else if (!mavOk) {
+    text = 'Waiting for MAVLink connection…';
+    className = 'bad';
+  } else {
+    text = 'Not ready to arm — check status.';
+    className = 'warn';
+  }
+
   if (summary) {
-    if (ready) {
-      summary.textContent = 'All checks passed — you may arm from the Fly tab.';
-      summary.className = 'fly-ready-banner ready';
-    } else if (!mavOk) {
-      summary.textContent = 'Waiting for MAVLink — open dashboard while SITL is running.';
-      summary.className = 'fly-ready-banner bad';
-    } else {
-      summary.textContent = 'Not ready to arm — review the Status tab checklist.';
-      summary.className = 'fly-ready-banner warn';
-    }
+    summary.textContent = ready ? 'All checks passed — you may arm from the Fly tab.' : (mavOk ? 'Not ready to arm — review the Status tab checklist.' : 'Waiting for MAVLink — open dashboard while SITL is running.');
+    summary.className = 'fly-ready-banner ' + (ready ? 'ready' : (mavOk ? 'warn' : 'bad'));
+  }
+  if (qcSummary) {
+    qcSummary.textContent = text;
+    qcSummary.className = 'qc-banner ' + className;
   }
 
   const msgs = document.getElementById('preflight-msgs');
@@ -700,14 +754,26 @@ function updateTelemetry(d) {
   };
 
   set('tl-alt', alt.toFixed(1));
+  set('qc-tl-alt', alt.toFixed(1));
+
   set('tl-speed', spd.toFixed(1));
+  set('qc-tl-speed', spd.toFixed(1));
+
   set('tl-lat', lat.toFixed(6));
   set('tl-lng', lng.toFixed(6));
   set('tl-hdg', Number.isFinite(yaw) ? String(Math.round(yaw % 360)) : '—');
   set('lnk-ip', connectedIP);
   set('lnk-uptime', fmtUptime(d.uptime || 0));
-  set('tl-mode', d.flight_mode_name || String(d.flight_mode ?? '—'));
+
+  const modeName = d.flight_mode_name || String(d.flight_mode ?? '—');
+  set('tl-mode', modeName);
+  set('qc-tl-mode', modeName);
+
   set('tl-bat', bat + '% · ' + batV.toFixed(1) + ' V');
+  set('qc-tl-bat', bat + '%');
+
+  const compactGpsText = sats + ' Sats (' + (Number(d.gps_fix) >= 3 ? '3D' : (Number(d.gps_fix) === 2 ? '2D' : 'No Fix')) + ')';
+  set('qc-tl-gps', compactGpsText);
 
   const sitlEl = document.getElementById('lnk-sitl');
   if (sitlEl) {
@@ -731,6 +797,11 @@ function updateTelemetry(d) {
   if (bar) {
     bar.style.width = Math.min(100, Math.max(0, bat)) + '%';
     bar.style.background = bat > 50 ? 'var(--green)' : bat > 20 ? 'var(--orange)' : 'var(--red)';
+  }
+  const qcBar = document.getElementById('qc-bat-bar');
+  if (qcBar) {
+    qcBar.style.width = Math.min(100, Math.max(0, bat)) + '%';
+    qcBar.style.background = bat > 50 ? 'var(--green)' : bat > 20 ? 'var(--orange)' : 'var(--red)';
   }
 
   const sb = document.getElementById('signal-bars');
@@ -779,15 +850,20 @@ function sendCmd(command, extra) {
   log('TX', 'tag-sys', command + (extra ? ' → ' + JSON.stringify(extra) : ''));
 }
 
-function applyFlightMode() {
-  sendCmd('SET_FLIGHT_MODE', { mode: document.getElementById('mode-select').value });
+function applyFlightMode(selectId = 'mode-select') {
+  const val = document.getElementById(selectId)?.value;
+  if (val) sendCmd('SET_FLIGHT_MODE', { mode: val });
 }
 
-function armSequence() {
-  const modeSelect = document.getElementById('mode-select');
+function armSequence(selectId = 'mode-select') {
+  const modeSelect = document.getElementById(selectId);
   if (modeSelect && modeSelect.value !== 'GUIDED') {
     log('SYS', 'tag-err', 'GUIDED mode required before arming');
     modeSelect.value = 'GUIDED';
+    // Sync the other selector
+    const otherId = selectId === 'mode-select' ? 'qc-mode-select' : 'mode-select';
+    const otherSelect = document.getElementById(otherId);
+    if (otherSelect) otherSelect.value = 'GUIDED';
   }
   sendCmd('SET_FLIGHT_MODE', { mode: 'GUIDED' });
   setTimeout(() => sendCmd('ARM_DRONE'), CFG.armModeDelayMs || 400);

@@ -32,9 +32,9 @@
 
 // --- Flight safety caps (enforced in firmware from Phase 4+) ---
 #define SKYLINK_MOVE_BODY_MAX_M         200.0f
-#define SKYLINK_GOTO_ALT_MAX_M          50.0f
-#define SKYLINK_MOVE_MIN_AGL_M          2.0f
-#define SKYLINK_GOTO_MAX_RADIUS_M       1000.0f
+#define SKYLINK_GOTO_ALT_MAX_M          30.0f   // capped at 30 m for low-altitude field testing
+#define SKYLINK_MOVE_MIN_AGL_M          0.8f    // allows GUIDED moves from ~1 m AGL (was 2.0)
+#define SKYLINK_GOTO_MAX_RADIUS_M       200.0f  // tighter geofence for close field tests (was 1000)
 #define SKYLINK_YAW_MAX_DEG             90
 
 // --- Command rate limit (Phase 6 enforcement; constant defined now) ---

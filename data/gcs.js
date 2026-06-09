@@ -287,7 +287,7 @@ function syncFlightUiState(d) {
 function updateMoveControls(d) {
   syncFlightUiState(d);
 
-  const minAgl = 2;
+  const minAgl = 1;
   const alt = Number(d.relative_alt) || Number(d.altitude) || 0;
   const canMove =
     wsConnected &&

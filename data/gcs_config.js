@@ -8,7 +8,7 @@ const SKYLINK_GCS_CONFIG = {
   moveMinM: 0.5,
   moveMaxM: 200,
   geofenceRadiusM: 1000,
-  gotoAltMinM: 2,
+  gotoAltMinM: 1,
   gotoAltMaxM: 50,
   gotoAltOffsetM: 5,
   keyboardMoveThrottleMs: 500,
@@ -30,7 +30,7 @@ const SKYLINK_GCS_CONFIG = {
   wsReconnectMaxMs: 20000,
 
   commsLogMaxEntries: 40,
-  defaultTakeoffAltM: 5,
+  defaultTakeoffAltM: 2,
   takeoffAltMinM: 1,
   takeoffAltMaxM: 50,
 

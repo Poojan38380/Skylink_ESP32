@@ -19,6 +19,8 @@ let lastHbForGoto = null;
 let activeTab = 'map';
 let _takeoffInProgress = false;
 let lastLoggedState = { armed: null, mode: null, gps: null, connected: null };
+let emergencyConfirmTimeout = null;
+let lastEscapePressMs = 0;
 
 const flightUiState = {
   armed: false,
@@ -216,6 +218,41 @@ function isTypingInField() {
 
 function initKeyboardControls() {
   document.addEventListener('keydown', (e) => {
+    if (e.code === 'Escape') {
+      if (isTypingInField()) return;
+      
+      const qcEmergency = document.getElementById('qc-btn-emergency');
+      const btnEmergency = document.getElementById('btn-emergency');
+      const isArmed = (qcEmergency && !qcEmergency.disabled) || (btnEmergency && !btnEmergency.disabled);
+      
+      if (isArmed) {
+        e.preventDefault();
+        const now = performance.now();
+        if (now - lastEscapePressMs < 1500) {
+          lastEscapePressMs = 0;
+          playWarningSound('trigger');
+          sendCmd('EMERGENCY_STOP');
+          log('SYS', 'tag-err', 'EMERGENCY DISARM VIA ESCAPE DOUBLE-PRESS!');
+          resetEmergencyButtons();
+        } else {
+          lastEscapePressMs = now;
+          playWarningSound('alarm');
+          const allEmergencyBtns = [qcEmergency, btnEmergency];
+          allEmergencyBtns.forEach(b => {
+            if (b) {
+              b.textContent = 'ESC AGAIN TO DISARM';
+              b.classList.add('confirm-active');
+            }
+          });
+          if (emergencyConfirmTimeout) clearTimeout(emergencyConfirmTimeout);
+          emergencyConfirmTimeout = setTimeout(() => {
+            resetEmergencyButtons();
+          }, 1500);
+        }
+      }
+      return;
+    }
+
     if (activeTab !== 'map') return;
     if (isTypingInField()) return;
     if (!moveControlsEnabled) return;
@@ -426,6 +463,9 @@ function updateMapFlightActions(d) {
   if (qcLiftoff) qcLiftoff.disabled = !wsConnected || !armed || !guided;
   if (qcLand) qcLand.disabled = !wsConnected || !armed;
   if (qcRtl) qcRtl.disabled = !wsConnected || !armed;
+  
+  const qcEmergency = document.getElementById('qc-btn-emergency');
+  if (qcEmergency) qcEmergency.disabled = !wsConnected || !armed;
 
   // Sync the Fly tab ones for parity and premium behavior
   const btnArm = document.getElementById('btn-arm');
@@ -433,12 +473,18 @@ function updateMapFlightActions(d) {
   const btnLiftoff = document.getElementById('btn-liftoff');
   const btnLand = document.getElementById('btn-land');
   const btnRtl = document.getElementById('btn-rtl');
+  const btnEmergency = document.getElementById('btn-emergency');
 
   if (btnArm) btnArm.disabled = !wsConnected || armed;
   if (btnDisarm) btnDisarm.disabled = !wsConnected || !armed;
   if (btnLiftoff) btnLiftoff.disabled = !wsConnected || !armed || !guided;
   if (btnLand) btnLand.disabled = !wsConnected || !armed;
   if (btnRtl) btnRtl.disabled = !wsConnected || !armed;
+  if (btnEmergency) btnEmergency.disabled = !wsConnected || !armed;
+
+  if (!armed) {
+    resetEmergencyButtons();
+  }
 }
 
 function initMapGoto() {
@@ -491,6 +537,7 @@ function setLinkState(state) {
   const btns = [
     'btn-arm', 'btn-disarm', 'btn-liftoff', 'btn-land', 'btn-rtl', 'btn-set-mode', 'mode-select',
     'qc-btn-arm', 'qc-btn-disarm', 'qc-btn-liftoff', 'qc-btn-land', 'qc-btn-rtl', 'qc-btn-set-mode', 'qc-mode-select',
+    'qc-btn-emergency', 'btn-emergency'
   ];
   const moveBtns = document.querySelectorAll('.move-dir, .btn-yaw');
   const overlay = document.getElementById('reconnect-overlay');
@@ -517,6 +564,7 @@ function setLinkState(state) {
       if (el) el.disabled = true;
     });
     moveBtns.forEach((el) => { el.disabled = true; });
+    resetEmergencyButtons();
     ['btn-map-loiter', 'btn-map-land', 'btn-map-rtl'].forEach((id) => {
       const el = document.getElementById(id);
       if (el) el.disabled = true;
@@ -1041,3 +1089,94 @@ function connect() {
 
 connect();
 initMapGoto();
+
+function playWarningSound(type = 'alarm') {
+  try {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+    const ctx = new AudioContext();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    
+    if (type === 'trigger') {
+      // Urgent triple beep
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(988, ctx.currentTime); // B5 note
+      osc.frequency.setValueAtTime(0, ctx.currentTime + 0.08);
+      osc.frequency.setValueAtTime(988, ctx.currentTime + 0.12);
+      osc.frequency.setValueAtTime(0, ctx.currentTime + 0.20);
+      osc.frequency.setValueAtTime(988, ctx.currentTime + 0.24);
+      gain.gain.setValueAtTime(0.25, ctx.currentTime);
+      gain.gain.linearRampToValueAtTime(0.01, ctx.currentTime + 0.4);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.4);
+    } else {
+      // First click/alarm warning beep
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5 note
+      osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.2);
+      gain.gain.setValueAtTime(0.15, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.2);
+    }
+  } catch (e) {
+    console.error('Audio feedback error', e);
+  }
+}
+
+function triggerEmergencyDisarm(btn) {
+  const targetBtn = btn || document.getElementById('qc-btn-emergency') || document.getElementById('btn-emergency');
+  if (!targetBtn || targetBtn.disabled) return;
+
+  const allEmergencyBtns = [
+    document.getElementById('qc-btn-emergency'),
+    document.getElementById('btn-emergency')
+  ];
+
+  if (emergencyConfirmTimeout) {
+    // Second click: Execute immediate disarm
+    clearTimeout(emergencyConfirmTimeout);
+    emergencyConfirmTimeout = null;
+    
+    playWarningSound('trigger');
+    sendCmd('EMERGENCY_STOP');
+    log('SYS', 'tag-err', 'EMERGENCY DISARM COMMAND SENT!');
+
+    resetEmergencyButtons();
+  } else {
+    // First click: arm and show confirmation warning
+    playWarningSound('alarm');
+    allEmergencyBtns.forEach(b => {
+      if (b) {
+        b.textContent = 'CONFIRM DISARM';
+        b.classList.add('confirm-active');
+      }
+    });
+
+    emergencyConfirmTimeout = setTimeout(() => {
+      resetEmergencyButtons();
+    }, 2500); // 2.5 second window to confirm
+  }
+}
+
+function resetEmergencyButtons() {
+  if (emergencyConfirmTimeout) {
+    clearTimeout(emergencyConfirmTimeout);
+    emergencyConfirmTimeout = null;
+  }
+  const allEmergencyBtns = [
+    document.getElementById('qc-btn-emergency'),
+    document.getElementById('btn-emergency')
+  ];
+  allEmergencyBtns.forEach(b => {
+    if (b) {
+      b.textContent = 'Emergency Disarm';
+      b.classList.remove('confirm-active');
+    }
+  });
+}

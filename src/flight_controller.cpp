@@ -123,7 +123,7 @@ void FlightController::setFlightMode(uint8_t customMode) {
     giveMutex();
 }
 
-void FlightController::sendArmDisarm(bool state) {
+void FlightController::sendArmDisarm(bool state, bool force) {
     mavlink_message_t msg;
     mavlink_msg_command_long_pack(
         GCS_SYSID, GCS_COMPID, &msg,
@@ -131,7 +131,8 @@ void FlightController::sendArmDisarm(bool state) {
         MAV_CMD_COMPONENT_ARM_DISARM,
         0,
         state ? 1.0f : 0.0f,
-        0, 0, 0, 0, 0, 0
+        force ? 21196.0f : 0.0f,
+        0, 0, 0, 0, 0
     );
     sendMavlinkPacket(&msg);
 }
@@ -146,7 +147,7 @@ void FlightController::arm(bool state) {
     }
 
     logger.info(state ? "Sending command: ARM Drone" : "Sending command: DISARM Drone");
-    sendArmDisarm(state);
+    sendArmDisarm(state, false);
     giveMutex();
 }
 
@@ -521,7 +522,7 @@ void FlightController::emergencyStop() {
     if (!takeMutex()) return;
     logger.warning("SAFETY TRIGGERED: EMERGENCY DISARM!");
     sendRCOverride(1500, 1500, 1000, 1500);
-    sendArmDisarm(false);
+    sendArmDisarm(false, true);
     giveMutex();
 }
 

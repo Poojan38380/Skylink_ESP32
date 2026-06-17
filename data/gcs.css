@@ -305,6 +305,18 @@ body {
 .btn-secondary { background: var(--bg); color: var(--text); }
 .btn-arm { background: rgba(63, 185, 80, 0.15); border-color: var(--green); color: var(--green); }
 .btn-disarm { background: rgba(248, 81, 73, 0.12); border-color: var(--red); color: var(--red); }
+.btn-emergency {
+  background: rgba(248, 81, 73, 0.20);
+  border-color: var(--red);
+  color: var(--red);
+  font-weight: 800;
+  box-shadow: 0 0 8px rgba(248, 81, 73, 0.15);
+}
+.btn-emergency:not(:disabled):hover {
+  background: var(--red);
+  color: #ffffff;
+  box-shadow: 0 0 15px rgba(248, 81, 73, 0.5);
+}
 
 .move-hint {
   font-size: 12px;
@@ -1107,6 +1119,34 @@ body {
 .qc-btn-disarm:not(:disabled):hover {
   background: rgba(248, 81, 73, 0.22);
   box-shadow: 0 0 10px rgba(248, 81, 73, 0.15);
+}
+
+.qc-btn-emergency {
+  background: rgba(248, 81, 73, 0.20);
+  border-color: var(--red);
+  color: var(--red);
+  font-weight: 800;
+  box-shadow: 0 0 8px rgba(248, 81, 73, 0.15);
+}
+
+.qc-btn-emergency:not(:disabled):hover {
+  background: var(--red);
+  color: #ffffff;
+  box-shadow: 0 0 15px rgba(248, 81, 73, 0.5);
+}
+
+.qc-btn-emergency.confirm-active,
+.btn-emergency.confirm-active {
+  background: var(--red) !important;
+  color: #ffffff !important;
+  border-color: #ffffff !important;
+  box-shadow: 0 0 20px var(--red) !important;
+  animation: emergency-blink 0.4s infinite alternate !important;
+}
+
+@keyframes emergency-blink {
+  from { opacity: 0.6; }
+  to { opacity: 1; }
 }
 
 .qc-btn-danger {

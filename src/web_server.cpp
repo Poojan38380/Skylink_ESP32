@@ -52,6 +52,12 @@ void handleDisarm(JsonDocument& doc, AsyncWebSocketClient* client) {
     flightController.arm(false);
 }
 
+void handleEmergencyStop(JsonDocument& doc, AsyncWebSocketClient* client) {
+    (void)doc;
+    (void)client;
+    flightController.emergencyStop();
+}
+
 void handleTakeoff(JsonDocument& doc, AsyncWebSocketClient* client) {
     (void)client;
     float alt = doc["altitude"] | 5.0f;
@@ -134,6 +140,7 @@ const WsCommandEntry kCommands[] = {
     {"SET_FLIGHT_MODE", handleSetFlightMode},
     {"ARM_DRONE", handleArm},
     {"DISARM_DRONE", handleDisarm},
+    {"EMERGENCY_STOP", handleEmergencyStop},
     {"TAKEOFF", handleTakeoff},
     {"LAND", handleLand},
     {"RTL", handleRtl},

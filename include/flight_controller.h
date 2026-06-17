@@ -92,7 +92,7 @@ private:
     void processMavlinkMessage(mavlink_message_t* msg);
     void requestDataStreams();
     void setCopterMode(uint8_t customMode);
-    void sendArmDisarm(bool state);
+    void sendArmDisarm(bool state, bool force = false);
     bool canExecuteGuidedMoveUnlocked() const;
     void pushStatusLine(const char* text, uint8_t severity);
     void pushEvent(const FCEvent& event);

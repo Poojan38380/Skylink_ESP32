@@ -154,6 +154,7 @@
               <button type="button" class="qc-btn qc-btn-arm" id="qc-btn-arm" disabled onclick="armSequence('qc-mode-select')">Arm</button>
               <button type="button" class="qc-btn qc-btn-disarm" id="qc-btn-disarm" disabled onclick="sendCmd('DISARM_DRONE')">Disarm</button>
             </div>
+            <button type="button" class="qc-btn qc-btn-emergency" id="qc-btn-emergency" disabled onclick="triggerEmergencyDisarm(this)">Emergency Disarm</button>
             <button type="button" class="qc-btn qc-btn-primary" id="qc-btn-liftoff" disabled onclick="autonomousTakeoff()">Takeoff</button>
             <div class="qc-btn-group">
               <button type="button" class="qc-btn qc-btn-danger" id="qc-btn-land" disabled onclick="sendCmd('LAND')">Land</button>
@@ -310,6 +311,7 @@
             <button type="button" class="btn btn-arm" id="btn-arm" disabled onclick="armSequence('mode-select')">Arm</button>
             <button type="button" class="btn btn-disarm" id="btn-disarm" disabled onclick="sendCmd('DISARM_DRONE')">Disarm</button>
           </div>
+          <button type="button" class="btn btn-emergency btn-block" id="btn-emergency" disabled onclick="triggerEmergencyDisarm(this)" style="margin-top:12px">Emergency Disarm</button>
         </div>
 
         <div class="section-block">

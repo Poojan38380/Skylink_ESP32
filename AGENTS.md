@@ -1,1 +1,1 @@
-dont try to run cmd commands yourself. Ask me to run them if required. 
+dont try to run cmd commands yourself. Ask me to run them if required; i will share the output with you. 

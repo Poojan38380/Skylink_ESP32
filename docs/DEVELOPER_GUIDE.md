@@ -148,15 +148,17 @@ The autonomous takeoff sequence is an ACK-driven state machine:
 ```
 autonomousTakeoff()
   ├── Guard: _takeoffInProgress mutex (prevents re-entry / double-click)
-  ├── Reset flightUiState.guided = false, stableCount = 0  (clear stale state)
-  ├── sendCmd('SET_FLIGHT_MODE', {mode: 'GUIDED'})
-  ├── Poll every 200ms for flightUiState.guided === true (timeout: 10s)
-  │   └── When confirmed → _doArmAndTakeoff(meters)
-  │       ├── Reset flightUiState.armed = false, stableCount = 0
-  │       ├── sendCmd('ARM_DRONE')
-  │       ├── Poll every 200ms for flightUiState.armed AND flightUiState.guided (timeout: 10s)
-  │       └── When both confirmed → sendCmd('TAKEOFF', {altitude})
-  └── On any timeout → log error, release mutex
+  ├── If not already GUIDED:
+  │   ├── send SET_FLIGHT_MODE
+  │   ├── wait for COMMAND_ACK 176
+  │   └── wait for confirmed GUIDED state
+  ├── If not already armed:
+  │   ├── send ARM_DRONE
+  │   ├── wait for COMMAND_ACK 400
+  │   └── wait for confirmed ARMED + GUIDED state
+  ├── send TAKEOFF
+  ├── wait for COMMAND_ACK 22
+  └── On any reject/timeout/gate loss → log error, release mutex
 ```
 
 ### syncFlightUiState() — The stability filter
@@ -164,8 +166,8 @@ State is confirmed only after **3 consecutive identical heartbeats** (`flightSta
 
 UART heartbeats from ArduPilot come at ~1 Hz. The browser WS telemetry interval is 200ms. So you need at least ~3 seconds for a mode change to be "confirmed" by the JS state machine. Timeouts below 5s are unreliable. Current timeouts are 10s each.
 
-### The "stale state" bug (fixed)
-Before the fix, `flightUiState.guided` and `flightUiState.armed` were never reset at the start of a new takeoff attempt. If a prior attempt left `guided = true`, the next attempt's `waitForGuided` interval would fire immediately on the first tick, skipping the actual mode-switch confirmation. This caused TAKEOFF to be sent before the FC was ready.
+### The stale/timer state bugs (fixed)
+Earlier prototypes used timer-only sequencing and manually reset cached browser state. That caused two opposite failures: stale state could skip required confirmations, and already-armed valid states could be erased by the takeoff sequence itself. The current flow waits for MAVLink ACKs plus confirmed telemetry state and skips redundant mode/arm commands when the vehicle is already in the required state.
 
 ---
 

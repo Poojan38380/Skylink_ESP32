@@ -16,11 +16,28 @@ let lastKeyMoveMs = 0;
 let lastStatusSnapshot = '';
 let pendingGoto = null;
 let lastHbForGoto = null;
+let lastTelemetry = null;
+let lastCommandGate = { ready: false, reason: 'Waiting for heartbeat', heartbeatMs: 0, commandPending: false, commandName: '' };
+let lastFlightCommandTxMs = 0;
 let activeTab = 'map';
+let _commandInProgress = false;
+let _armInProgress = false;
 let _takeoffInProgress = false;
-let lastLoggedState = { armed: null, mode: null, gps: null, connected: null };
+let lastLoggedState = { armed: null, mode: null, gps: null, connected: null, commandKey: null };
 let emergencyConfirmTimeout = null;
 let lastEscapePressMs = 0;
+let ackWaiters = [];
+let logHistory = [];
+let logsRestored = false;
+
+const LOG_STORAGE_KEY = 'skylink_gcs_log_v1';
+
+const MAV_CMD = {
+  DO_SET_MODE: 176,
+  COMPONENT_ARM_DISARM: 400,
+  NAV_TAKEOFF: 22,
+  CONDITION_YAW: 115,
+};
 
 const flightUiState = {
   armed: false,
@@ -309,6 +326,14 @@ function initKeyboardControls() {
 }
 
 function syncFlightUiState(d) {
+  if (d.mav_connected !== true || d.autopilot_heartbeat_fresh !== true) {
+    flightUiState.armed = false;
+    flightUiState.guided = false;
+    flightUiState.pendingKey = '';
+    flightUiState.stableCount = 0;
+    return;
+  }
+
   const key =
     (d.armed ? '1' : '0') + '|' +
     (d.flight_mode_name || '') + '|' +
@@ -333,13 +358,7 @@ function updateMoveControls(d) {
   syncFlightUiState(d);
 
   const minAgl = 1;
-  const alt = Number(d.relative_alt) || Number(d.altitude) || 0;
-  const canMove =
-    wsConnected &&
-    flightUiState.armed &&
-    flightUiState.guided &&
-    (Number(d.gps_fix) || 0) >= (CFG.preflightMinGpsFix || 3) &&
-    alt >= minAgl;
+  const canMove = d.can_move === true;
 
   moveControlsEnabled = canMove;
   document.querySelectorAll('.move-dir, .btn-yaw').forEach((el) => {
@@ -351,6 +370,9 @@ function updateMoveControls(d) {
     if (canMove) {
       hint.textContent = 'Ready — ' + getMoveDistanceM() + ' m per move. Arrows = translate, Num 4/6 = yaw.';
       hint.className = 'move-hint ready';
+    } else if (d.cmd_gate_ready === false) {
+      hint.textContent = 'Commands locked: ' + (d.cmd_gate_reason || 'waiting for firmware gate');
+      hint.className = 'move-hint';
     } else if (!flightUiState.armed) {
       hint.textContent = 'Arm in GUIDED after preflight checks to enable moves.';
       hint.className = 'move-hint';
@@ -370,13 +392,194 @@ function sendMoveBody(axis, meters) {
   else if (axis === 'y') payload.y = meters;
   else if (axis === 'z') payload.z = meters;
 
-  sendCmd('MOVE_BODY', payload);
-  log('SYS', 'tag-sys', 'MOVE_BODY ' + JSON.stringify(payload));
+  if (sendCmd('MOVE_BODY', payload)) {
+    log('SYS', 'tag-sys', 'MOVE_BODY ' + JSON.stringify(payload));
+  }
+}
+
+function isClientFlightCommand(command) {
+  return command === 'SET_FLIGHT_MODE' ||
+    command === 'ARM_DRONE' ||
+    command === 'DISARM_DRONE' ||
+    command === 'TAKEOFF' ||
+    command === 'MOVE_BODY' ||
+    command === 'YAW_RELATIVE' ||
+    command === 'GOTO_LATLON' ||
+    command === 'LOITER_HERE' ||
+    command === 'LAND' ||
+    command === 'RTL';
+}
+
+function ackTrackedCommandName(command) {
+  if (command === 'SET_FLIGHT_MODE') return 'SET_MODE';
+  if (command === 'ARM_DRONE') return 'ARM';
+  if (command === 'DISARM_DRONE') return 'DISARM';
+  if (command === 'TAKEOFF') return 'TAKEOFF';
+  if (command === 'YAW_RELATIVE') return 'YAW_RELATIVE';
+  if (command === 'LAND') return 'LAND';
+  if (command === 'RTL') return 'RTL';
+  return '';
+}
+
+function isCommandGateFresh() {
+  const maxAgeMs = CFG.commandGateMaxAgeMs || 3000;
+  return lastCommandGate.ready === true &&
+    lastCommandGate.heartbeatMs > 0 &&
+    Date.now() - lastCommandGate.heartbeatMs <= maxAgeMs;
+}
+
+function commandGateBlockReason() {
+  if (lastCommandGate.ready && !isCommandGateFresh()) {
+    return 'stale firmware heartbeat';
+  }
+  return lastCommandGate.reason || 'waiting for firmware command gate';
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function waitForCommandAck(commandId, timeoutMs) {
+  return new Promise((resolve, reject) => {
+    const waiter = {
+      commandId,
+      resolve,
+      reject,
+      timer: setTimeout(() => {
+        ackWaiters = ackWaiters.filter((w) => w !== waiter);
+        lastCommandGate.commandPending = false;
+        lastCommandGate.commandName = '';
+        reject(new Error('ACK timeout for command ' + commandId));
+      }, timeoutMs),
+    };
+    ackWaiters.push(waiter);
+  });
+}
+
+function cancelCommandAckWait(commandId) {
+  const matched = ackWaiters.filter((w) => w.commandId === commandId);
+  if (!matched.length) return;
+  ackWaiters = ackWaiters.filter((w) => w.commandId !== commandId);
+  matched.forEach((w) => {
+    clearTimeout(w.timer);
+  });
+}
+
+function resolveCommandAck(commandId, ok, label) {
+  const matched = ackWaiters.filter((w) => w.commandId === commandId);
+  if (!matched.length) return;
+  ackWaiters = ackWaiters.filter((w) => w.commandId !== commandId);
+  lastCommandGate.commandPending = false;
+  lastCommandGate.commandName = '';
+  matched.forEach((w) => {
+    clearTimeout(w.timer);
+    if (ok) w.resolve(label);
+    else w.reject(new Error('Command ' + commandId + ': ' + label));
+  });
+}
+
+function waitForState(predicate, label, timeoutMs) {
+  return new Promise((resolve, reject) => {
+    const deadline = Date.now() + timeoutMs;
+    const timer = setInterval(() => {
+      if (!isCommandGateFresh()) {
+        clearInterval(timer);
+        reject(new Error(label + ' interrupted: ' + commandGateBlockReason()));
+      } else if (predicate()) {
+        clearInterval(timer);
+        resolve();
+      } else if (Date.now() > deadline) {
+        clearInterval(timer);
+        reject(new Error(label + ' timed out'));
+      }
+    }, 200);
+  });
+}
+
+async function sendCommandAndWaitAck(command, extra, mavCommandId, label) {
+  const ackTimeoutMs = CFG.commandAckTimeoutMs || 4000;
+  const ackPromise = waitForCommandAck(mavCommandId, ackTimeoutMs);
+  if (!sendCmd(command, extra)) {
+    cancelCommandAckWait(mavCommandId);
+    lastCommandGate.commandPending = false;
+    lastCommandGate.commandName = '';
+    throw new Error(label + ' command was not sent');
+  }
+  await ackPromise;
 }
 
 function sendYawRelative(deg) {
-  sendCmd('YAW_RELATIVE', { deg });
-  log('SYS', 'tag-sys', 'YAW_RELATIVE ' + deg + '°');
+  runAckCommand('YAW_RELATIVE', { deg }, MAV_CMD.CONDITION_YAW, 'YAW_RELATIVE ' + deg + '°');
+}
+
+async function runAckCommand(command, extra, mavCommandId, label) {
+  if (_commandInProgress || _armInProgress || _takeoffInProgress) {
+    log('ERR', 'tag-err', 'Command already in progress.');
+    return false;
+  }
+
+  try {
+    _commandInProgress = true;
+    log('SYS', 'tag-sys', label);
+    await sendCommandAndWaitAck(command, extra, mavCommandId, label);
+    return true;
+  } catch (err) {
+    log('ERR', 'tag-err', '[' + label + ' ABORTED] ' + (err && err.message ? err.message : String(err)));
+    return false;
+  } finally {
+    _commandInProgress = false;
+  }
+}
+
+async function setModeSequence(modeName, label) {
+  if (_commandInProgress || _armInProgress || _takeoffInProgress) {
+    log('ERR', 'tag-err', 'Command already in progress.');
+    return false;
+  }
+
+  try {
+    _commandInProgress = true;
+    const stateTimeoutMs = CFG.stateConfirmTimeoutMs || 10000;
+    const expectedMode = modeName;
+    log('SYS', 'tag-sys', '[' + label + ' 1/2] Sending ' + modeName + ' mode…');
+    await sendCommandAndWaitAck('SET_FLIGHT_MODE', { mode: modeName }, MAV_CMD.DO_SET_MODE, label);
+    log('SYS', 'tag-sys', '[' + label + ' 2/2] ACK accepted — waiting for ' + modeName + ' state…');
+    await waitForState(() => {
+      const hb = lastTelemetry || {};
+      return (hb.flight_mode_name || '') === expectedMode;
+    }, modeName + ' state confirmation', stateTimeoutMs);
+    return true;
+  } catch (err) {
+    log('ERR', 'tag-err', '[' + label + ' ABORTED] ' + (err && err.message ? err.message : String(err)));
+    return false;
+  } finally {
+    _commandInProgress = false;
+  }
+}
+
+function applyFlightMode(selectId = 'mode-select') {
+  const val = document.getElementById(selectId)?.value;
+  if (val) setModeSequence(val, 'MODE ' + val);
+}
+
+function loiterSequence() {
+  if (_commandInProgress || _armInProgress || _takeoffInProgress) {
+    log('ERR', 'tag-err', 'Command already in progress.');
+    return false;
+  }
+  if (sendCmd('LOITER_HERE')) {
+    log('SYS', 'tag-sys', 'LOITER_HERE hold position');
+    return true;
+  }
+  return false;
+}
+
+function landSequence() {
+  return setModeSequence('LAND', 'LAND');
+}
+
+function rtlSequence() {
+  return setModeSequence('RTL', 'RTL');
 }
 
 function closeGotoSheet() {
@@ -387,8 +590,8 @@ function closeGotoSheet() {
 
 function openGotoSheet(lat, lng) {
   if (!wsConnected) return;
-  if (!moveControlsEnabled) {
-    log('ERR', 'tag-err', 'Fly here: arm in GUIDED, 3D GPS, and at least 2 m altitude');
+  if (!lastHbForGoto?.can_goto) {
+    log('ERR', 'tag-err', 'Fly here blocked: ' + (lastHbForGoto?.cmd_gate_reason || 'need armed GUIDED, 3D GPS, home, and safe altitude'));
     return;
   }
   const radius = CFG.geofenceRadiusM != null ? CFG.geofenceRadiusM : 1000;
@@ -434,22 +637,22 @@ function confirmGoto() {
     log('ERR', 'tag-err', 'Altitude must be ' + minA + '–' + maxA + ' m');
     return;
   }
-  sendCmd('GOTO_LATLON', { lat: pendingGoto.lat, lon: pendingGoto.lng, alt });
-  log('SYS', 'tag-sys', 'GOTO_LATLON @ ' + alt + ' m');
-  closeGotoSheet();
+  if (sendCmd('GOTO_LATLON', { lat: pendingGoto.lat, lon: pendingGoto.lng, alt })) {
+    log('SYS', 'tag-sys', 'GOTO_LATLON @ ' + alt + ' m');
+    closeGotoSheet();
+  }
 }
 
 function updateMapFlightActions(d) {
   lastHbForGoto = d;
   const armed = d.armed === true;
-  const guided = d.flight_mode_name === 'GUIDED' || Number(d.flight_mode) === 4;
 
   const loiterBtn = document.getElementById('btn-map-loiter');
   const landBtn = document.getElementById('btn-map-land');
   const rtlBtn = document.getElementById('btn-map-rtl');
-  if (loiterBtn) loiterBtn.disabled = !wsConnected || !armed;
-  if (landBtn) landBtn.disabled = !wsConnected;
-  if (rtlBtn) rtlBtn.disabled = !wsConnected;
+  if (loiterBtn) loiterBtn.disabled = !d.can_loiter;
+  if (landBtn) landBtn.disabled = !d.can_land;
+  if (rtlBtn) rtlBtn.disabled = !d.can_rtl;
 
   // Quick control buttons
   const qcArm = document.getElementById('qc-btn-arm');
@@ -457,15 +660,19 @@ function updateMapFlightActions(d) {
   const qcLiftoff = document.getElementById('qc-btn-liftoff');
   const qcLand = document.getElementById('qc-btn-land');
   const qcRtl = document.getElementById('qc-btn-rtl');
+  const qcSetMode = document.getElementById('qc-btn-set-mode');
+  const qcModeSelect = document.getElementById('qc-mode-select');
 
-  if (qcArm) qcArm.disabled = !wsConnected || armed;
-  if (qcDisarm) qcDisarm.disabled = !wsConnected || !armed;
-  if (qcLiftoff) qcLiftoff.disabled = !wsConnected || !armed || !guided;
-  if (qcLand) qcLand.disabled = !wsConnected || !armed;
-  if (qcRtl) qcRtl.disabled = !wsConnected || !armed;
+  if (qcSetMode) qcSetMode.disabled = !d.can_set_mode;
+  if (qcModeSelect) qcModeSelect.disabled = !d.can_set_mode;
+  if (qcArm) qcArm.disabled = !d.can_arm;
+  if (qcDisarm) qcDisarm.disabled = !d.can_disarm;
+  if (qcLiftoff) qcLiftoff.disabled = !d.can_takeoff;
+  if (qcLand) qcLand.disabled = !d.can_land;
+  if (qcRtl) qcRtl.disabled = !d.can_rtl;
   
   const qcEmergency = document.getElementById('qc-btn-emergency');
-  if (qcEmergency) qcEmergency.disabled = !wsConnected || !armed;
+  if (qcEmergency) qcEmergency.disabled = !d.can_emergency_stop;
 
   // Sync the Fly tab ones for parity and premium behavior
   const btnArm = document.getElementById('btn-arm');
@@ -474,13 +681,17 @@ function updateMapFlightActions(d) {
   const btnLand = document.getElementById('btn-land');
   const btnRtl = document.getElementById('btn-rtl');
   const btnEmergency = document.getElementById('btn-emergency');
+  const btnSetMode = document.getElementById('btn-set-mode');
+  const modeSelect = document.getElementById('mode-select');
 
-  if (btnArm) btnArm.disabled = !wsConnected || armed;
-  if (btnDisarm) btnDisarm.disabled = !wsConnected || !armed;
-  if (btnLiftoff) btnLiftoff.disabled = !wsConnected || !armed || !guided;
-  if (btnLand) btnLand.disabled = !wsConnected || !armed;
-  if (btnRtl) btnRtl.disabled = !wsConnected || !armed;
-  if (btnEmergency) btnEmergency.disabled = !wsConnected || !armed;
+  if (btnSetMode) btnSetMode.disabled = !d.can_set_mode;
+  if (modeSelect) modeSelect.disabled = !d.can_set_mode;
+  if (btnArm) btnArm.disabled = !d.can_arm;
+  if (btnDisarm) btnDisarm.disabled = !d.can_disarm;
+  if (btnLiftoff) btnLiftoff.disabled = !d.can_takeoff;
+  if (btnLand) btnLand.disabled = !d.can_land;
+  if (btnRtl) btnRtl.disabled = !d.can_rtl;
+  if (btnEmergency) btnEmergency.disabled = !d.can_emergency_stop;
 
   if (!armed) {
     resetEmergencyButtons();
@@ -494,16 +705,13 @@ function initMapGoto() {
   document.getElementById('goto-cancel')?.addEventListener('click', closeGotoSheet);
   document.getElementById('goto-confirm')?.addEventListener('click', confirmGoto);
   document.getElementById('btn-map-loiter')?.addEventListener('click', () => {
-    sendCmd('LOITER_HERE');
-    log('SYS', 'tag-sys', 'LOITER_HERE');
+    loiterSequence();
   });
   document.getElementById('btn-map-land')?.addEventListener('click', () => {
-    sendCmd('LAND');
-    log('SYS', 'tag-sys', 'LAND');
+    landSequence();
   });
   document.getElementById('btn-map-rtl')?.addEventListener('click', () => {
-    sendCmd('RTL');
-    log('SYS', 'tag-sys', 'RTL');
+    rtlSequence();
   });
 }
 
@@ -550,7 +758,7 @@ function setLinkState(state) {
     if (lnkState) lnkState.textContent = 'Connected';
     btns.forEach((id) => {
       const el = document.getElementById(id);
-      if (el) el.disabled = false;
+      if (el) el.disabled = true;
     });
     if (overlay) overlay.classList.remove('show');
   } else if (state === 'disconnected') {
@@ -621,7 +829,7 @@ function updatePreflight(d) {
   const minFix = CFG.preflightMinGpsFix || 3;
   const minBat = CFG.preflightMinBatteryPct || 20;
   const gpsOk = (Number(d.gps_fix) || 0) >= minFix;
-  const mavOk = d.mav_connected === true;
+  const mavOk = d.mav_connected === true && d.autopilot_heartbeat_fresh === true;
   const bat = Number(d.battery);
   const batOk = bat < 0 || bat >= minBat || d.simulation === true;
   syncFlightUiState(d);
@@ -641,18 +849,18 @@ function updatePreflight(d) {
   let className = '';
 
   if (ready) {
-    text = 'All checks passed — you may arm.';
+    text = d.safety_reason || 'All checks passed — you may arm.';
     className = 'ready';
   } else if (!mavOk) {
-    text = 'Waiting for MAVLink connection…';
+    text = d.safety_reason || 'Waiting for MAVLink connection…';
     className = 'bad';
   } else {
-    text = 'Not ready to arm — check status.';
+    text = d.safety_reason || 'Not ready to arm — check status.';
     className = 'warn';
   }
 
   if (summary) {
-    summary.textContent = ready ? 'All checks passed — you may arm from the Fly tab.' : (mavOk ? 'Not ready to arm — review the Status tab checklist.' : 'Waiting for MAVLink — open dashboard while SITL is running.');
+    summary.textContent = (d.safety_state_name || 'SAFETY') + ': ' + text;
     summary.className = 'fly-ready-banner ' + (ready ? 'ready' : (mavOk ? 'warn' : 'bad'));
   }
   if (qcSummary) {
@@ -698,6 +906,7 @@ function updateLiveStrip(d) {
     modeEl.textContent = flightUiState.guided
       ? 'GUIDED'
       : (d.flight_mode_name || '—');
+    modeEl.title = (d.safety_state_name || 'SAFETY') + ': ' + (d.safety_reason || '');
   }
 
   const armEl = document.getElementById('live-arm');
@@ -731,7 +940,26 @@ function updateLinkChips(d) {
   );
 
   const mavOk = d.mav_connected === true;
-  setChip(document.getElementById('chip-mav'), mavOk ? 'ok' : 'bad', mavOk ? 'MAV ●' : 'MAV ○');
+  const hbFresh = d.autopilot_heartbeat_fresh === true;
+  const hbAgeS = Number(d.autopilot_heartbeat_age_ms || 0) / 1000;
+  setChip(
+    document.getElementById('chip-mav'),
+    mavOk && hbFresh ? 'ok' : (mavOk ? 'warn' : 'bad'),
+    mavOk && hbFresh ? 'MAV ●' : (mavOk ? ('MAV ◌ ' + hbAgeS.toFixed(1) + 's') : 'MAV ○')
+  );
+
+  const safetyName = d.safety_state_name || 'SAFETY';
+  const safetyOk = d.safety_state_name === 'READY_TO_ARM' ||
+                   d.safety_state_name === 'ARMED_GROUND' ||
+                   d.safety_state_name === 'FLYING' ||
+                   d.safety_state_name === 'LANDING';
+  const safetyWarn = d.safety_state_name === 'PREFLIGHT' ||
+                     d.safety_state_name === 'SETTLING';
+  setChip(
+    document.getElementById('chip-safety'),
+    safetyOk ? 'ok' : (safetyWarn ? 'warn' : 'bad'),
+    safetyName
+  );
 
   const wifiOk = d.wifi_connected === true;
   const rssi = Number(d.wifi_rssi) || 0;
@@ -757,6 +985,7 @@ function logNewStatusTexts(lines) {
 }
 
 function updateTelemetry(d) {
+  lastTelemetry = d;
   const alt = Number(d.altitude) || 0;
   const spd = Number(d.speed) || 0;
   const lat = Number(d.lat) || 0;
@@ -765,6 +994,13 @@ function updateTelemetry(d) {
   const batV = Number(d.battery_v) || 0;
   const sats = Number(d.sats) || 0;
   const yaw = Number(d.yaw);
+  lastCommandGate = {
+    ready: d.cmd_gate_ready === true,
+    reason: d.cmd_gate_reason || '',
+    heartbeatMs: Date.now(),
+    commandPending: d.command_pending === true,
+    commandName: d.command_name || ''
+  };
 
   // Log important telemetry state changes in dashboard log pane
   if (lastLoggedState.connected !== d.mav_connected) {
@@ -793,6 +1029,19 @@ function updateTelemetry(d) {
         log('SYS', 'tag-sys', 'GPS Fix: ' + gpsFixText);
       }
       lastLoggedState.gps = gpsFixText;
+    }
+  }
+
+  const commandName = d.command_name || '';
+  const commandStatus = d.command_status_name || '';
+  const commandKey = commandName + '|' + commandStatus + '|' + String(d.command_result ?? '');
+  if (commandName && commandStatus && commandKey !== lastLoggedState.commandKey) {
+    lastLoggedState.commandKey = commandKey;
+    const ageMs = Number(d.command_age_ms) || 0;
+    const suffix = commandStatus === 'PENDING' ? (' (' + (ageMs / 1000).toFixed(1) + 's)') : '';
+    const isErr = commandStatus === 'REJECTED' || commandStatus === 'TIMEOUT';
+    if (commandStatus !== 'IDLE') {
+      log(isErr ? 'ERR' : 'CMD', isErr ? 'tag-err' : 'tag-sys', commandName + ' ' + commandStatus + suffix);
     }
   }
 
@@ -862,7 +1111,10 @@ function updateTelemetry(d) {
     else sb.className = 'signal-bars s1';
   }
 
-  set('last-hb-text', (d.sitl_connected ? 'MAVLink live' : 'Waiting') + ' · ' + sats + ' sats');
+  const hbText = d.autopilot_heartbeat_fresh
+    ? ('Autopilot HB ' + (Number(d.autopilot_heartbeat_age_ms || 0) / 1000).toFixed(1) + 's')
+    : (d.mav_connected ? ('HB stale ' + (Number(d.autopilot_heartbeat_age_ms || 0) / 1000).toFixed(1) + 's') : 'Waiting');
+  set('last-hb-text', hbText + ' · ' + sats + ' sats');
 
   logNewStatusTexts(d.statustext);
   updateLinkChips(d);
@@ -876,34 +1128,96 @@ function updateTelemetry(d) {
   if (typeof SkylinkMap !== 'undefined') SkylinkMap.updateFromTelemetry(d);
 }
 
-function log(tag, tagClass, msg) {
+function persistLogs() {
+  try {
+    const maxPersist = CFG.commsLogPersistEntries || 300;
+    localStorage.setItem(LOG_STORAGE_KEY, JSON.stringify(logHistory.slice(0, maxPersist)));
+  } catch (_) {}
+}
+
+function renderLogEntry(entry, prepend = true) {
   const box = document.getElementById('log');
-  if (!box) return;
-  const ts = new Date().toLocaleTimeString('en-GB', { hour12: false });
+  if (!box || !entry) return;
   const el = document.createElement('div');
   el.className = 'log-entry';
   el.innerHTML =
-    '<span class="log-ts">' + ts + '</span>' +
-    '<span class="log-tag ' + tagClass + '">' + tag + '</span>' +
-    '<span class="log-msg">' + escapeHtml(msg) + '</span>';
-  box.prepend(el);
-  const maxLog = CFG.commsLogMaxEntries || 40;
+    '<span class="log-ts">' + escapeHtml(entry.ts || '') + '</span>' +
+    '<span class="log-tag ' + escapeHtml(entry.tagClass || '') + '">' + escapeHtml(entry.tag || '') + '</span>' +
+    '<span class="log-msg">' + escapeHtml(entry.msg || '') + '</span>';
+  if (prepend) box.prepend(el);
+  else box.appendChild(el);
+  const maxLog = CFG.commsLogMaxEntries || 120;
   while (box.children.length > maxLog) box.removeChild(box.lastChild);
 }
 
+function restoreLogs() {
+  if (logsRestored) return;
+  logsRestored = true;
+  try {
+    const raw = localStorage.getItem(LOG_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    if (Array.isArray(parsed)) logHistory = parsed.slice(0, CFG.commsLogPersistEntries || 300);
+  } catch (_) {
+    logHistory = [];
+  }
+  [...logHistory].reverse().forEach((entry) => renderLogEntry(entry, false));
+  if (logHistory.length) {
+    log('SYS', 'tag-sys', 'Restored ' + logHistory.length + ' local log entries');
+  }
+}
+
+function log(tag, tagClass, msg) {
+  const entry = {
+    ts: new Date().toLocaleTimeString('en-GB', { hour12: false }),
+    tag,
+    tagClass,
+    msg: String(msg ?? '')
+  };
+  logHistory.unshift(entry);
+  logHistory = logHistory.slice(0, CFG.commsLogPersistEntries || 300);
+  renderLogEntry(entry, true);
+  persistLogs();
+}
+
 function sendCmd(command, extra) {
-  if (!ws || ws.readyState !== WebSocket.OPEN) return;
+  if (!ws || ws.readyState !== WebSocket.OPEN) {
+    log('ERR', 'tag-err', command + ' not sent: WebSocket disconnected');
+    return false;
+  }
+  if (isClientFlightCommand(command) && !isCommandGateFresh()) {
+    log('ERR', 'tag-err', command + ' not sent: ' + commandGateBlockReason());
+    return false;
+  }
+  if (isClientFlightCommand(command) && lastCommandGate.commandPending) {
+    log('ERR', 'tag-err', command + ' not sent: waiting for ' + (lastCommandGate.commandName || 'pending command'));
+    return false;
+  }
+  if (isClientFlightCommand(command)) {
+    const minIntervalMs = CFG.clientFlightCommandMinIntervalMs || 650;
+    const now = Date.now();
+    if (now - lastFlightCommandTxMs < minIntervalMs) {
+      log('ERR', 'tag-err', command + ' not sent: client command spacing');
+      return false;
+    }
+    lastFlightCommandTxMs = now;
+  }
   const msg = { v: CFG.protocolVersion || 1, type: 'command', command, ...(extra || {}) };
   ws.send(JSON.stringify(msg));
+  const pendingName = ackTrackedCommandName(command);
+  if (pendingName) {
+    lastCommandGate.commandPending = true;
+    lastCommandGate.commandName = pendingName;
+  }
   log('TX', 'tag-sys', command + (extra ? ' → ' + JSON.stringify(extra) : ''));
+  return true;
 }
 
-function applyFlightMode(selectId = 'mode-select') {
-  const val = document.getElementById(selectId)?.value;
-  if (val) sendCmd('SET_FLIGHT_MODE', { mode: val });
-}
+async function armSequence(selectId = 'mode-select') {
+  if (_commandInProgress || _armInProgress || _takeoffInProgress) {
+    log('ERR', 'tag-err', 'Command already in progress.');
+    return;
+  }
 
-function armSequence(selectId = 'mode-select') {
   const modeSelect = document.getElementById(selectId);
   if (modeSelect && modeSelect.value !== 'GUIDED') {
     log('SYS', 'tag-err', 'GUIDED mode required before arming');
@@ -913,55 +1227,48 @@ function armSequence(selectId = 'mode-select') {
     const otherSelect = document.getElementById(otherId);
     if (otherSelect) otherSelect.value = 'GUIDED';
   }
-  sendCmd('SET_FLIGHT_MODE', { mode: 'GUIDED' });
-  setTimeout(() => sendCmd('ARM_DRONE'), CFG.armModeDelayMs || 400);
+
+  try {
+    _armInProgress = true;
+    const stateTimeoutMs = CFG.stateConfirmTimeoutMs || 10000;
+    log('SYS', 'tag-sys', '[ARM 1/4] Sending GUIDED mode…');
+    await sendCommandAndWaitAck('SET_FLIGHT_MODE', { mode: 'GUIDED' }, MAV_CMD.DO_SET_MODE, 'GUIDED');
+    log('SYS', 'tag-sys', '[ARM 2/4] GUIDED ACK accepted — waiting for GUIDED state…');
+    await waitForState(() => flightUiState.guided, 'GUIDED state confirmation', stateTimeoutMs);
+
+    await sleep(CFG.armModeDelayMs || 800);
+    log('SYS', 'tag-sys', '[ARM 3/4] GUIDED confirmed — sending ARM…');
+    await sendCommandAndWaitAck('ARM_DRONE', null, MAV_CMD.COMPONENT_ARM_DISARM, 'ARM');
+    log('SYS', 'tag-sys', '[ARM 4/4] ARM ACK accepted — waiting for ARMED state…');
+    await waitForState(() => flightUiState.armed, 'ARMED state confirmation', stateTimeoutMs);
+  } catch (err) {
+    log('ERR', 'tag-err', '[ARM ABORTED] ' + (err && err.message ? err.message : String(err)));
+  } finally {
+    _armInProgress = false;
+  }
 }
 
-function _doArmAndTakeoff(meters) {
-  // FIX: Invalidate stale armed state before arming.
-  // Without this, if the drone was armed in a prior attempt, flightUiState.armed
-  // is already true and the poll below fires on the first tick — sending TAKEOFF
-  // before the new ARM command is even acknowledged by the FC.
-  flightUiState.armed = false;
-  flightUiState.stableCount = 0;
-
-  sendCmd('ARM_DRONE');
-
-  const armTimeoutMs = CFG.takeoffArmTimeoutMs || 10000;
-  const armDeadline = Date.now() + armTimeoutMs;
-
-  const waitForArm = setInterval(() => {
-    if (flightUiState.armed && flightUiState.guided) {
-      // Both confirmed via fresh heartbeats — safe to send TAKEOFF
-      clearInterval(waitForArm);
-      _takeoffInProgress = false;
-      sendCmd('TAKEOFF', { altitude: meters });
-      log('SYS', 'tag-sys',
-        '[TAKEOFF 3/3] Armed in GUIDED confirmed — TAKEOFF sent to ' + meters + ' m');
-    } else if (flightUiState.armed && !flightUiState.guided) {
-      // Armed but FC fell back out of GUIDED — silent failure mode
-      clearInterval(waitForArm);
-      _takeoffInProgress = false;
-      log('ERR', 'tag-err',
-        '[TAKEOFF ABORTED] Armed but NOT in GUIDED (FC: ' +
-        (flightUiState.pendingKey || '?') + '). ' +
-        'Check GPS fix, ARMING_CHECK, and prearm messages in Status tab.');
-    } else if (Date.now() > armDeadline) {
-      clearInterval(waitForArm);
-      _takeoffInProgress = false;
-      log('ERR', 'tag-err',
-        '[TAKEOFF ABORTED] ARM timed out (' + (armTimeoutMs / 1000) + ' s). ' +
-        'Check prearm failures in Status tab → Autopilot messages.');
-    }
-  }, 200);
-}
-
-function autonomousTakeoff() {
+async function autonomousTakeoff() {
   // FIX: Mutex — prevent multiple concurrent takeoff state machines.
   // Each call creates new setInterval instances; without this guard, rapid
   // button clicks stack up and race each other to ARM + TAKEOFF.
-  if (_takeoffInProgress) {
-    log('ERR', 'tag-err', 'Takeoff already in progress — wait or disarm first.');
+  if (_commandInProgress || _armInProgress || _takeoffInProgress) {
+    log('ERR', 'tag-err', 'Command already in progress — wait or disarm first.');
+    return;
+  }
+
+  if (!isCommandGateFresh()) {
+    log('ERR', 'tag-err', 'Takeoff not started: ' +
+      commandGateBlockReason());
+    return;
+  }
+
+  const hb = lastTelemetry || {};
+  const currentlyArmed = hb.armed === true && flightUiState.armed === true;
+  const currentlyGuided = flightUiState.guided === true;
+  const relAlt = Number(hb.relative_alt) || 0;
+  if (currentlyArmed && relAlt >= (CFG.takeoffGroundMaxAglM || 0.75)) {
+    log('ERR', 'tag-err', 'Takeoff not started: vehicle already appears airborne.');
     return;
   }
 
@@ -977,33 +1284,38 @@ function autonomousTakeoff() {
 
   _takeoffInProgress = true;
 
-  // FIX: Invalidate stale guided state before switching mode.
-  // If GUIDED was already active from a prior attempt, flightUiState.guided
-  // would be true and waitForGuided would fire on the first tick — skipping
-  // the mode-switch confirmation and proceeding with stale state.
-  flightUiState.guided = false;
-  flightUiState.stableCount = 0;
+  try {
+    const stateTimeoutMs = CFG.stateConfirmTimeoutMs || 10000;
 
-  log('SYS', 'tag-sys', '[TAKEOFF 1/3] Switching to GUIDED mode…');
-  sendCmd('SET_FLIGHT_MODE', { mode: 'GUIDED' });
-
-  const modeTimeoutMs = 10000;
-  const modeDeadline = Date.now() + modeTimeoutMs;
-
-  const waitForGuided = setInterval(() => {
-    if (flightUiState.guided) {
-      clearInterval(waitForGuided);
-      log('SYS', 'tag-sys', '[TAKEOFF 2/3] GUIDED confirmed — sending ARM…');
-      _doArmAndTakeoff(meters);
-    } else if (Date.now() > modeDeadline) {
-      clearInterval(waitForGuided);
-      _takeoffInProgress = false;
-      log('ERR', 'tag-err',
-        '[TAKEOFF ABORTED] GUIDED mode not confirmed after ' +
-        (modeTimeoutMs / 1000) + ' s. ' +
-        'Check: GPS 3D fix required for GUIDED, verify ARMING_CHECK in Mission Planner.');
+    if (!currentlyGuided) {
+      log('SYS', 'tag-sys', '[TAKEOFF 1/6] Sending GUIDED mode…');
+      await sendCommandAndWaitAck('SET_FLIGHT_MODE', { mode: 'GUIDED' }, MAV_CMD.DO_SET_MODE, 'GUIDED');
+      log('SYS', 'tag-sys', '[TAKEOFF 2/6] GUIDED ACK accepted — waiting for GUIDED state…');
+      await waitForState(() => flightUiState.guided, 'GUIDED state confirmation', stateTimeoutMs);
+    } else {
+      log('SYS', 'tag-sys', '[TAKEOFF 1/6] Already in GUIDED — mode command skipped');
     }
-  }, 200);
+
+    if (!currentlyArmed) {
+      await sleep(CFG.takeoffArmDelayMs || 800);
+      log('SYS', 'tag-sys', '[TAKEOFF 3/6] GUIDED confirmed — sending ARM…');
+      await sendCommandAndWaitAck('ARM_DRONE', null, MAV_CMD.COMPONENT_ARM_DISARM, 'ARM');
+      log('SYS', 'tag-sys', '[TAKEOFF 4/6] ARM ACK accepted — waiting for ARMED state…');
+      await waitForState(() => flightUiState.armed && flightUiState.guided, 'ARMED GUIDED state confirmation', stateTimeoutMs);
+    } else {
+      log('SYS', 'tag-sys', '[TAKEOFF 3/6] Already armed in GUIDED — ARM command skipped');
+      await waitForState(() => flightUiState.armed && flightUiState.guided, 'ARMED GUIDED state confirmation', stateTimeoutMs);
+    }
+
+    await sleep(CFG.takeoffCommandDelayMs || 800);
+    log('SYS', 'tag-sys', '[TAKEOFF 5/6] Armed in GUIDED confirmed — sending TAKEOFF…');
+    await sendCommandAndWaitAck('TAKEOFF', { altitude: meters }, MAV_CMD.NAV_TAKEOFF, 'TAKEOFF');
+    log('SYS', 'tag-sys', '[TAKEOFF 6/6] TAKEOFF ACK accepted for ' + meters + ' m');
+  } catch (err) {
+    log('ERR', 'tag-err', '[TAKEOFF ABORTED] ' + (err && err.message ? err.message : String(err)));
+  } finally {
+    _takeoffInProgress = false;
+  }
 }
 
 function startCountdown(seconds) {
@@ -1046,6 +1358,7 @@ function connect() {
           const ok = d.ok === true || d.result === 0;
           const label = d.result_name || ('code ' + d.result);
           log(ok ? 'ACK' : 'ERR', ok ? 'tag-sys' : 'tag-err', 'Command ' + (d.command ?? '?') + ': ' + label);
+          resolveCommandAck(Number(d.command), ok, label);
           break;
         }
         case 'STATUSTEXT': {
@@ -1087,6 +1400,7 @@ function connect() {
   };
 }
 
+restoreLogs();
 connect();
 initMapGoto();
 

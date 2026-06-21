@@ -765,7 +765,9 @@ body {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--bg);
-  min-height: 420px;
+  min-height: 620px;
+  max-height: calc(100vh - 220px);
+  overflow-y: auto;
 }
 
 .log-entry {

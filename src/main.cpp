@@ -66,8 +66,13 @@ void setup() {
 
 void loop() {
     wifiManager.handle();
-    otaUpdater.handle();
     flightController.handle();
+
+    const FCTelemetry fc = flightController.getTelemetry();
+    if (!fc.armed) {
+        otaUpdater.handle();
+    }
+
     updateLinkLed();
     ledController.update();
     
@@ -75,8 +80,9 @@ void loop() {
     
     unsigned long now = millis();
     
-    // Handle time sync periodically
-    if (now - lastTimeSync >= 60000) { // Check every minute
+    // Handle time sync periodically without blocking MAVLink handling
+    const unsigned long timeSyncInterval = timeSync.isTimeSynced() ? 60000 : 1000;
+    if (now - lastTimeSync >= timeSyncInterval) {
         lastTimeSync = now;
         timeSync.handle();
     }

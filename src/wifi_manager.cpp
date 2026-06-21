@@ -4,8 +4,19 @@
 #include <Arduino.h>
 #include <algorithm>
 
+namespace {
+
+constexpr unsigned long WIFI_CONNECT_TIMEOUT_MS = 10000;
+
+}  // namespace
+
 WiFiManager::WiFiManager(unsigned long reconnectInterval)
-    : lastReconnectAttempt(0), reconnectInterval(reconnectInterval), currentSSID("Not Connected") {
+    : lastReconnectAttempt(0),
+      reconnectInterval(reconnectInterval),
+      connectStartedAt(0),
+      currentNetworkIndex(0),
+      currentSSID("Not Connected"),
+      connectState(WiFiConnectState::Idle) {
 }
 
 bool WiFiManager::loadNetworksFromJson() {
@@ -54,81 +65,50 @@ bool WiFiManager::loadNetworksFromJson() {
     return true;
 }
 
-bool WiFiManager::connectToWiFi() {
-    logger.info("Scanning for available networks...");
-    int numFound = WiFi.scanNetworks();
-    
-    if (numFound == 0) {
-        logger.warning("No networks found during scan.");
-        return false;
+void WiFiManager::startConnectionAttempt() {
+    if (savedNetworks.empty()) {
+        logger.warning("No saved WiFi networks configured.");
+        return;
     }
 
-    logger.info("Found " + String(numFound) + " networks. Matching against saved list...");
-
-    for (const auto& savedNet : savedNetworks) {
-        bool foundInScan = false;
-        for (int i = 0; i < numFound; ++i) {
-            if (WiFi.SSID(i) == savedNet.ssid) {
-                foundInScan = true;
-                break;
-            }
-        }
-
-        if (foundInScan) {
-            logger.info("Attempting connection to matching network: " + savedNet.ssid);
-            WiFi.begin(savedNet.ssid.c_str(), savedNet.password.c_str());
-
-            int attempts = 0;
-            const int maxAttempts = 30; // 15 seconds
-            while (WiFi.status() != WL_CONNECTED && attempts < maxAttempts) {
-                delay(500);
-                attempts++;
-            }
-
-            if (WiFi.status() == WL_CONNECTED) {
-                currentSSID = savedNet.ssid;
-                logger.info("WiFi connected! IP: " + WiFi.localIP().toString());
-                WiFi.scanDelete();
-                return true;
-            } else {
-                logger.warning("Failed to connect to " + savedNet.ssid);
-            }
-        }
+    if (currentNetworkIndex >= savedNetworks.size()) {
+        currentNetworkIndex = 0;
     }
 
-    logger.error("No matching saved networks were connectable.");
-    WiFi.scanDelete();
-    return false;
+    const WiFiNetwork& savedNet = savedNetworks[currentNetworkIndex];
+    logger.info("WiFi trying: " + savedNet.ssid);
+    currentSSID = "Connecting";
+    connectStartedAt = millis();
+    connectState = WiFiConnectState::Connecting;
+    WiFi.disconnect(false);
+    WiFi.begin(savedNet.ssid.c_str(), savedNet.password.c_str());
 }
 
-// Reconnect without scanning — tries each saved network directly.
-// Used by handle() to avoid the 4-6 second blocking WiFi.scanNetworks() call
-// that would stall the async web server and delay WebSocket handshakes.
-bool WiFiManager::reconnectDirect() {
-    logger.warning("WiFi disconnected. Trying saved networks directly (no scan)...");
-    for (const auto& savedNet : savedNetworks) {
-        logger.info("Trying: " + savedNet.ssid);
-        WiFi.disconnect(true);
-        delay(100);
-        WiFi.begin(savedNet.ssid.c_str(), savedNet.password.c_str());
+void WiFiManager::advanceConnectionAttempt() {
+    if (connectState != WiFiConnectState::Connecting) return;
 
-        int attempts = 0;
-        const int maxAttempts = 20; // 10 seconds per network
-        while (WiFi.status() != WL_CONNECTED && attempts < maxAttempts) {
-            delay(500);
-            attempts++;
-        }
-
-        if (WiFi.status() == WL_CONNECTED) {
-            currentSSID = savedNet.ssid;
-            logger.info("Reconnected to: " + currentSSID + " | IP: " + WiFi.localIP().toString());
-            return true;
-        } else {
-            logger.warning("Failed to reconnect to " + savedNet.ssid);
-        }
+    if (WiFi.status() == WL_CONNECTED) {
+        currentSSID = savedNetworks[currentNetworkIndex].ssid;
+        connectState = WiFiConnectState::Idle;
+        lastReconnectAttempt = millis();
+        logger.info("WiFi connected! SSID: " + currentSSID + " | IP: " + WiFi.localIP().toString());
+        return;
     }
-    logger.error("All reconnect attempts failed.");
-    return false;
+
+    if (millis() - connectStartedAt < WIFI_CONNECT_TIMEOUT_MS) return;
+
+    logger.warning("WiFi connect timeout: " + savedNetworks[currentNetworkIndex].ssid);
+    currentNetworkIndex++;
+    if (currentNetworkIndex >= savedNetworks.size()) {
+        currentNetworkIndex = 0;
+        lastReconnectAttempt = millis();
+        connectState = WiFiConnectState::Idle;
+        currentSSID = "Not Connected";
+        logger.error("All saved WiFi connection attempts failed.");
+        return;
+    }
+
+    startConnectionAttempt();
 }
 
 bool WiFiManager::isWiFiConnected() {
@@ -137,20 +117,35 @@ bool WiFiManager::isWiFiConnected() {
 
 void WiFiManager::begin() {
     WiFi.mode(WIFI_STA);
+    WiFi.setSleep(false);
+    WiFi.setHostname("esp32-skylink");
     if (loadNetworksFromJson()) {
-        connectToWiFi();
+        startConnectionAttempt();
     } else {
         logger.error("Could not load networks from JSON. WiFi will not connect.");
     }
 }
 
 void WiFiManager::handle() {
-    if (!isWiFiConnected()) {
-        unsigned long now = millis();
-        if (now - lastReconnectAttempt >= reconnectInterval || lastReconnectAttempt == 0) {
-            lastReconnectAttempt = now;
-            reconnectDirect(); // No scan — won't block the async server
+    if (isWiFiConnected()) {
+        const String connectedSSID = WiFi.SSID();
+        if (connectState != WiFiConnectState::Idle || currentSSID != connectedSSID) {
+            currentSSID = connectedSSID;
+            connectState = WiFiConnectState::Idle;
+            lastReconnectAttempt = millis();
+            logger.info("WiFi connected! SSID: " + currentSSID + " | IP: " + WiFi.localIP().toString());
         }
+        return;
+    }
+
+    advanceConnectionAttempt();
+    if (connectState == WiFiConnectState::Connecting) return;
+
+    unsigned long now = millis();
+    if (now - lastReconnectAttempt >= reconnectInterval || lastReconnectAttempt == 0) {
+        lastReconnectAttempt = now;
+        logger.warning("WiFi disconnected. Starting non-blocking reconnect.");
+        startConnectionAttempt();
     }
 }
 

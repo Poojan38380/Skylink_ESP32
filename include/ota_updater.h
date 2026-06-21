@@ -8,6 +8,7 @@ class OTAUpdater {
 private:
     String hostname;
     bool isUpdating;
+    bool started;
     
     void setupHandlers();
 

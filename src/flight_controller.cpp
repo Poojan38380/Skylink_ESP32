@@ -46,6 +46,7 @@ void FlightController::begin() {
     mavlinkActive = false;
     messageIntervalsSent = false;
     lastMavlinkRx = 0;
+    lastAutopilotHeartbeatRx = 0;
     lastStreamRequest = 0;
     lastGcsHeartbeat = 0;
     statusLineCount = 0;
@@ -71,6 +72,17 @@ void FlightController::sendMavlinkPacket(mavlink_message_t* msg) {
 #else
     fcSerial.write(buf, len);
 #endif
+}
+
+void FlightController::sendRCOverrideUnlocked(uint16_t roll, uint16_t pitch, uint16_t throttle, uint16_t yaw) {
+    mavlink_message_t msg;
+    mavlink_msg_rc_channels_override_pack(
+        GCS_SYSID, GCS_COMPID, &msg,
+        1, 1,
+        roll, pitch, throttle, yaw,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    );
+    sendMavlinkPacket(&msg);
 }
 
 void FlightController::requestDataStreams() {
@@ -120,6 +132,7 @@ void FlightController::setFlightMode(uint8_t customMode) {
     if (!takeMutex()) return;
     logger.info("Setting flight mode: " + String(customMode));
     setCopterMode(customMode);
+    startPendingCommandUnlocked("SET_MODE", MAV_CMD_DO_SET_MODE);
     giveMutex();
 }
 
@@ -148,6 +161,7 @@ void FlightController::arm(bool state) {
 
     logger.info(state ? "Sending command: ARM Drone" : "Sending command: DISARM Drone");
     sendArmDisarm(state, false);
+    startPendingCommandUnlocked(state ? "ARM" : "DISARM", MAV_CMD_COMPONENT_ARM_DISARM);
     giveMutex();
 }
 
@@ -155,7 +169,37 @@ void FlightController::takeoff(float altitudeMeters) {
     if (!takeMutex()) return;
 
     if (!mavlinkActive) {
-        logger.warning("Cannot takeoff — no MAVLink link to autopilot");
+        rejectCommandUnlocked("TAKEOFF rejected: no MAVLink link to autopilot");
+        giveMutex();
+        return;
+    }
+
+    if (!telemetry.armed) {
+        rejectCommandUnlocked("TAKEOFF rejected: vehicle is not armed");
+        giveMutex();
+        return;
+    }
+
+    if (telemetry.flight_mode != COPTER_MODE_GUIDED) {
+        rejectCommandUnlocked("TAKEOFF rejected: vehicle is not in GUIDED mode");
+        giveMutex();
+        return;
+    }
+
+    if (telemetry.gps_fix < 3) {
+        rejectCommandUnlocked("TAKEOFF rejected: GPS 3D fix required");
+        giveMutex();
+        return;
+    }
+
+    if (telemetry.relative_alt > SKYLINK_MOVE_MIN_AGL_M) {
+        rejectCommandUnlocked("TAKEOFF rejected: vehicle already appears airborne");
+        giveMutex();
+        return;
+    }
+
+    if (altitudeMeters < SKYLINK_MOVE_MIN_AGL_M || altitudeMeters > SKYLINK_GOTO_ALT_MAX_M) {
+        rejectCommandUnlocked("TAKEOFF rejected: altitude outside configured safety limits");
         giveMutex();
         return;
     }
@@ -173,6 +217,7 @@ void FlightController::takeoff(float altitudeMeters) {
         altitudeMeters
     );
     sendMavlinkPacket(&msg);
+    startPendingCommandUnlocked("TAKEOFF", MAV_CMD_NAV_TAKEOFF);
     giveMutex();
 }
 
@@ -180,6 +225,7 @@ void FlightController::land() {
     if (!takeMutex()) return;
     logger.info("Setting flight mode: LAND");
     setCopterMode(COPTER_MODE_LAND);
+    startPendingCommandUnlocked("LAND", MAV_CMD_DO_SET_MODE);
     giveMutex();
 }
 
@@ -187,6 +233,7 @@ void FlightController::returnToLaunch() {
     if (!takeMutex()) return;
     logger.info("Setting flight mode: RTL");
     setCopterMode(COPTER_MODE_RTL);
+    startPendingCommandUnlocked("RTL", MAV_CMD_DO_SET_MODE);
     giveMutex();
 }
 
@@ -195,8 +242,7 @@ bool FlightController::canExecuteGuidedMoveUnlocked() const {
     if (!telemetry.armed) return false;
     if (telemetry.flight_mode != COPTER_MODE_GUIDED) return false;
     if (telemetry.gps_fix < 3) return false;
-    const float agl = telemetry.relative_alt > 0.0f ? telemetry.relative_alt : telemetry.altitude;
-    if (agl < SKYLINK_MOVE_MIN_AGL_M) return false;
+    if (telemetry.relative_alt < SKYLINK_MOVE_MIN_AGL_M) return false;
     return true;
 }
 
@@ -224,13 +270,13 @@ void FlightController::moveBody(float xMeters, float yMeters, float zMeters) {
     const float x = clampMove(xMeters);
     const float y = clampMove(yMeters);
     const float z = clampMove(zMeters);
-if (x == 0.0f && y == 0.0f && z == 0.0f) {
+    if (x == 0.0f && y == 0.0f && z == 0.0f) {
         giveMutex();
         return;
     }
 
     // Safety: prevent Z-axis descent below min AGL
-    float agl = telemetry.relative_alt > 0.0f ? telemetry.relative_alt : telemetry.altitude;
+    float agl = telemetry.relative_alt;
     if (agl < SKYLINK_MOVE_MIN_AGL_M) {
         giveMutex();
         return;
@@ -308,6 +354,7 @@ void FlightController::yawRelative(float degrees) {
     );
     sendMavlinkPacket(&msg);
     lastGuidedCmdMs = now;
+    startPendingCommandUnlocked("YAW_RELATIVE", MAV_CMD_CONDITION_YAW);
     giveMutex();
 }
 
@@ -366,6 +413,7 @@ void FlightController::gotoLatLon(double lat, double lon, float altRelMeters) {
 
     if (telemetry.flight_mode != COPTER_MODE_GUIDED) {
         setCopterMode(COPTER_MODE_GUIDED);
+        startPendingCommandUnlocked("SET_MODE", MAV_CMD_DO_SET_MODE);
     }
 
     const uint16_t typeMask =
@@ -454,34 +502,57 @@ void FlightController::gotoAlt(float altRelMeters) {
 void FlightController::loiterHere() {
     if (!takeMutex()) return;
 
-    if (!mavlinkActive || !telemetry.armed) {
-        logger.warning("LOITER rejected (need armed + MAVLink)");
+    const uint32_t now = millis();
+    if (now - lastGuidedCmdMs < SKYLINK_CMD_DEBOUNCE_MS) {
         giveMutex();
         return;
     }
 
-    if (telemetry.gps_fix < 3) {
-        logger.warning("LOITER rejected (need GPS 3D)");
+    if (!canExecuteGuidedMoveUnlocked()) {
+        logger.warning("LOITER_HERE rejected (need armed GUIDED, GPS 3D, min AGL)");
         giveMutex();
         return;
     }
 
-    logger.info("Setting flight mode: LOITER");
-    setCopterMode(COPTER_MODE_LOITER);
+    if (fabs(telemetry.latitude) < 1e-6 && fabs(telemetry.longitude) < 1e-6) {
+        logger.warning("LOITER_HERE rejected (no position)");
+        giveMutex();
+        return;
+    }
+
+    const uint16_t typeMask =
+        POSITION_TARGET_TYPEMASK_VX_IGNORE |
+        POSITION_TARGET_TYPEMASK_VY_IGNORE |
+        POSITION_TARGET_TYPEMASK_VZ_IGNORE |
+        POSITION_TARGET_TYPEMASK_AX_IGNORE |
+        POSITION_TARGET_TYPEMASK_AY_IGNORE |
+        POSITION_TARGET_TYPEMASK_AZ_IGNORE |
+        POSITION_TARGET_TYPEMASK_YAW_IGNORE |
+        POSITION_TARGET_TYPEMASK_YAW_RATE_IGNORE;
+
+    mavlink_message_t msg;
+    mavlink_msg_set_position_target_global_int_pack(
+        GCS_SYSID, GCS_COMPID, &msg,
+        millis(),
+        1, 1,
+        MAV_FRAME_GLOBAL_RELATIVE_ALT_INT,
+        typeMask,
+        (int32_t)(telemetry.latitude * 1e7),
+        (int32_t)(telemetry.longitude * 1e7),
+        telemetry.relative_alt,
+        0, 0, 0,
+        0, 0, 0,
+        0, 0
+    );
+    sendMavlinkPacket(&msg);
+    lastGuidedCmdMs = now;
+    logger.info("LOITER_HERE hold position @ " + String(telemetry.relative_alt) + "m");
     giveMutex();
 }
 
 void FlightController::sendRCOverride(uint16_t roll, uint16_t pitch, uint16_t throttle, uint16_t yaw) {
     if (!takeMutex()) return;
-
-    mavlink_message_t msg;
-    mavlink_msg_rc_channels_override_pack(
-        GCS_SYSID, GCS_COMPID, &msg,
-        1, 1,
-        roll, pitch, throttle, yaw,
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-    );
-    sendMavlinkPacket(&msg);
+    sendRCOverrideUnlocked(roll, pitch, throttle, yaw);
     giveMutex();
 }
 
@@ -521,8 +592,9 @@ bool isAutopilotHeartbeat(const mavlink_message_t* msg, const mavlink_heartbeat_
 void FlightController::emergencyStop() {
     if (!takeMutex()) return;
     logger.warning("SAFETY TRIGGERED: EMERGENCY DISARM!");
-    sendRCOverride(1500, 1500, 1000, 1500);
+    sendRCOverrideUnlocked(1500, 1500, 1000, 1500);
     sendArmDisarm(false, true);
+    startPendingCommandUnlocked("EMERGENCY_DISARM", MAV_CMD_COMPONENT_ARM_DISARM);
     giveMutex();
 }
 
@@ -530,18 +602,45 @@ FCTelemetry FlightController::getTelemetry() {
     FCTelemetry copy;
     if (takeMutex(10)) {
         copy = telemetry;
+        const uint32_t now = millis();
+        copy.autopilot_heartbeat_fresh =
+            mavlinkActive &&
+            lastAutopilotHeartbeatRx != 0 &&
+            (now - lastAutopilotHeartbeatRx <= SKYLINK_MAVLINK_TIMEOUT_MS);
+        copy.autopilot_heartbeat_age_ms =
+            lastAutopilotHeartbeatRx == 0 ? 0 : (now - lastAutopilotHeartbeatRx);
+        copy.command_pending = pendingCommand.active && pendingCommand.status == FCCommandStatus::Pending;
+        copy.command_status = (uint8_t)pendingCommand.status;
+        copy.command_result = pendingCommand.result;
+        copy.command_mav_id = pendingCommand.mav_command;
+        copy.command_age_ms = pendingCommand.started_ms == 0 ? 0 : (now - pendingCommand.started_ms);
+        strncpy(copy.command_name, pendingCommand.name, sizeof(copy.command_name) - 1);
+        copy.command_name[sizeof(copy.command_name) - 1] = '\0';
         giveMutex();
     }
     return copy;
 }
 
-bool FlightController::isConnected() {
+bool FlightController::isConnected(TickType_t timeout) {
     bool connected = false;
-    if (takeMutex(10)) {
+    if (takeMutex(timeout)) {
         connected = mavlinkActive;
         giveMutex();
     }
     return connected;
+}
+
+bool FlightController::isAutopilotHeartbeatFresh(TickType_t timeout) {
+    bool fresh = false;
+    if (takeMutex(timeout)) {
+        const uint32_t now = millis();
+        fresh =
+            mavlinkActive &&
+            lastAutopilotHeartbeatRx != 0 &&
+            (now - lastAutopilotHeartbeatRx <= SKYLINK_MAVLINK_TIMEOUT_MS);
+        giveMutex();
+    }
+    return fresh;
 }
 
 bool FlightController::isSitlTcpConnected() {
@@ -582,6 +681,8 @@ void FlightController::setSITLHost(const String& host) {
         }
         mavlinkActive = false;
         messageIntervalsSent = false;
+        lastAutopilotHeartbeatRx = 0;
+        failPendingCommandUnlocked("SITL host changed");
         lastReconnectAttempt = 0;
     }
     giveMutex();
@@ -590,15 +691,28 @@ void FlightController::setSITLHost(const String& host) {
 void FlightController::maintainSitlConnection(uint32_t now) {
     if (!sitlHostConfigured) return;
 
+    if (WiFi.status() != WL_CONNECTED) {
+        if (sitlClient.connected()) {
+            sitlClient.stop();
+        }
+        mavlinkActive = false;
+        messageIntervalsSent = false;
+        lastAutopilotHeartbeatRx = 0;
+        failPendingCommandUnlocked("WiFi disconnected");
+        return;
+    }
+
     if (!sitlClient.connected()) {
         mavlinkActive = false;
         messageIntervalsSent = false;
+        lastAutopilotHeartbeatRx = 0;
+        failPendingCommandUnlocked("SITL disconnected");
         if (now - lastReconnectAttempt < SKYLINK_SITL_RECONNECT_INTERVAL_MS) return;
 
         lastReconnectAttempt = now;
         logger.info("Attempting connection to SITL at " + sitlHost + ":" + String(sitlPort));
 
-        if (sitlClient.connect(sitlHost.c_str(), sitlPort)) {
+        if (sitlClient.connect(sitlHost.c_str(), sitlPort, SKYLINK_SITL_RECONNECT_TIMEOUT_MS)) {
             logger.info("Connected to ArduPilot SITL (TCP " + String(sitlPort) + ")");
             requestDataStreams();
             lastStreamRequest = now;
@@ -615,6 +729,8 @@ void FlightController::maintainSitlConnection(uint32_t now) {
         sitlClient.stop();
         mavlinkActive = false;
         messageIntervalsSent = false;
+        lastAutopilotHeartbeatRx = 0;
+        failPendingCommandUnlocked("MAVLink timeout");
     }
 }
 #endif
@@ -664,6 +780,61 @@ void FlightController::pushEvent(const FCEvent& event) {
     eventQueueTail = nextTail;
 }
 
+void FlightController::rejectCommandUnlocked(const char* text) {
+    logger.warning(text);
+    pushStatusLine(text, MAV_SEVERITY_WARNING);
+
+    FCEvent ev;
+    ev.type = FCEventType::StatusText;
+    ev.severity = MAV_SEVERITY_WARNING;
+    strncpy(ev.text, text, SKYLINK_STATUSTEXT_MAX_LEN);
+    ev.text[SKYLINK_STATUSTEXT_MAX_LEN] = '\0';
+    pushEvent(ev);
+}
+
+void FlightController::startPendingCommandUnlocked(const char* name, uint16_t mavCommand, uint32_t timeoutMs) {
+    pendingCommand.active = true;
+    pendingCommand.status = FCCommandStatus::Pending;
+    pendingCommand.mav_command = mavCommand;
+    pendingCommand.result = MAV_RESULT_ACCEPTED;
+    pendingCommand.started_ms = millis();
+    pendingCommand.timeout_ms = timeoutMs;
+    strncpy(pendingCommand.name, name ? name : "COMMAND", sizeof(pendingCommand.name) - 1);
+    pendingCommand.name[sizeof(pendingCommand.name) - 1] = '\0';
+    logger.info("Command pending: " + String(pendingCommand.name) + " (MAV_CMD " + String(mavCommand) + ")");
+}
+
+void FlightController::completePendingCommandUnlocked(uint16_t mavCommand, uint8_t result) {
+    if (!pendingCommand.active || pendingCommand.status != FCCommandStatus::Pending) return;
+    if (pendingCommand.mav_command != mavCommand) return;
+
+    pendingCommand.result = result;
+    pendingCommand.status = (result == MAV_RESULT_ACCEPTED) ? FCCommandStatus::Accepted : FCCommandStatus::Rejected;
+    pendingCommand.active = false;
+    logger.info("Command " + String(pendingCommand.name) + ": " +
+                String(result == MAV_RESULT_ACCEPTED ? "ACCEPTED" : "REJECTED") +
+                " (result " + String(result) + ")");
+}
+
+void FlightController::updatePendingCommandTimeoutUnlocked(uint32_t now) {
+    if (!pendingCommand.active || pendingCommand.status != FCCommandStatus::Pending) return;
+    if (pendingCommand.started_ms == 0 || now - pendingCommand.started_ms <= pendingCommand.timeout_ms) return;
+
+    pendingCommand.active = false;
+    pendingCommand.status = FCCommandStatus::Timeout;
+    pendingCommand.result = MAV_RESULT_FAILED;
+    logger.warning("Command " + String(pendingCommand.name) + " timed out waiting for ACK");
+}
+
+void FlightController::failPendingCommandUnlocked(const char* reason) {
+    if (!pendingCommand.active || pendingCommand.status != FCCommandStatus::Pending) return;
+
+    pendingCommand.active = false;
+    pendingCommand.status = FCCommandStatus::Timeout;
+    pendingCommand.result = MAV_RESULT_FAILED;
+    logger.warning("Command " + String(pendingCommand.name) + " failed: " + String(reason ? reason : "link unavailable"));
+}
+
 bool FlightController::popEvent(FCEvent& out) {
     if (!takeMutex(5)) return false;
     if (eventQueueHead == eventQueueTail) {
@@ -706,13 +877,22 @@ void FlightController::handle() {
         mavlinkActive = false;
         messageIntervalsSent = false;
         lastStreamRequest = 0;
+        lastAutopilotHeartbeatRx = 0;
+        failPendingCommandUnlocked("MAVLink timeout");
     }
 
     if (!takeMutex(0)) return;
 
+    updatePendingCommandTimeoutUnlocked(now);
+
     if (mavlinkActive && (now - lastGcsHeartbeat >= SKYLINK_MAVLINK_GCS_HEARTBEAT_MS)) {
         lastGcsHeartbeat = now;
         sendHeartbeat();
+    }
+
+    if (mavlinkActive && (now - lastStreamRequest >= SKYLINK_MAVLINK_STREAM_REQUEST_MS)) {
+        requestDataStreams();
+        lastStreamRequest = now;
     }
 
 #ifdef SITL_MODE
@@ -739,14 +919,6 @@ void FlightController::handleIncomingByte(uint8_t byte) {
 
 void FlightController::processMavlinkMessage(mavlink_message_t* msg) {
     uint32_t now = millis();
-    lastMavlinkRx = now;
-    
-    if (!mavlinkActive) {
-        mavlinkActive = true;
-        logger.info("MAVLink link active — connection established");
-        requestDataStreams();
-        lastStreamRequest = now;
-    }
 
     switch (msg->msgid) {
         case MAVLINK_MSG_ID_HEARTBEAT: {
@@ -754,6 +926,14 @@ void FlightController::processMavlinkMessage(mavlink_message_t* msg) {
             mavlink_msg_heartbeat_decode(msg, &hb);
             if (!isAutopilotHeartbeat(msg, hb)) {
                 break;
+            }
+            lastMavlinkRx = now;
+            lastAutopilotHeartbeatRx = now;
+            if (!mavlinkActive) {
+                mavlinkActive = true;
+                logger.info("MAVLink link active — connection established");
+                requestDataStreams();
+                lastStreamRequest = now;
             }
             bool prevArmed = telemetry.armed;
             uint8_t prevMode = telemetry.flight_mode;
@@ -769,6 +949,8 @@ void FlightController::processMavlinkMessage(mavlink_message_t* msg) {
             break;
         }
         case MAVLINK_MSG_ID_SYS_STATUS: {
+            if (!mavlinkActive || msg->sysid != SKYLINK_MAVLINK_VEHICLE_SYSID || msg->compid != SKYLINK_MAVLINK_VEHICLE_COMPID) break;
+            lastMavlinkRx = now;
             mavlink_sys_status_t sys;
             mavlink_msg_sys_status_decode(msg, &sys);
             telemetry.battery_voltage = sys.voltage_battery / 1000.0f;
@@ -776,6 +958,8 @@ void FlightController::processMavlinkMessage(mavlink_message_t* msg) {
             break;
         }
         case MAVLINK_MSG_ID_ATTITUDE: {
+            if (!mavlinkActive || msg->sysid != SKYLINK_MAVLINK_VEHICLE_SYSID || msg->compid != SKYLINK_MAVLINK_VEHICLE_COMPID) break;
+            lastMavlinkRx = now;
             mavlink_attitude_t att;
             mavlink_msg_attitude_decode(msg, &att);
             telemetry.roll = att.roll * 57.2958f;
@@ -784,6 +968,8 @@ void FlightController::processMavlinkMessage(mavlink_message_t* msg) {
             break;
         }
         case MAVLINK_MSG_ID_VFR_HUD: {
+            if (!mavlinkActive || msg->sysid != SKYLINK_MAVLINK_VEHICLE_SYSID || msg->compid != SKYLINK_MAVLINK_VEHICLE_COMPID) break;
+            lastMavlinkRx = now;
             mavlink_vfr_hud_t hud;
             mavlink_msg_vfr_hud_decode(msg, &hud);
             telemetry.altitude = hud.alt;
@@ -791,6 +977,8 @@ void FlightController::processMavlinkMessage(mavlink_message_t* msg) {
             break;
         }
         case MAVLINK_MSG_ID_GLOBAL_POSITION_INT: {
+            if (!mavlinkActive || msg->sysid != SKYLINK_MAVLINK_VEHICLE_SYSID || msg->compid != SKYLINK_MAVLINK_VEHICLE_COMPID) break;
+            lastMavlinkRx = now;
             mavlink_global_position_int_t pos;
             mavlink_msg_global_position_int_decode(msg, &pos);
             telemetry.latitude = pos.lat / 1e7;
@@ -803,14 +991,12 @@ void FlightController::processMavlinkMessage(mavlink_message_t* msg) {
             break;
         }
         case MAVLINK_MSG_ID_GPS_RAW_INT: {
+            if (!mavlinkActive || msg->sysid != SKYLINK_MAVLINK_VEHICLE_SYSID || msg->compid != SKYLINK_MAVLINK_VEHICLE_COMPID) break;
+            lastMavlinkRx = now;
             mavlink_gps_raw_int_t gps;
             mavlink_msg_gps_raw_int_decode(msg, &gps);
             int prevFix = telemetry.gps_fix;
 
-            if (gps.fix_type >= 2) {
-                telemetry.latitude = gps.lat / 1e7;
-                telemetry.longitude = gps.lon / 1e7;
-            }
             telemetry.gps_sats = gps.satellites_visible;
             telemetry.gps_fix = gps.fix_type;
 
@@ -821,6 +1007,8 @@ void FlightController::processMavlinkMessage(mavlink_message_t* msg) {
             break;
         }
         case MAVLINK_MSG_ID_HOME_POSITION: {
+            if (!mavlinkActive || msg->sysid != SKYLINK_MAVLINK_VEHICLE_SYSID || msg->compid != SKYLINK_MAVLINK_VEHICLE_COMPID) break;
+            lastMavlinkRx = now;
             mavlink_home_position_t home;
             mavlink_msg_home_position_decode(msg, &home);
             telemetry.home_latitude = home.latitude / 1e7;
@@ -829,10 +1017,13 @@ void FlightController::processMavlinkMessage(mavlink_message_t* msg) {
             break;
         }
         case MAVLINK_MSG_ID_COMMAND_ACK: {
+            if (!mavlinkActive || msg->sysid != SKYLINK_MAVLINK_VEHICLE_SYSID || msg->compid != SKYLINK_MAVLINK_VEHICLE_COMPID) break;
+            lastMavlinkRx = now;
             mavlink_command_ack_t ack;
             mavlink_msg_command_ack_decode(msg, &ack);
             
             logger.info("Autopilot ACK: Command=" + String(ack.command) + ", Result=" + String(ack.result));
+            completePendingCommandUnlocked(ack.command, ack.result);
 
             FCEvent ev;
             ev.type = FCEventType::Ack;
@@ -842,6 +1033,8 @@ void FlightController::processMavlinkMessage(mavlink_message_t* msg) {
             break;
         }
         case MAVLINK_MSG_ID_STATUSTEXT: {
+            if (!mavlinkActive || msg->sysid != SKYLINK_MAVLINK_VEHICLE_SYSID || msg->compid != SKYLINK_MAVLINK_VEHICLE_COMPID) break;
+            lastMavlinkRx = now;
             mavlink_statustext_t st;
             mavlink_msg_statustext_decode(msg, &st);
             

@@ -9,7 +9,7 @@
 
 // --- Protocol ---
 #define SKYLINK_PROTOCOL_VERSION        1
-#define SKYLINK_JSON_BUFFER_SIZE        1152
+#define SKYLINK_JSON_BUFFER_SIZE        2048
 
 // --- WebSocket / dashboard telemetry ---
 #define SKYLINK_WS_TELEMETRY_INTERVAL_MS  200   // 5 Hz to browser (avoids AsyncWS queue overflow)
@@ -19,23 +19,37 @@
 #define SKYLINK_STATUSTEXT_MAX_LEN        50
 #define SKYLINK_FC_EVENT_QUEUE_SIZE       6
 #define SKYLINK_WS_LINK_STATUS_INTERVAL_MS  1000
+#define SKYLINK_WS_RECONNECT_SETTLE_MS    1500
+#define SKYLINK_WS_FLIGHT_CMD_MIN_INTERVAL_MS  250
+#define SKYLINK_WS_FLIGHT_CMD_DEDUPE_MS   1500
 
 // --- SITL / MAVLink (flight_controller) ---
 #define SKYLINK_SITL_TCP_PORT           5763
 #define SKYLINK_SITL_CONNECT_TIMEOUT_MS  3000
+#define SKYLINK_SITL_RECONNECT_TIMEOUT_MS  250
 #define SKYLINK_SITL_RECONNECT_INTERVAL_MS  5000
 #define SKYLINK_MAVLINK_GCS_HEARTBEAT_MS    1000
 #define SKYLINK_MAVLINK_STREAM_REQUEST_MS   10000
 #define SKYLINK_MAVLINK_TIMEOUT_MS          5000
+#define SKYLINK_MAVLINK_COMMAND_ACK_TIMEOUT_MS  3000
 #define SKYLINK_MAVLINK_VEHICLE_SYSID       1
 #define SKYLINK_MAVLINK_VEHICLE_COMPID      1
 
 // --- Flight safety caps (enforced in firmware from Phase 4+) ---
+// SITL keeps room for simulation. Hardware defaults are intentionally tiny for first real tests.
+#ifdef SITL_MODE
 #define SKYLINK_MOVE_BODY_MAX_M         200.0f
-#define SKYLINK_GOTO_ALT_MAX_M          30.0f   // capped at 30 m for low-altitude field testing
-#define SKYLINK_MOVE_MIN_AGL_M          0.8f    // allows GUIDED moves from ~1 m AGL (was 2.0)
-#define SKYLINK_GOTO_MAX_RADIUS_M       200.0f  // tighter geofence for close field tests (was 1000)
+#define SKYLINK_GOTO_ALT_MAX_M          30.0f
+#define SKYLINK_MOVE_MIN_AGL_M          0.5f
+#define SKYLINK_GOTO_MAX_RADIUS_M       200.0f
 #define SKYLINK_YAW_MAX_DEG             90
+#else
+#define SKYLINK_MOVE_BODY_MAX_M         2.0f
+#define SKYLINK_GOTO_ALT_MAX_M          5.0f
+#define SKYLINK_MOVE_MIN_AGL_M          0.5f
+#define SKYLINK_GOTO_MAX_RADIUS_M       10.0f
+#define SKYLINK_YAW_MAX_DEG             45
+#endif
 
 // --- Command rate limit (Phase 6 enforcement; constant defined now) ---
 #define SKYLINK_CMD_RATE_LIMIT_PER_SEC  2
@@ -47,9 +61,9 @@
 
 // --- Build identity (bump when flashing; see CONFIG_REFERENCE.md) ---
 // FIRMWARE: increment before `pio run --target upload`
-#define SKYLINK_FIRMWARE_BUILD          12
+#define SKYLINK_FIRMWARE_BUILD          15
 // FS: increment before `pio run --target uploadfs` (must match data/skylink_build.json + gcs_config.js)
-#define SKYLINK_FS_BUILD                17
+#define SKYLINK_FS_BUILD                22
 
 #ifdef SITL_MODE
 constexpr bool SKYLINK_SIMULATION = true;

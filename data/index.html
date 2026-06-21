@@ -38,6 +38,7 @@
         <span class="link-chip warn" id="chip-ws">WS</span>
         <span class="link-chip bad" id="chip-sitl">SITL</span>
         <span class="link-chip bad" id="chip-mav">MAV</span>
+        <span class="link-chip bad" id="chip-safety">SAFE</span>
         <span class="link-chip bad" id="chip-wifi">WiFi</span>
       </div>
       <div class="header-clock" id="sys-time">--:--:--</div>
@@ -157,8 +158,8 @@
             <button type="button" class="qc-btn qc-btn-emergency" id="qc-btn-emergency" disabled onclick="triggerEmergencyDisarm(this)">Emergency Disarm</button>
             <button type="button" class="qc-btn qc-btn-primary" id="qc-btn-liftoff" disabled onclick="autonomousTakeoff()">Takeoff</button>
             <div class="qc-btn-group">
-              <button type="button" class="qc-btn qc-btn-danger" id="qc-btn-land" disabled onclick="sendCmd('LAND')">Land</button>
-              <button type="button" class="qc-btn qc-btn-danger" id="qc-btn-rtl" disabled onclick="sendCmd('RTL')">RTL</button>
+              <button type="button" class="qc-btn qc-btn-danger" id="qc-btn-land" disabled onclick="landSequence()">Land</button>
+              <button type="button" class="qc-btn qc-btn-danger" id="qc-btn-rtl" disabled onclick="rtlSequence()">RTL</button>
             </div>
           </div>
         </div>
@@ -319,8 +320,8 @@
           <p class="section-desc">Takeoff climbs in GUIDED. Land and RTL are safe recovery options.</p>
           <button type="button" class="btn btn-primary btn-block" id="btn-liftoff" disabled onclick="autonomousTakeoff()">Takeoff…</button>
           <div class="btn-grid-2" style="margin-top:16px">
-            <button type="button" class="btn btn-secondary" id="btn-land" disabled onclick="sendCmd('LAND')">Land</button>
-            <button type="button" class="btn btn-secondary" id="btn-rtl" disabled onclick="sendCmd('RTL')">Return home</button>
+            <button type="button" class="btn btn-secondary" id="btn-land" disabled onclick="landSequence()">Land</button>
+            <button type="button" class="btn btn-secondary" id="btn-rtl" disabled onclick="rtlSequence()">Return home</button>
           </div>
         </div>
 
@@ -387,7 +388,7 @@
     <!-- LOG -->
     <section class="tab-panel" id="tab-log" role="tabpanel" aria-labelledby="tab-btn-log" hidden>
       <div class="log-panel-full">
-        <p class="section-desc log-intro">Commands you send and responses from the ESP32. Switch here to debug connection issues.</p>
+        <p class="section-desc log-intro">Commands, firmware responses, and locally preserved offline logs. Recent entries survive dashboard reloads/network loss.</p>
         <div class="log-body" id="log"></div>
       </div>
     </section>
@@ -395,9 +396,9 @@
   </main>
 
   <script src="/lib/leaflet/leaflet.js"></script>
-  <script src="/gcs_config.js"></script>
+  <script src="/gcs_config.js?v=22"></script>
   <script src="/gcs_map.js"></script>
-  <script src="/gcs.js"></script>
+  <script src="/gcs.js?v=22"></script>
 </body>
 
 </html>

@@ -45,6 +45,30 @@ struct FCTelemetry {
     double home_longitude = 0.0;
     bool autopilot_heartbeat_fresh = false;
     uint32_t autopilot_heartbeat_age_ms = 0;
+    bool command_pending = false;
+    uint8_t command_status = 0;
+    uint8_t command_result = 0;
+    uint16_t command_mav_id = 0;
+    uint32_t command_age_ms = 0;
+    char command_name[24] = {};
+};
+
+enum class FCCommandStatus : uint8_t {
+    Idle = 0,
+    Pending,
+    Accepted,
+    Rejected,
+    Timeout
+};
+
+struct FCPendingCommand {
+    bool active = false;
+    FCCommandStatus status = FCCommandStatus::Idle;
+    uint16_t mav_command = 0;
+    uint8_t result = MAV_RESULT_ACCEPTED;
+    uint32_t started_ms = 0;
+    uint32_t timeout_ms = SKYLINK_MAVLINK_COMMAND_ACK_TIMEOUT_MS;
+    char name[24] = {};
 };
 
 enum class FCEventType : uint8_t {
@@ -71,6 +95,7 @@ private:
     uint32_t lastGuidedCmdMs = 0;
     bool mavlinkActive = false;
     bool messageIntervalsSent = false;
+    FCPendingCommand pendingCommand;
 
     char statusLines[SKYLINK_STATUSTEXT_RING_LINES][SKYLINK_STATUSTEXT_MAX_LEN + 1];
     int statusLineCount = 0;
@@ -102,6 +127,10 @@ private:
     void pushStatusLine(const char* text, uint8_t severity);
     void pushEvent(const FCEvent& event);
     void rejectCommandUnlocked(const char* text);
+    void startPendingCommandUnlocked(const char* name, uint16_t mavCommand, uint32_t timeoutMs = SKYLINK_MAVLINK_COMMAND_ACK_TIMEOUT_MS);
+    void completePendingCommandUnlocked(uint16_t mavCommand, uint8_t result);
+    void updatePendingCommandTimeoutUnlocked(uint32_t now);
+    void failPendingCommandUnlocked(const char* reason);
     bool takeMutex(TickType_t timeout = portMAX_DELAY);
     void giveMutex();
     static bool isUsableSitlHost(const String& host);

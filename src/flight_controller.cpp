@@ -132,6 +132,7 @@ void FlightController::setFlightMode(uint8_t customMode) {
     if (!takeMutex()) return;
     logger.info("Setting flight mode: " + String(customMode));
     setCopterMode(customMode);
+    startPendingCommandUnlocked("SET_MODE", MAV_CMD_DO_SET_MODE);
     giveMutex();
 }
 
@@ -160,6 +161,7 @@ void FlightController::arm(bool state) {
 
     logger.info(state ? "Sending command: ARM Drone" : "Sending command: DISARM Drone");
     sendArmDisarm(state, false);
+    startPendingCommandUnlocked(state ? "ARM" : "DISARM", MAV_CMD_COMPONENT_ARM_DISARM);
     giveMutex();
 }
 
@@ -215,6 +217,7 @@ void FlightController::takeoff(float altitudeMeters) {
         altitudeMeters
     );
     sendMavlinkPacket(&msg);
+    startPendingCommandUnlocked("TAKEOFF", MAV_CMD_NAV_TAKEOFF);
     giveMutex();
 }
 
@@ -222,6 +225,7 @@ void FlightController::land() {
     if (!takeMutex()) return;
     logger.info("Setting flight mode: LAND");
     setCopterMode(COPTER_MODE_LAND);
+    startPendingCommandUnlocked("LAND", MAV_CMD_DO_SET_MODE);
     giveMutex();
 }
 
@@ -229,6 +233,7 @@ void FlightController::returnToLaunch() {
     if (!takeMutex()) return;
     logger.info("Setting flight mode: RTL");
     setCopterMode(COPTER_MODE_RTL);
+    startPendingCommandUnlocked("RTL", MAV_CMD_DO_SET_MODE);
     giveMutex();
 }
 
@@ -265,7 +270,7 @@ void FlightController::moveBody(float xMeters, float yMeters, float zMeters) {
     const float x = clampMove(xMeters);
     const float y = clampMove(yMeters);
     const float z = clampMove(zMeters);
-if (x == 0.0f && y == 0.0f && z == 0.0f) {
+    if (x == 0.0f && y == 0.0f && z == 0.0f) {
         giveMutex();
         return;
     }
@@ -349,6 +354,7 @@ void FlightController::yawRelative(float degrees) {
     );
     sendMavlinkPacket(&msg);
     lastGuidedCmdMs = now;
+    startPendingCommandUnlocked("YAW_RELATIVE", MAV_CMD_CONDITION_YAW);
     giveMutex();
 }
 
@@ -407,6 +413,7 @@ void FlightController::gotoLatLon(double lat, double lon, float altRelMeters) {
 
     if (telemetry.flight_mode != COPTER_MODE_GUIDED) {
         setCopterMode(COPTER_MODE_GUIDED);
+        startPendingCommandUnlocked("SET_MODE", MAV_CMD_DO_SET_MODE);
     }
 
     const uint16_t typeMask =
@@ -509,6 +516,7 @@ void FlightController::loiterHere() {
 
     logger.info("Setting flight mode: LOITER");
     setCopterMode(COPTER_MODE_LOITER);
+    startPendingCommandUnlocked("LOITER", MAV_CMD_DO_SET_MODE);
     giveMutex();
 }
 
@@ -556,6 +564,7 @@ void FlightController::emergencyStop() {
     logger.warning("SAFETY TRIGGERED: EMERGENCY DISARM!");
     sendRCOverrideUnlocked(1500, 1500, 1000, 1500);
     sendArmDisarm(false, true);
+    startPendingCommandUnlocked("EMERGENCY_DISARM", MAV_CMD_COMPONENT_ARM_DISARM);
     giveMutex();
 }
 
@@ -570,6 +579,13 @@ FCTelemetry FlightController::getTelemetry() {
             (now - lastAutopilotHeartbeatRx <= SKYLINK_MAVLINK_TIMEOUT_MS);
         copy.autopilot_heartbeat_age_ms =
             lastAutopilotHeartbeatRx == 0 ? 0 : (now - lastAutopilotHeartbeatRx);
+        copy.command_pending = pendingCommand.active && pendingCommand.status == FCCommandStatus::Pending;
+        copy.command_status = (uint8_t)pendingCommand.status;
+        copy.command_result = pendingCommand.result;
+        copy.command_mav_id = pendingCommand.mav_command;
+        copy.command_age_ms = pendingCommand.started_ms == 0 ? 0 : (now - pendingCommand.started_ms);
+        strncpy(copy.command_name, pendingCommand.name, sizeof(copy.command_name) - 1);
+        copy.command_name[sizeof(copy.command_name) - 1] = '\0';
         giveMutex();
     }
     return copy;
@@ -636,6 +652,7 @@ void FlightController::setSITLHost(const String& host) {
         mavlinkActive = false;
         messageIntervalsSent = false;
         lastAutopilotHeartbeatRx = 0;
+        failPendingCommandUnlocked("SITL host changed");
         lastReconnectAttempt = 0;
     }
     giveMutex();
@@ -651,6 +668,7 @@ void FlightController::maintainSitlConnection(uint32_t now) {
         mavlinkActive = false;
         messageIntervalsSent = false;
         lastAutopilotHeartbeatRx = 0;
+        failPendingCommandUnlocked("WiFi disconnected");
         return;
     }
 
@@ -658,6 +676,7 @@ void FlightController::maintainSitlConnection(uint32_t now) {
         mavlinkActive = false;
         messageIntervalsSent = false;
         lastAutopilotHeartbeatRx = 0;
+        failPendingCommandUnlocked("SITL disconnected");
         if (now - lastReconnectAttempt < SKYLINK_SITL_RECONNECT_INTERVAL_MS) return;
 
         lastReconnectAttempt = now;
@@ -681,6 +700,7 @@ void FlightController::maintainSitlConnection(uint32_t now) {
         mavlinkActive = false;
         messageIntervalsSent = false;
         lastAutopilotHeartbeatRx = 0;
+        failPendingCommandUnlocked("MAVLink timeout");
     }
 }
 #endif
@@ -742,6 +762,49 @@ void FlightController::rejectCommandUnlocked(const char* text) {
     pushEvent(ev);
 }
 
+void FlightController::startPendingCommandUnlocked(const char* name, uint16_t mavCommand, uint32_t timeoutMs) {
+    pendingCommand.active = true;
+    pendingCommand.status = FCCommandStatus::Pending;
+    pendingCommand.mav_command = mavCommand;
+    pendingCommand.result = MAV_RESULT_ACCEPTED;
+    pendingCommand.started_ms = millis();
+    pendingCommand.timeout_ms = timeoutMs;
+    strncpy(pendingCommand.name, name ? name : "COMMAND", sizeof(pendingCommand.name) - 1);
+    pendingCommand.name[sizeof(pendingCommand.name) - 1] = '\0';
+    logger.info("Command pending: " + String(pendingCommand.name) + " (MAV_CMD " + String(mavCommand) + ")");
+}
+
+void FlightController::completePendingCommandUnlocked(uint16_t mavCommand, uint8_t result) {
+    if (!pendingCommand.active || pendingCommand.status != FCCommandStatus::Pending) return;
+    if (pendingCommand.mav_command != mavCommand) return;
+
+    pendingCommand.result = result;
+    pendingCommand.status = (result == MAV_RESULT_ACCEPTED) ? FCCommandStatus::Accepted : FCCommandStatus::Rejected;
+    pendingCommand.active = false;
+    logger.info("Command " + String(pendingCommand.name) + ": " +
+                String(result == MAV_RESULT_ACCEPTED ? "ACCEPTED" : "REJECTED") +
+                " (result " + String(result) + ")");
+}
+
+void FlightController::updatePendingCommandTimeoutUnlocked(uint32_t now) {
+    if (!pendingCommand.active || pendingCommand.status != FCCommandStatus::Pending) return;
+    if (pendingCommand.started_ms == 0 || now - pendingCommand.started_ms <= pendingCommand.timeout_ms) return;
+
+    pendingCommand.active = false;
+    pendingCommand.status = FCCommandStatus::Timeout;
+    pendingCommand.result = MAV_RESULT_FAILED;
+    logger.warning("Command " + String(pendingCommand.name) + " timed out waiting for ACK");
+}
+
+void FlightController::failPendingCommandUnlocked(const char* reason) {
+    if (!pendingCommand.active || pendingCommand.status != FCCommandStatus::Pending) return;
+
+    pendingCommand.active = false;
+    pendingCommand.status = FCCommandStatus::Timeout;
+    pendingCommand.result = MAV_RESULT_FAILED;
+    logger.warning("Command " + String(pendingCommand.name) + " failed: " + String(reason ? reason : "link unavailable"));
+}
+
 bool FlightController::popEvent(FCEvent& out) {
     if (!takeMutex(5)) return false;
     if (eventQueueHead == eventQueueTail) {
@@ -785,9 +848,12 @@ void FlightController::handle() {
         messageIntervalsSent = false;
         lastStreamRequest = 0;
         lastAutopilotHeartbeatRx = 0;
+        failPendingCommandUnlocked("MAVLink timeout");
     }
 
     if (!takeMutex(0)) return;
+
+    updatePendingCommandTimeoutUnlocked(now);
 
     if (mavlinkActive && (now - lastGcsHeartbeat >= SKYLINK_MAVLINK_GCS_HEARTBEAT_MS)) {
         lastGcsHeartbeat = now;
@@ -927,6 +993,7 @@ void FlightController::processMavlinkMessage(mavlink_message_t* msg) {
             mavlink_msg_command_ack_decode(msg, &ack);
             
             logger.info("Autopilot ACK: Command=" + String(ack.command) + ", Result=" + String(ack.result));
+            completePendingCommandUnlocked(ack.command, ack.result);
 
             FCEvent ev;
             ev.type = FCEventType::Ack;

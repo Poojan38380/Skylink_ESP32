@@ -31,6 +31,7 @@
 #define SKYLINK_MAVLINK_GCS_HEARTBEAT_MS    1000
 #define SKYLINK_MAVLINK_STREAM_REQUEST_MS   10000
 #define SKYLINK_MAVLINK_TIMEOUT_MS          5000
+#define SKYLINK_MAVLINK_COMMAND_ACK_TIMEOUT_MS  3000
 #define SKYLINK_MAVLINK_VEHICLE_SYSID       1
 #define SKYLINK_MAVLINK_VEHICLE_COMPID      1
 
@@ -53,7 +54,7 @@
 // FIRMWARE: increment before `pio run --target upload`
 #define SKYLINK_FIRMWARE_BUILD          12
 // FS: increment before `pio run --target uploadfs` (must match data/skylink_build.json + gcs_config.js)
-#define SKYLINK_FS_BUILD                17
+#define SKYLINK_FS_BUILD                18
 
 #ifdef SITL_MODE
 constexpr bool SKYLINK_SIMULATION = true;

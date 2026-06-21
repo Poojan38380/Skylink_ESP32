@@ -229,6 +229,17 @@ const char* safetyStateName(SafetyState state) {
     }
 }
 
+const char* commandStatusName(uint8_t status) {
+    switch ((FCCommandStatus)status) {
+        case FCCommandStatus::Idle: return "IDLE";
+        case FCCommandStatus::Pending: return "PENDING";
+        case FCCommandStatus::Accepted: return "ACCEPTED";
+        case FCCommandStatus::Rejected: return "REJECTED";
+        case FCCommandStatus::Timeout: return "TIMEOUT";
+        default: return "UNKNOWN";
+    }
+}
+
 bool dispatchCommand(const String& command, JsonDocument& doc, AsyncWebSocketClient* client) {
     for (const auto& entry : kCommands) {
         if (command == entry.name) {
@@ -495,6 +506,13 @@ void WebServerModule::sendHeartbeat() {
     doc["mav_connected"] = flightController.isConnected();
     doc["autopilot_heartbeat_fresh"] = fc.autopilot_heartbeat_fresh;
     doc["autopilot_heartbeat_age_ms"] = fc.autopilot_heartbeat_age_ms;
+    doc["command_pending"] = fc.command_pending;
+    doc["command_name"] = fc.command_name;
+    doc["command_status"] = fc.command_status;
+    doc["command_status_name"] = commandStatusName(fc.command_status);
+    doc["command_result"] = fc.command_result;
+    doc["command_mav_id"] = fc.command_mav_id;
+    doc["command_age_ms"] = fc.command_age_ms;
     doc["sitl_tcp_connected"] = flightController.isSitlTcpConnected();
     doc["wifi_connected"] = wifiManager.isConnected();
     doc["wifi_rssi"] = wifiManager.getSignalStrength();

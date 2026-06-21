@@ -484,12 +484,34 @@ Status after Phase 4 slice 1:
 - [x] Status stream text shows autopilot heartbeat age/staleness.
 - [x] JS syntax check, SITL firmware build, hardware firmware build, and LittleFS build pass.
 
+Status after Phase 4 slice 2:
+
+- [x] Added a one-slot firmware command lifecycle tracker for ACK-capable `COMMAND_LONG` sends.
+- [x] Tracked commands currently include mode changes, ARM/DISARM, TAKEOFF, LAND, RTL, LOITER, yaw, and emergency disarm.
+- [x] `COMMAND_ACK` is correlated with the currently pending MAVLink command id.
+- [x] Pending commands move to `ACCEPTED`, `REJECTED`, or `TIMEOUT`.
+- [x] Pending commands are failed as `TIMEOUT` when WiFi, SITL, or MAVLink link loss makes the ACK unknowable.
+- [x] Heartbeat telemetry exposes `command_pending`, `command_name`, `command_status_name`, `command_result`, `command_mav_id`, and `command_age_ms`.
+- [x] Dashboard logs command lifecycle transitions so the operator can see pending/accepted/rejected/timeout events.
+- [x] This slice intentionally does not yet make the browser command flow ACK-driven; the dashboard can see lifecycle state, but sequencing still needs the next scheduler/state-confirmation slice.
+- [x] Position-target movement messages are not ACK-tracked because they do not use `COMMAND_ACK`.
+
+Status after Phase 4 slice 3:
+
+- [x] Dashboard static assets now use a versioned query string so stale browser JS is easier to avoid after `uploadfs`.
+- [x] LittleFS build was bumped to 18 across firmware config, browser config, and `skylink_build.json`.
+- [x] Browser command gate snapshots now expire, preventing commands from being sent from stale heartbeat state.
+- [x] Browser blocks normal flight commands while firmware reports an ACK-capable command pending.
+- [x] Browser applies client-side command spacing before normal flight commands.
+- [x] Manual ARM flow now waits for SET_MODE ACK, GUIDED state confirmation, ARM ACK, and ARMED state confirmation.
+- [x] Autonomous takeoff now waits for SET_MODE ACK, GUIDED state confirmation, ARM ACK, ARMED+GUIDED state confirmation, TAKEOFF ACK.
+- [x] Removed the old timer-only takeoff state machine.
+
 Remaining Phase 4 work:
 
-- add a pending command table;
-- correlate `COMMAND_ACK` to sent commands;
-- expose command pending/accepted/denied/timeout lifecycle to the dashboard;
-- confirm state transitions after accepted ACKs;
+- replace the one-slot pending tracker with a small bounded pending command table if overlapping ACK-capable commands are needed;
+- extend ACK/state-driven sequencing to LAND/RTL/LOITER/mode changes where useful;
+- prevent command overwrite/race cases while one ACK-capable command is already pending;
 - add tests for wrong-source packets and ACK timeout behavior.
 
 ### Phase 5 — Security/authentication

@@ -88,6 +88,7 @@ private:
 #endif
 
     void sendMavlinkPacket(mavlink_message_t* msg);
+    void sendRCOverrideUnlocked(uint16_t roll, uint16_t pitch, uint16_t throttle, uint16_t yaw);
     void handleIncomingByte(uint8_t byte);
     void processMavlinkMessage(mavlink_message_t* msg);
     void requestDataStreams();
@@ -96,6 +97,7 @@ private:
     bool canExecuteGuidedMoveUnlocked() const;
     void pushStatusLine(const char* text, uint8_t severity);
     void pushEvent(const FCEvent& event);
+    void rejectCommandUnlocked(const char* text);
     bool takeMutex(TickType_t timeout = portMAX_DELAY);
     void giveMutex();
     static bool isUsableSitlHost(const String& host);

@@ -11,12 +11,33 @@
 
 namespace {
 
-uint8_t parseFlightMode(const String& modeName) {
-    if (modeName == "GUIDED") return COPTER_MODE_GUIDED;
-    if (modeName == "LOITER") return COPTER_MODE_LOITER;
-    if (modeName == "RTL") return COPTER_MODE_RTL;
-    if (modeName == "LAND") return COPTER_MODE_LAND;
-    return COPTER_MODE_STABILIZE;
+bool parseFlightMode(const String& modeName, uint8_t& mode) {
+    if (modeName == "GUIDED") {
+        mode = COPTER_MODE_GUIDED;
+        return true;
+    }
+    if (modeName == "LOITER") {
+        mode = COPTER_MODE_LOITER;
+        return true;
+    }
+    if (modeName == "RTL") {
+        mode = COPTER_MODE_RTL;
+        return true;
+    }
+    if (modeName == "LAND") {
+        mode = COPTER_MODE_LAND;
+        return true;
+    }
+    return false;
+}
+
+void sendClientError(AsyncWebSocketClient* client, const String& message) {
+    JsonDocument err;
+    err["v"] = SKYLINK_PROTOCOL_VERSION;
+    err["type"] = "event";
+    err["event"] = "ERROR";
+    err["message"] = message;
+    wsSendJson(client, err);
 }
 
 using WsCommandHandler = void (*)(JsonDocument&, AsyncWebSocketClient*);
@@ -35,9 +56,14 @@ void handleLedToggle(JsonDocument& doc, AsyncWebSocketClient* client) {
 }
 
 void handleSetFlightMode(JsonDocument& doc, AsyncWebSocketClient* client) {
-    (void)client;
     String mode = doc["mode"] | "GUIDED";
-    flightController.setFlightMode(parseFlightMode(mode));
+    uint8_t customMode = 0;
+    if (!parseFlightMode(mode, customMode)) {
+        logger.warning("SET_FLIGHT_MODE rejected: unknown mode " + mode);
+        sendClientError(client, "SET_FLIGHT_MODE rejected: unknown mode " + mode);
+        return;
+    }
+    flightController.setFlightMode(customMode);
 }
 
 void handleArm(JsonDocument& doc, AsyncWebSocketClient* client) {
@@ -314,19 +340,21 @@ void WebServerModule::sendPendingFcEvents() {
     FCEvent ev;
     int sent = 0;
     while (sent < SKYLINK_WS_MAX_EVENTS_PER_LOOP && flightController.popEvent(ev)) {
-        if (ev.type == FCEventType::StatusText) {
-            continue;
-        }
-
         JsonDocument doc;
         doc["v"] = SKYLINK_PROTOCOL_VERSION;
         doc["type"] = "event";
         doc["timestamp"] = timeSync.getCurrentTime();
-        doc["event"] = "ACK";
-        doc["command"] = ev.ack_command;
-        doc["result"] = ev.ack_result;
-        doc["result_name"] = mavResultName(ev.ack_result);
-        doc["ok"] = (ev.ack_result == MAV_RESULT_ACCEPTED);
+        if (ev.type == FCEventType::StatusText) {
+            doc["event"] = "STATUSTEXT";
+            doc["severity"] = ev.severity;
+            doc["text"] = ev.text;
+        } else {
+            doc["event"] = "ACK";
+            doc["command"] = ev.ack_command;
+            doc["result"] = ev.ack_result;
+            doc["result_name"] = mavResultName(ev.ack_result);
+            doc["ok"] = (ev.ack_result == MAV_RESULT_ACCEPTED);
+        }
 
         if (wsBroadcastJson(ws, doc)) {
             sent++;

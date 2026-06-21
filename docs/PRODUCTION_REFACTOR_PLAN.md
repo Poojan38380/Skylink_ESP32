@@ -652,6 +652,14 @@ Verification:
 - emergency stop sends force-disarm path;
 - logs match expected command lifecycle.
 
+Status after Phase 8 prep slice 1:
+
+- [x] Added `docs/PHASE8_REAL_HARDWARE_READINESS.md` with the required bench/props-off/props-on gates.
+- [x] Deferred Phase 4 optional hardening and Phase 5 security/authentication are explicitly listed for later.
+- [x] Hardware firmware builds now use conservative first-flight limits while SITL keeps wider simulation limits.
+- [x] Browser command limits now mirror the conservative first-flight envelope.
+- [x] Firmware build bumped to 15 and FS build bumped to 22 for hardware-readiness limits.
+
 ### Phase 9 — Tethered and limited field tests
 
 Goal: staged real-world proof without uncontrolled distance risk.

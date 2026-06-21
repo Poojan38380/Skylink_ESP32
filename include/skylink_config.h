@@ -36,11 +36,20 @@
 #define SKYLINK_MAVLINK_VEHICLE_COMPID      1
 
 // --- Flight safety caps (enforced in firmware from Phase 4+) ---
+// SITL keeps room for simulation. Hardware defaults are intentionally tiny for first real tests.
+#ifdef SITL_MODE
 #define SKYLINK_MOVE_BODY_MAX_M         200.0f
-#define SKYLINK_GOTO_ALT_MAX_M          30.0f   // capped at 30 m for low-altitude field testing
-#define SKYLINK_MOVE_MIN_AGL_M          0.8f    // allows GUIDED moves from ~1 m AGL (was 2.0)
-#define SKYLINK_GOTO_MAX_RADIUS_M       200.0f  // tighter geofence for close field tests (was 1000)
+#define SKYLINK_GOTO_ALT_MAX_M          30.0f
+#define SKYLINK_MOVE_MIN_AGL_M          0.5f
+#define SKYLINK_GOTO_MAX_RADIUS_M       200.0f
 #define SKYLINK_YAW_MAX_DEG             90
+#else
+#define SKYLINK_MOVE_BODY_MAX_M         2.0f
+#define SKYLINK_GOTO_ALT_MAX_M          5.0f
+#define SKYLINK_MOVE_MIN_AGL_M          0.5f
+#define SKYLINK_GOTO_MAX_RADIUS_M       10.0f
+#define SKYLINK_YAW_MAX_DEG             45
+#endif
 
 // --- Command rate limit (Phase 6 enforcement; constant defined now) ---
 #define SKYLINK_CMD_RATE_LIMIT_PER_SEC  2
@@ -52,9 +61,9 @@
 
 // --- Build identity (bump when flashing; see CONFIG_REFERENCE.md) ---
 // FIRMWARE: increment before `pio run --target upload`
-#define SKYLINK_FIRMWARE_BUILD          14
+#define SKYLINK_FIRMWARE_BUILD          15
 // FS: increment before `pio run --target uploadfs` (must match data/skylink_build.json + gcs_config.js)
-#define SKYLINK_FS_BUILD                21
+#define SKYLINK_FS_BUILD                22
 
 #ifdef SITL_MODE
 constexpr bool SKYLINK_SIMULATION = true;

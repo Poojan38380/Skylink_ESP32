@@ -4,12 +4,12 @@
  */
 const SKYLINK_GCS_CONFIG = {
   protocolVersion: 1,
-  fsBuild: 21,  // Must match data/skylink_build.json — bump before uploadfs
+  fsBuild: 22,  // Must match data/skylink_build.json — bump before uploadfs
   moveMinM: 0.5,
-  moveMaxM: 200,
-  geofenceRadiusM: 1000,
+  moveMaxM: 2,
+  geofenceRadiusM: 10,
   gotoAltMinM: 1,
-  gotoAltMaxM: 50,
+  gotoAltMaxM: 5,
   gotoAltOffsetM: 5,
   keyboardMoveThrottleMs: 500,
   flightStateStableSamples: 3,  // heartbeats before UI toggles armed/mode
@@ -33,7 +33,7 @@ const SKYLINK_GCS_CONFIG = {
   commsLogPersistEntries: 300,
   defaultTakeoffAltM: 2,
   takeoffAltMinM: 1,
-  takeoffAltMaxM: 50,
+  takeoffAltMaxM: 5,
   takeoffGroundMaxAglM: 0.75,
 
   armModeDelayMs: 800,
@@ -44,8 +44,8 @@ const SKYLINK_GCS_CONFIG = {
   stateConfirmTimeoutMs: 10000,
   commandGateMaxAgeMs: 3000,
 
-  movePresetsM: [1, 3, 5, 10],
-  yawPresetsDeg: [45, 90, 180],
+  movePresetsM: [0.5, 1, 1.5, 2],
+  yawPresetsDeg: [15, 30, 45],
 
   sitlPortDefault: 5763,
   armHoldMs: 1500,

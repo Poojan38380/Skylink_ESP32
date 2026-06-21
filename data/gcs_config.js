@@ -4,7 +4,7 @@
  */
 const SKYLINK_GCS_CONFIG = {
   protocolVersion: 1,
-  fsBuild: 20,  // Must match data/skylink_build.json — bump before uploadfs
+  fsBuild: 21,  // Must match data/skylink_build.json — bump before uploadfs
   moveMinM: 0.5,
   moveMaxM: 200,
   geofenceRadiusM: 1000,
@@ -29,7 +29,8 @@ const SKYLINK_GCS_CONFIG = {
   wsReconnectInitialMs: 1500,
   wsReconnectMaxMs: 20000,
 
-  commsLogMaxEntries: 40,
+  commsLogMaxEntries: 120,
+  commsLogPersistEntries: 300,
   defaultTakeoffAltM: 2,
   takeoffAltMinM: 1,
   takeoffAltMaxM: 50,

@@ -27,6 +27,10 @@ let lastLoggedState = { armed: null, mode: null, gps: null, connected: null, com
 let emergencyConfirmTimeout = null;
 let lastEscapePressMs = 0;
 let ackWaiters = [];
+let logHistory = [];
+let logsRestored = false;
+
+const LOG_STORAGE_KEY = 'skylink_gcs_log_v1';
 
 const MAV_CMD = {
   DO_SET_MODE: 176,
@@ -1124,23 +1128,62 @@ function updateTelemetry(d) {
   if (typeof SkylinkMap !== 'undefined') SkylinkMap.updateFromTelemetry(d);
 }
 
-function log(tag, tagClass, msg) {
+function persistLogs() {
+  try {
+    const maxPersist = CFG.commsLogPersistEntries || 300;
+    localStorage.setItem(LOG_STORAGE_KEY, JSON.stringify(logHistory.slice(0, maxPersist)));
+  } catch (_) {}
+}
+
+function renderLogEntry(entry, prepend = true) {
   const box = document.getElementById('log');
-  if (!box) return;
-  const ts = new Date().toLocaleTimeString('en-GB', { hour12: false });
+  if (!box || !entry) return;
   const el = document.createElement('div');
   el.className = 'log-entry';
   el.innerHTML =
-    '<span class="log-ts">' + ts + '</span>' +
-    '<span class="log-tag ' + tagClass + '">' + tag + '</span>' +
-    '<span class="log-msg">' + escapeHtml(msg) + '</span>';
-  box.prepend(el);
-  const maxLog = CFG.commsLogMaxEntries || 40;
+    '<span class="log-ts">' + escapeHtml(entry.ts || '') + '</span>' +
+    '<span class="log-tag ' + escapeHtml(entry.tagClass || '') + '">' + escapeHtml(entry.tag || '') + '</span>' +
+    '<span class="log-msg">' + escapeHtml(entry.msg || '') + '</span>';
+  if (prepend) box.prepend(el);
+  else box.appendChild(el);
+  const maxLog = CFG.commsLogMaxEntries || 120;
   while (box.children.length > maxLog) box.removeChild(box.lastChild);
 }
 
+function restoreLogs() {
+  if (logsRestored) return;
+  logsRestored = true;
+  try {
+    const raw = localStorage.getItem(LOG_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    if (Array.isArray(parsed)) logHistory = parsed.slice(0, CFG.commsLogPersistEntries || 300);
+  } catch (_) {
+    logHistory = [];
+  }
+  [...logHistory].reverse().forEach((entry) => renderLogEntry(entry, false));
+  if (logHistory.length) {
+    log('SYS', 'tag-sys', 'Restored ' + logHistory.length + ' local log entries');
+  }
+}
+
+function log(tag, tagClass, msg) {
+  const entry = {
+    ts: new Date().toLocaleTimeString('en-GB', { hour12: false }),
+    tag,
+    tagClass,
+    msg: String(msg ?? '')
+  };
+  logHistory.unshift(entry);
+  logHistory = logHistory.slice(0, CFG.commsLogPersistEntries || 300);
+  renderLogEntry(entry, true);
+  persistLogs();
+}
+
 function sendCmd(command, extra) {
-  if (!ws || ws.readyState !== WebSocket.OPEN) return false;
+  if (!ws || ws.readyState !== WebSocket.OPEN) {
+    log('ERR', 'tag-err', command + ' not sent: WebSocket disconnected');
+    return false;
+  }
   if (isClientFlightCommand(command) && !isCommandGateFresh()) {
     log('ERR', 'tag-err', command + ' not sent: ' + commandGateBlockReason());
     return false;
@@ -1357,6 +1400,7 @@ function connect() {
   };
 }
 
+restoreLogs();
 connect();
 initMapGoto();
 

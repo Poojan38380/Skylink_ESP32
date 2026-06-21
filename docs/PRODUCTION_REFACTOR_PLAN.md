@@ -539,6 +539,20 @@ Remaining Phase 4 work:
 - Optional later hardening: replace the one-slot pending tracker with a small bounded pending command table if overlapping ACK-capable commands are needed.
 - Optional later hardening: add automated wrong-source packet and ACK-timeout tests.
 
+Deferred after Phase 6:
+
+- Phase 4 optional hardening:
+  - replace the one-slot pending tracker with a bounded pending command table if overlapping ACK-capable commands become necessary;
+  - add automated wrong-source packet tests;
+  - add automated ACK accepted/rejected/timeout tests.
+- Phase 5 security/authentication:
+  - add authentication before WebSocket commands;
+  - remove unauthenticated sensitive static/config exposure;
+  - disable or protect unauthenticated OTA;
+  - add auth rate limiting and lockout;
+  - remove hardcoded production credentials;
+  - document secure deployment model for internet/cellular use.
+
 ### Phase 5 — Security/authentication
 
 Goal: make command access safe enough for controlled network testing.
@@ -584,6 +598,15 @@ Logging requirement added after Phase 2 WiFi-loss test:
 - The dashboard must show more than the current small message window.
 - The operator should still see locally-known logs after WebSocket loss.
 - After reconnect, the UI should make it obvious which commands were sent before loss, which were not sent, and what firmware/autopilot events arrived after reconnection.
+
+Status after Phase 6 slice 1:
+
+- [x] Dashboard log visible window increased from 40 to 120 entries.
+- [x] Browser now persists the last 300 local log entries in `localStorage`.
+- [x] Local logs are restored after refresh/reconnect so network-loss context remains visible.
+- [x] Commands attempted while WebSocket is down now log an explicit `not sent: WebSocket disconnected` message.
+- [x] Log tab height increased and made scrollable for longer debugging sessions.
+- [x] FS build bumped to 21 for persistent-log dashboard assets.
 
 ### Phase 7 — Simulation campaign
 

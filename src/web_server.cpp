@@ -194,6 +194,41 @@ bool isFlightCommand(const String& command) {
            command == "RC_OVERRIDE";
 }
 
+enum class SafetyState : uint8_t {
+    Disconnected = 0,
+    Settling,
+    Preflight,
+    ReadyToArm,
+    ArmedGround,
+    Flying,
+    Landing,
+    FailsafeOrStale
+};
+
+struct SafetySnapshot {
+    SafetyState state = SafetyState::Disconnected;
+    const char* name = "DISCONNECTED";
+    String reason = "No active link";
+    bool gateReady = false;
+    bool guided = false;
+    bool gpsOk = false;
+    bool moveAglOk = false;
+};
+
+const char* safetyStateName(SafetyState state) {
+    switch (state) {
+        case SafetyState::Disconnected: return "DISCONNECTED";
+        case SafetyState::Settling: return "SETTLING";
+        case SafetyState::Preflight: return "PREFLIGHT";
+        case SafetyState::ReadyToArm: return "READY_TO_ARM";
+        case SafetyState::ArmedGround: return "ARMED_GROUND";
+        case SafetyState::Flying: return "FLYING";
+        case SafetyState::Landing: return "LANDING";
+        case SafetyState::FailsafeOrStale: return "FAILSAFE_OR_STALE";
+        default: return "UNKNOWN";
+    }
+}
+
 bool dispatchCommand(const String& command, JsonDocument& doc, AsyncWebSocketClient* client) {
     for (const auto& entry : kCommands) {
         if (command == entry.name) {
@@ -337,6 +372,63 @@ bool WebServerModule::isFlightCommandGateReady(String& reason) const {
     return true;
 }
 
+void WebServerModule::appendSafetyState(JsonDocument& doc, const FCTelemetry& fc, bool cmdGateReady, const String& cmdGateReason) {
+    SafetySnapshot safety;
+    safety.gateReady = cmdGateReady;
+    safety.guided = (fc.flight_mode == COPTER_MODE_GUIDED);
+    safety.gpsOk = (fc.gps_fix >= 3);
+    safety.moveAglOk = (fc.relative_alt >= SKYLINK_MOVE_MIN_AGL_M);
+
+    if (!cmdGateReady) {
+        if (cmdGateReason.indexOf("reconnect") >= 0) {
+            safety.state = SafetyState::Settling;
+        } else if (cmdGateReason.indexOf("MAVLink") >= 0 || cmdGateReason.indexOf("WebSocket") >= 0) {
+            safety.state = SafetyState::Disconnected;
+        } else {
+            safety.state = SafetyState::FailsafeOrStale;
+        }
+        safety.reason = cmdGateReason;
+    } else if (fc.armed && fc.flight_mode == COPTER_MODE_LAND) {
+        safety.state = SafetyState::Landing;
+        safety.reason = "Landing";
+    } else if (fc.armed && safety.moveAglOk) {
+        safety.state = SafetyState::Flying;
+        safety.reason = safety.guided ? "Flying in GUIDED" : "Flying outside GUIDED";
+    } else if (fc.armed) {
+        safety.state = SafetyState::ArmedGround;
+        safety.reason = safety.guided ? "Armed on ground in GUIDED" : "Armed on ground outside GUIDED";
+    } else if (!safety.gpsOk) {
+        safety.state = SafetyState::Preflight;
+        safety.reason = "Waiting for GPS 3D fix";
+    } else {
+        safety.state = SafetyState::ReadyToArm;
+        safety.reason = safety.guided ? "Ready to arm" : "Ready; GUIDED required before arm/takeoff";
+    }
+
+    safety.name = safetyStateName(safety.state);
+
+    const bool armed = fc.armed;
+    const bool flying = (safety.state == SafetyState::Flying);
+    const bool armedGround = (safety.state == SafetyState::ArmedGround);
+    const bool landing = (safety.state == SafetyState::Landing);
+
+    doc["safety_state"] = (uint8_t)safety.state;
+    doc["safety_state_name"] = safety.name;
+    doc["safety_reason"] = safety.reason;
+    doc["cmd_gate_ready"] = cmdGateReady;
+    doc["cmd_gate_reason"] = cmdGateReason;
+    doc["can_set_mode"] = cmdGateReady;
+    doc["can_arm"] = (safety.state == SafetyState::ReadyToArm);
+    doc["can_disarm"] = cmdGateReady && armed;
+    doc["can_takeoff"] = armedGround && safety.guided && safety.gpsOk;
+    doc["can_land"] = cmdGateReady && armed;
+    doc["can_rtl"] = cmdGateReady && armed && !landing;
+    doc["can_loiter"] = flying && safety.gpsOk;
+    doc["can_move"] = flying && safety.guided && safety.gpsOk;
+    doc["can_goto"] = flying && safety.guided && safety.gpsOk && fc.home_valid;
+    doc["can_emergency_stop"] = getWsClientCount() > 0 && armed;
+}
+
 void WebServerModule::sendAppState() {
     JsonDocument doc;
     doc["v"] = SKYLINK_PROTOCOL_VERSION;
@@ -358,9 +450,6 @@ void WebServerModule::sendHeartbeat() {
     const FCTelemetry fc = flightController.getTelemetry();
     String cmdGateReason;
     const bool cmdGateReady = isFlightCommandGateReady(cmdGateReason);
-    const bool guided = (fc.flight_mode == COPTER_MODE_GUIDED);
-    const bool gpsOk = (fc.gps_fix >= 3);
-    const bool moveAglOk = (fc.relative_alt >= SKYLINK_MOVE_MIN_AGL_M);
 
     doc["v"] = SKYLINK_PROTOCOL_VERSION;
     doc["type"] = "event";
@@ -404,19 +493,7 @@ void WebServerModule::sendHeartbeat() {
     doc["wifi_rssi"] = wifiManager.getSignalStrength();
     doc["ws_connected"] = (getWsClientCount() > 0);
     doc["ws_clients"] = getWsClientCount();
-    doc["cmd_gate_ready"] = cmdGateReady;
-    doc["cmd_gate_reason"] = cmdGateReason;
-    doc["can_set_mode"] = cmdGateReady;
-    doc["can_arm"] = cmdGateReady && !fc.armed;
-    doc["can_disarm"] = cmdGateReady && fc.armed;
-    doc["can_takeoff"] = cmdGateReady && fc.armed && guided && gpsOk &&
-                         fc.relative_alt <= SKYLINK_MOVE_MIN_AGL_M;
-    doc["can_land"] = cmdGateReady && fc.armed;
-    doc["can_rtl"] = cmdGateReady && fc.armed;
-    doc["can_loiter"] = cmdGateReady && fc.armed && gpsOk;
-    doc["can_move"] = cmdGateReady && fc.armed && guided && gpsOk && moveAglOk;
-    doc["can_goto"] = cmdGateReady && fc.armed && guided && gpsOk && fc.home_valid && moveAglOk;
-    doc["can_emergency_stop"] = getWsClientCount() > 0 && fc.armed;
+    appendSafetyState(doc, fc, cmdGateReady, cmdGateReason);
 #ifdef SITL_MODE
     doc["sitl_host"] = flightController.getSitlHost();
     doc["sitl_port"] = flightController.getSitlPort();

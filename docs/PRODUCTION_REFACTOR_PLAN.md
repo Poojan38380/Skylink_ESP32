@@ -446,6 +446,16 @@ Status after Phase 3 slice 2:
 - [x] WebSocket JSON buffer increased to fit the richer heartbeat payload.
 - [x] JS syntax check, SITL firmware build, hardware firmware build, and LittleFS build pass.
 
+Status after Phase 3 slice 3:
+
+- [x] Firmware now publishes an explicit safety state in heartbeat telemetry.
+- [x] Safety states currently include `DISCONNECTED`, `SETTLING`, `PREFLIGHT`, `READY_TO_ARM`, `ARMED_GROUND`, `FLYING`, `LANDING`, and `FAILSAFE_OR_STALE`.
+- [x] Firmware publishes `safety_reason` alongside the state.
+- [x] Command permissions are derived from the safety state instead of independent browser-side assumptions.
+- [x] Dashboard header shows a safety-state chip.
+- [x] Dashboard preflight banners include the firmware safety state and reason.
+- [x] JS syntax check, SITL firmware build, hardware firmware build, and LittleFS build pass.
+
 ### Phase 4 — MAVLink robustness
 
 Goal: make MAVLink source filtering and command lifecycle production-grade.

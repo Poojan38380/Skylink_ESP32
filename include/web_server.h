@@ -4,6 +4,8 @@
 #include <ESPAsyncWebServer.h>
 #include <ArduinoJson.h>
 
+struct FCTelemetry;
+
 class WebServerModule {
 private:
     AsyncWebServer server;
@@ -18,6 +20,7 @@ private:
     bool validateCommand(const String& command, AsyncWebSocketClient* client);
     void rejectCommand(AsyncWebSocketClient* client, const String& message);
     bool isFlightCommandGateReady(String& reason) const;
+    void appendSafetyState(JsonDocument& doc, const FCTelemetry& fc, bool cmdGateReady, const String& cmdGateReason);
 
 public:
     WebServerModule(int port = 80);

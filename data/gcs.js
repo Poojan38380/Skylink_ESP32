@@ -646,18 +646,18 @@ function updatePreflight(d) {
   let className = '';
 
   if (ready) {
-    text = 'All checks passed — you may arm.';
+    text = d.safety_reason || 'All checks passed — you may arm.';
     className = 'ready';
   } else if (!mavOk) {
-    text = 'Waiting for MAVLink connection…';
+    text = d.safety_reason || 'Waiting for MAVLink connection…';
     className = 'bad';
   } else {
-    text = 'Not ready to arm — check status.';
+    text = d.safety_reason || 'Not ready to arm — check status.';
     className = 'warn';
   }
 
   if (summary) {
-    summary.textContent = ready ? 'All checks passed — you may arm from the Fly tab.' : (mavOk ? 'Not ready to arm — review the Status tab checklist.' : 'Waiting for MAVLink — open dashboard while SITL is running.');
+    summary.textContent = (d.safety_state_name || 'SAFETY') + ': ' + text;
     summary.className = 'fly-ready-banner ' + (ready ? 'ready' : (mavOk ? 'warn' : 'bad'));
   }
   if (qcSummary) {
@@ -703,6 +703,7 @@ function updateLiveStrip(d) {
     modeEl.textContent = flightUiState.guided
       ? 'GUIDED'
       : (d.flight_mode_name || '—');
+    modeEl.title = (d.safety_state_name || 'SAFETY') + ': ' + (d.safety_reason || '');
   }
 
   const armEl = document.getElementById('live-arm');
@@ -737,6 +738,19 @@ function updateLinkChips(d) {
 
   const mavOk = d.mav_connected === true;
   setChip(document.getElementById('chip-mav'), mavOk ? 'ok' : 'bad', mavOk ? 'MAV ●' : 'MAV ○');
+
+  const safetyName = d.safety_state_name || 'SAFETY';
+  const safetyOk = d.safety_state_name === 'READY_TO_ARM' ||
+                   d.safety_state_name === 'ARMED_GROUND' ||
+                   d.safety_state_name === 'FLYING' ||
+                   d.safety_state_name === 'LANDING';
+  const safetyWarn = d.safety_state_name === 'PREFLIGHT' ||
+                     d.safety_state_name === 'SETTLING';
+  setChip(
+    document.getElementById('chip-safety'),
+    safetyOk ? 'ok' : (safetyWarn ? 'warn' : 'bad'),
+    safetyName
+  );
 
   const wifiOk = d.wifi_connected === true;
   const rssi = Number(d.wifi_rssi) || 0;

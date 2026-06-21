@@ -117,6 +117,8 @@ bool WiFiManager::isWiFiConnected() {
 
 void WiFiManager::begin() {
     WiFi.mode(WIFI_STA);
+    WiFi.setSleep(false);
+    WiFi.setHostname("esp32-skylink");
     if (loadNetworksFromJson()) {
         startConnectionAttempt();
     } else {

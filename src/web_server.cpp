@@ -179,6 +179,21 @@ const WsCommandEntry kCommands[] = {
     {"PING", handlePing},
 };
 
+bool isFlightCommand(const String& command) {
+    return command == "SET_FLIGHT_MODE" ||
+           command == "ARM_DRONE" ||
+           command == "DISARM_DRONE" ||
+           command == "TAKEOFF" ||
+           command == "LAND" ||
+           command == "RTL" ||
+           command == "MOVE_BODY" ||
+           command == "YAW_RELATIVE" ||
+           command == "GOTO_LATLON" ||
+           command == "GOTO_ALT" ||
+           command == "LOITER_HERE" ||
+           command == "RC_OVERRIDE";
+}
+
 bool dispatchCommand(const String& command, JsonDocument& doc, AsyncWebSocketClient* client) {
     for (const auto& entry : kCommands) {
         if (command == entry.name) {
@@ -199,6 +214,10 @@ void WebServerModule::onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *cl
         case WS_EVT_CONNECT:
             ws.cleanupClients(1); // Evict stale connections — enforce max 1 active client
             client->setCloseClientOnQueueFull(false);
+            lastWsConnectMs = millis();
+            lastFlightCommandMs = 0;
+            lastSameCommandMs = 0;
+            lastFlightCommand = "";
             logger.info("WebSocket client #" + String(client->id()) + " connected from " + client->remoteIP().toString());
 #ifdef SITL_MODE
             flightController.setSITLHost(client->remoteIP().toString());
@@ -235,6 +254,10 @@ void WebServerModule::handleWebSocketMessage(void *arg, uint8_t *data, size_t le
     }
 
     const String command = doc["command"] | "";
+    if (!validateCommand(command, client)) {
+        return;
+    }
+
     if (dispatchCommand(command, doc, client)) {
         return;
     }
@@ -246,6 +269,54 @@ void WebServerModule::handleWebSocketMessage(void *arg, uint8_t *data, size_t le
     err["event"] = "ERROR";
     err["message"] = "Unknown command: " + command;
     wsSendJson(client, err);
+}
+
+void WebServerModule::rejectCommand(AsyncWebSocketClient* client, const String& message) {
+    logger.warning(message);
+    sendClientError(client, message);
+}
+
+bool WebServerModule::validateCommand(const String& command, AsyncWebSocketClient* client) {
+    if (command == "EMERGENCY_STOP" || command == "PING" ||
+        command == "LED_SET" || command == "LED_TOGGLE") {
+        return true;
+    }
+
+    if (!isFlightCommand(command)) {
+        return true;
+    }
+
+    const uint32_t now = millis();
+
+    if (!client || client->status() != WS_CONNECTED) {
+        rejectCommand(client, command + " rejected: WebSocket client is not active");
+        return false;
+    }
+
+    if (now - lastWsConnectMs < SKYLINK_WS_RECONNECT_SETTLE_MS) {
+        rejectCommand(client, command + " rejected: waiting for fresh state after WebSocket reconnect");
+        return false;
+    }
+
+    if (!flightController.isConnected(50)) {
+        rejectCommand(client, command + " rejected: no active MAVLink link");
+        return false;
+    }
+
+    if (command == lastFlightCommand && now - lastSameCommandMs < SKYLINK_WS_FLIGHT_CMD_DEDUPE_MS) {
+        rejectCommand(client, command + " rejected: duplicate command too soon");
+        return false;
+    }
+
+    if (now - lastFlightCommandMs < SKYLINK_WS_FLIGHT_CMD_MIN_INTERVAL_MS) {
+        rejectCommand(client, command + " rejected: flight command rate limit");
+        return false;
+    }
+
+    lastFlightCommandMs = now;
+    lastSameCommandMs = now;
+    lastFlightCommand = command;
+    return true;
 }
 
 void WebServerModule::sendAppState() {

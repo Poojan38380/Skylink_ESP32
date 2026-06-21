@@ -8,9 +8,15 @@ class WebServerModule {
 private:
     AsyncWebServer server;
     AsyncWebSocket ws;
+    uint32_t lastWsConnectMs = 0;
+    uint32_t lastFlightCommandMs = 0;
+    uint32_t lastSameCommandMs = 0;
+    String lastFlightCommand;
     
     void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len);
     void handleWebSocketMessage(void *arg, uint8_t *data, size_t len, AsyncWebSocketClient *client);
+    bool validateCommand(const String& command, AsyncWebSocketClient* client);
+    void rejectCommand(AsyncWebSocketClient* client, const String& message);
 
 public:
     WebServerModule(int port = 80);

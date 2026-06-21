@@ -420,6 +420,25 @@ Verification:
 - tests for every command/state combination;
 - UI buttons follow firmware gates.
 
+Status after Phase 3 slice 1:
+
+- [x] Added a central WebSocket command validator before command dispatch.
+- [x] Flight commands are rejected during the post-reconnect settle window.
+- [x] Flight commands are rejected when MAVLink is not active.
+- [x] Duplicate repeated flight commands are rejected for a short dedupe window.
+- [x] Flight commands are rate-limited to reduce button-spam and reconnect surprises.
+- [x] `EMERGENCY_STOP`, `PING`, and LED commands remain exempt from the flight-command gate.
+- [x] Rejection reasons are sent back to the dashboard as `ERROR` events and logged on serial.
+- [x] Command validation uses a longer MAVLink mutex wait to avoid false `no active MAVLink link` rejects during brief MAVLink processing contention.
+- [x] SITL and hardware firmware builds pass.
+
+Remaining Phase 3 work:
+
+- define a richer firmware safety state machine;
+- expose gate state directly in heartbeat telemetry;
+- add UI button disabling based on firmware gate state rather than browser-only assumptions;
+- add broader command/state tests.
+
 ### Phase 4 — MAVLink robustness
 
 Goal: make MAVLink source filtering and command lifecycle production-grade.

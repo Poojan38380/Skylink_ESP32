@@ -132,7 +132,7 @@ public:
     void emergencyStop();
 
     FCTelemetry getTelemetry();
-    bool isConnected();
+    bool isConnected(TickType_t timeout = 10);
     bool isSitlTcpConnected();
     bool popEvent(FCEvent& out);
     void appendStatusTexts(JsonArray arr);

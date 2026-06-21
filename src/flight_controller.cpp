@@ -567,9 +567,9 @@ FCTelemetry FlightController::getTelemetry() {
     return copy;
 }
 
-bool FlightController::isConnected() {
+bool FlightController::isConnected(TickType_t timeout) {
     bool connected = false;
-    if (takeMutex(10)) {
+    if (takeMutex(timeout)) {
         connected = mavlinkActive;
         giveMutex();
     }

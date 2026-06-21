@@ -17,6 +17,7 @@ private:
     void handleWebSocketMessage(void *arg, uint8_t *data, size_t len, AsyncWebSocketClient *client);
     bool validateCommand(const String& command, AsyncWebSocketClient* client);
     void rejectCommand(AsyncWebSocketClient* client, const String& message);
+    bool isFlightCommandGateReady(String& reason) const;
 
 public:
     WebServerModule(int port = 80);

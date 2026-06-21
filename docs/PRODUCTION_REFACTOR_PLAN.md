@@ -435,9 +435,16 @@ Status after Phase 3 slice 1:
 Remaining Phase 3 work:
 
 - define a richer firmware safety state machine;
-- expose gate state directly in heartbeat telemetry;
-- add UI button disabling based on firmware gate state rather than browser-only assumptions;
 - add broader command/state tests.
+
+Status after Phase 3 slice 2:
+
+- [x] Heartbeat telemetry exposes firmware command gate state and reason.
+- [x] Heartbeat telemetry exposes per-action permissions for set mode, arm, disarm, takeoff, land, RTL, loiter, move, goto, and emergency stop.
+- [x] Dashboard flight buttons now use firmware-provided permissions instead of browser-only assumptions.
+- [x] Dashboard keeps flight controls disabled after WebSocket open until the first heartbeat provides command permissions.
+- [x] WebSocket JSON buffer increased to fit the richer heartbeat payload.
+- [x] JS syntax check, SITL firmware build, hardware firmware build, and LittleFS build pass.
 
 ### Phase 4 — MAVLink robustness
 

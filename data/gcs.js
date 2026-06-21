@@ -16,6 +16,7 @@ let lastKeyMoveMs = 0;
 let lastStatusSnapshot = '';
 let pendingGoto = null;
 let lastHbForGoto = null;
+let lastCommandGate = { ready: false, reason: 'Waiting for heartbeat' };
 let activeTab = 'map';
 let _takeoffInProgress = false;
 let lastLoggedState = { armed: null, mode: null, gps: null, connected: null };
@@ -333,13 +334,7 @@ function updateMoveControls(d) {
   syncFlightUiState(d);
 
   const minAgl = 1;
-  const alt = Number(d.relative_alt) || Number(d.altitude) || 0;
-  const canMove =
-    wsConnected &&
-    flightUiState.armed &&
-    flightUiState.guided &&
-    (Number(d.gps_fix) || 0) >= (CFG.preflightMinGpsFix || 3) &&
-    alt >= minAgl;
+  const canMove = d.can_move === true;
 
   moveControlsEnabled = canMove;
   document.querySelectorAll('.move-dir, .btn-yaw').forEach((el) => {
@@ -351,6 +346,9 @@ function updateMoveControls(d) {
     if (canMove) {
       hint.textContent = 'Ready — ' + getMoveDistanceM() + ' m per move. Arrows = translate, Num 4/6 = yaw.';
       hint.className = 'move-hint ready';
+    } else if (d.cmd_gate_ready === false) {
+      hint.textContent = 'Commands locked: ' + (d.cmd_gate_reason || 'waiting for firmware gate');
+      hint.className = 'move-hint';
     } else if (!flightUiState.armed) {
       hint.textContent = 'Arm in GUIDED after preflight checks to enable moves.';
       hint.className = 'move-hint';
@@ -387,8 +385,8 @@ function closeGotoSheet() {
 
 function openGotoSheet(lat, lng) {
   if (!wsConnected) return;
-  if (!moveControlsEnabled) {
-    log('ERR', 'tag-err', 'Fly here: arm in GUIDED, 3D GPS, and at least 2 m altitude');
+  if (!lastHbForGoto?.can_goto) {
+    log('ERR', 'tag-err', 'Fly here blocked: ' + (lastHbForGoto?.cmd_gate_reason || 'need armed GUIDED, 3D GPS, home, and safe altitude'));
     return;
   }
   const radius = CFG.geofenceRadiusM != null ? CFG.geofenceRadiusM : 1000;
@@ -442,14 +440,13 @@ function confirmGoto() {
 function updateMapFlightActions(d) {
   lastHbForGoto = d;
   const armed = d.armed === true;
-  const guided = d.flight_mode_name === 'GUIDED' || Number(d.flight_mode) === 4;
 
   const loiterBtn = document.getElementById('btn-map-loiter');
   const landBtn = document.getElementById('btn-map-land');
   const rtlBtn = document.getElementById('btn-map-rtl');
-  if (loiterBtn) loiterBtn.disabled = !wsConnected || !armed;
-  if (landBtn) landBtn.disabled = !wsConnected;
-  if (rtlBtn) rtlBtn.disabled = !wsConnected;
+  if (loiterBtn) loiterBtn.disabled = !d.can_loiter;
+  if (landBtn) landBtn.disabled = !d.can_land;
+  if (rtlBtn) rtlBtn.disabled = !d.can_rtl;
 
   // Quick control buttons
   const qcArm = document.getElementById('qc-btn-arm');
@@ -457,15 +454,19 @@ function updateMapFlightActions(d) {
   const qcLiftoff = document.getElementById('qc-btn-liftoff');
   const qcLand = document.getElementById('qc-btn-land');
   const qcRtl = document.getElementById('qc-btn-rtl');
+  const qcSetMode = document.getElementById('qc-btn-set-mode');
+  const qcModeSelect = document.getElementById('qc-mode-select');
 
-  if (qcArm) qcArm.disabled = !wsConnected || armed;
-  if (qcDisarm) qcDisarm.disabled = !wsConnected || !armed;
-  if (qcLiftoff) qcLiftoff.disabled = !wsConnected || !armed || !guided;
-  if (qcLand) qcLand.disabled = !wsConnected || !armed;
-  if (qcRtl) qcRtl.disabled = !wsConnected || !armed;
+  if (qcSetMode) qcSetMode.disabled = !d.can_set_mode;
+  if (qcModeSelect) qcModeSelect.disabled = !d.can_set_mode;
+  if (qcArm) qcArm.disabled = !d.can_arm;
+  if (qcDisarm) qcDisarm.disabled = !d.can_disarm;
+  if (qcLiftoff) qcLiftoff.disabled = !d.can_takeoff;
+  if (qcLand) qcLand.disabled = !d.can_land;
+  if (qcRtl) qcRtl.disabled = !d.can_rtl;
   
   const qcEmergency = document.getElementById('qc-btn-emergency');
-  if (qcEmergency) qcEmergency.disabled = !wsConnected || !armed;
+  if (qcEmergency) qcEmergency.disabled = !d.can_emergency_stop;
 
   // Sync the Fly tab ones for parity and premium behavior
   const btnArm = document.getElementById('btn-arm');
@@ -474,13 +475,17 @@ function updateMapFlightActions(d) {
   const btnLand = document.getElementById('btn-land');
   const btnRtl = document.getElementById('btn-rtl');
   const btnEmergency = document.getElementById('btn-emergency');
+  const btnSetMode = document.getElementById('btn-set-mode');
+  const modeSelect = document.getElementById('mode-select');
 
-  if (btnArm) btnArm.disabled = !wsConnected || armed;
-  if (btnDisarm) btnDisarm.disabled = !wsConnected || !armed;
-  if (btnLiftoff) btnLiftoff.disabled = !wsConnected || !armed || !guided;
-  if (btnLand) btnLand.disabled = !wsConnected || !armed;
-  if (btnRtl) btnRtl.disabled = !wsConnected || !armed;
-  if (btnEmergency) btnEmergency.disabled = !wsConnected || !armed;
+  if (btnSetMode) btnSetMode.disabled = !d.can_set_mode;
+  if (modeSelect) modeSelect.disabled = !d.can_set_mode;
+  if (btnArm) btnArm.disabled = !d.can_arm;
+  if (btnDisarm) btnDisarm.disabled = !d.can_disarm;
+  if (btnLiftoff) btnLiftoff.disabled = !d.can_takeoff;
+  if (btnLand) btnLand.disabled = !d.can_land;
+  if (btnRtl) btnRtl.disabled = !d.can_rtl;
+  if (btnEmergency) btnEmergency.disabled = !d.can_emergency_stop;
 
   if (!armed) {
     resetEmergencyButtons();
@@ -550,7 +555,7 @@ function setLinkState(state) {
     if (lnkState) lnkState.textContent = 'Connected';
     btns.forEach((id) => {
       const el = document.getElementById(id);
-      if (el) el.disabled = false;
+      if (el) el.disabled = true;
     });
     if (overlay) overlay.classList.remove('show');
   } else if (state === 'disconnected') {
@@ -765,6 +770,10 @@ function updateTelemetry(d) {
   const batV = Number(d.battery_v) || 0;
   const sats = Number(d.sats) || 0;
   const yaw = Number(d.yaw);
+  lastCommandGate = {
+    ready: d.cmd_gate_ready === true,
+    reason: d.cmd_gate_reason || ''
+  };
 
   // Log important telemetry state changes in dashboard log pane
   if (lastLoggedState.connected !== d.mav_connected) {

@@ -9,7 +9,7 @@
 
 // --- Protocol ---
 #define SKYLINK_PROTOCOL_VERSION        1
-#define SKYLINK_JSON_BUFFER_SIZE        1152
+#define SKYLINK_JSON_BUFFER_SIZE        2048
 
 // --- WebSocket / dashboard telemetry ---
 #define SKYLINK_WS_TELEMETRY_INTERVAL_MS  200   // 5 Hz to browser (avoids AsyncWS queue overflow)

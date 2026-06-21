@@ -293,13 +293,9 @@ bool WebServerModule::validateCommand(const String& command, AsyncWebSocketClien
         return false;
     }
 
-    if (now - lastWsConnectMs < SKYLINK_WS_RECONNECT_SETTLE_MS) {
-        rejectCommand(client, command + " rejected: waiting for fresh state after WebSocket reconnect");
-        return false;
-    }
-
-    if (!flightController.isConnected(50)) {
-        rejectCommand(client, command + " rejected: no active MAVLink link");
+    String gateReason;
+    if (!isFlightCommandGateReady(gateReason)) {
+        rejectCommand(client, command + " rejected: " + gateReason);
         return false;
     }
 
@@ -316,6 +312,28 @@ bool WebServerModule::validateCommand(const String& command, AsyncWebSocketClien
     lastFlightCommandMs = now;
     lastSameCommandMs = now;
     lastFlightCommand = command;
+    return true;
+}
+
+bool WebServerModule::isFlightCommandGateReady(String& reason) const {
+    const uint32_t now = millis();
+
+    if (getWsClientCount() == 0) {
+        reason = "no active WebSocket client";
+        return false;
+    }
+
+    if (now - lastWsConnectMs < SKYLINK_WS_RECONNECT_SETTLE_MS) {
+        reason = "waiting for fresh state after WebSocket reconnect";
+        return false;
+    }
+
+    if (!flightController.isConnected(50)) {
+        reason = "no active MAVLink link";
+        return false;
+    }
+
+    reason = "ready";
     return true;
 }
 
@@ -338,6 +356,11 @@ void WebServerModule::sendHeartbeat() {
 
     JsonDocument doc;
     const FCTelemetry fc = flightController.getTelemetry();
+    String cmdGateReason;
+    const bool cmdGateReady = isFlightCommandGateReady(cmdGateReason);
+    const bool guided = (fc.flight_mode == COPTER_MODE_GUIDED);
+    const bool gpsOk = (fc.gps_fix >= 3);
+    const bool moveAglOk = (fc.relative_alt >= SKYLINK_MOVE_MIN_AGL_M);
 
     doc["v"] = SKYLINK_PROTOCOL_VERSION;
     doc["type"] = "event";
@@ -381,6 +404,19 @@ void WebServerModule::sendHeartbeat() {
     doc["wifi_rssi"] = wifiManager.getSignalStrength();
     doc["ws_connected"] = (getWsClientCount() > 0);
     doc["ws_clients"] = getWsClientCount();
+    doc["cmd_gate_ready"] = cmdGateReady;
+    doc["cmd_gate_reason"] = cmdGateReason;
+    doc["can_set_mode"] = cmdGateReady;
+    doc["can_arm"] = cmdGateReady && !fc.armed;
+    doc["can_disarm"] = cmdGateReady && fc.armed;
+    doc["can_takeoff"] = cmdGateReady && fc.armed && guided && gpsOk &&
+                         fc.relative_alt <= SKYLINK_MOVE_MIN_AGL_M;
+    doc["can_land"] = cmdGateReady && fc.armed;
+    doc["can_rtl"] = cmdGateReady && fc.armed;
+    doc["can_loiter"] = cmdGateReady && fc.armed && gpsOk;
+    doc["can_move"] = cmdGateReady && fc.armed && guided && gpsOk && moveAglOk;
+    doc["can_goto"] = cmdGateReady && fc.armed && guided && gpsOk && fc.home_valid && moveAglOk;
+    doc["can_emergency_stop"] = getWsClientCount() > 0 && fc.armed;
 #ifdef SITL_MODE
     doc["sitl_host"] = flightController.getSitlHost();
     doc["sitl_port"] = flightController.getSitlPort();

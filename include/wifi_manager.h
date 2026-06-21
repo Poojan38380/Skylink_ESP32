@@ -14,16 +14,24 @@ struct WiFiNetwork {
     int priority;
 };
 
+enum class WiFiConnectState : uint8_t {
+    Idle = 0,
+    Connecting
+};
+
 class WiFiManager {
 private:
     std::vector<WiFiNetwork> savedNetworks;
     unsigned long lastReconnectAttempt;
     unsigned long reconnectInterval;
+    unsigned long connectStartedAt;
+    size_t currentNetworkIndex;
     String currentSSID;
+    WiFiConnectState connectState;
     
     bool loadNetworksFromJson();
-    bool connectToWiFi();      // Full scan + match (used on first boot)
-    bool reconnectDirect();    // No scan, try saved list directly (used on reconnects)
+    void startConnectionAttempt();
+    void advanceConnectionAttempt();
     bool isWiFiConnected();
 
 public:

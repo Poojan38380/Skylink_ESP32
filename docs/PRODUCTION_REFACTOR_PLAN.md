@@ -389,6 +389,16 @@ Verification:
 - simulated WiFi loss does not halt MAVLink handling;
 - telemetry heartbeat remains stable during reconnect attempts.
 
+Status after Phase 2 implementation:
+
+- [x] Initial WiFi connection no longer performs a blocking scan/connect loop.
+- [x] WiFi reconnect is now a non-blocking priority-ordered state machine.
+- [x] Time sync checks now use zero-timeout `getLocalTime()` calls.
+- [x] Unsynced time retries happen every second without blocking MAVLink handling.
+- [x] OTA startup is deferred until WiFi is connected.
+- [x] OTA handler is serviced only while the vehicle is disarmed.
+- [x] SITL and hardware firmware builds pass.
+
 ### Phase 3 — Central safety monitor and command validator
 
 Goal: make firmware, not the browser, the source of safety truth.

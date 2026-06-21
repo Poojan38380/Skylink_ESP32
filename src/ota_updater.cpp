@@ -1,7 +1,8 @@
 #include "ota_updater.h"
 #include "logger.h"
+#include <WiFi.h>
 
-OTAUpdater::OTAUpdater(const String& hostname) : hostname(hostname), isUpdating(false) {
+OTAUpdater::OTAUpdater(const String& hostname) : hostname(hostname), isUpdating(false), started(false) {
 }
 
 void OTAUpdater::setupHandlers() {
@@ -41,16 +42,26 @@ void OTAUpdater::setupHandlers() {
 }
 
 void OTAUpdater::begin() {
+    if (started) return;
+    if (WiFi.status() != WL_CONNECTED) {
+        return;
+    }
+
     logger.info("Setting up OTA updater: " + hostname);
     
     ArduinoOTA.setHostname(hostname.c_str());
     setupHandlers();
     ArduinoOTA.begin();
+    started = true;
     
     logger.info("OTA updater started. Listen for updates on: " + hostname);
 }
 
 void OTAUpdater::handle() {
+    if (!started) {
+        begin();
+        return;
+    }
     ArduinoOTA.handle();
 }
 

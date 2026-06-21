@@ -15,7 +15,7 @@ void TimeSync::begin() {
 bool TimeSync::handle() {
     if (!isSynced) {
         struct tm timeinfo;
-        if (getLocalTime(&timeinfo, 5000)) {
+        if (getLocalTime(&timeinfo, 0)) {
             isSynced = true;
             logger.info("Time synchronized: " + getFormattedTime());
             return true;
@@ -26,7 +26,7 @@ bool TimeSync::handle() {
 
 String TimeSync::getFormattedTime() {
     struct tm timeinfo;
-    if (getLocalTime(&timeinfo)) {
+    if (getLocalTime(&timeinfo, 0)) {
         char timeStr[20];
         strftime(timeStr, sizeof(timeStr), "%H:%M:%S", &timeinfo);
         return String(timeStr);
@@ -36,7 +36,7 @@ String TimeSync::getFormattedTime() {
 
 String TimeSync::getFormattedDate() {
     struct tm timeinfo;
-    if (getLocalTime(&timeinfo)) {
+    if (getLocalTime(&timeinfo, 0)) {
         char dateStr[20];
         strftime(dateStr, sizeof(dateStr), "%Y-%m-%d", &timeinfo);
         return String(dateStr);
@@ -46,7 +46,7 @@ String TimeSync::getFormattedDate() {
 
 String TimeSync::getTimestamp() {
     struct tm timeinfo;
-    if (getLocalTime(&timeinfo)) {
+    if (getLocalTime(&timeinfo, 0)) {
         char timestamp[30];
         strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S", &timeinfo);
         return String(timestamp);

@@ -397,6 +397,8 @@ Status after Phase 2 implementation:
 - [x] Unsynced time retries happen every second without blocking MAVLink handling.
 - [x] OTA startup is deferred until WiFi is connected.
 - [x] OTA handler is serviced only while the vehicle is disarmed.
+- [x] SITL TCP reconnect attempts are skipped while WiFi is disconnected.
+- [x] SITL TCP reconnect attempts use a short timeout to avoid multi-second stalls while WiFi status is stale.
 - [x] SITL and hardware firmware builds pass.
 
 ### Phase 3 — Central safety monitor and command validator
@@ -409,6 +411,9 @@ Actions:
 - define state machine;
 - expose gate state and reject reasons to UI;
 - make ARM, TAKEOFF, MOVE, GOTO, LAND, RTL, LOITER rules explicit.
+- treat browser/GCS state as stale after WebSocket reconnect until fresh firmware and autopilot telemetry has arrived;
+- rate-limit or deduplicate repeated dangerous commands such as RTL/LAND/ARM/TAKEOFF;
+- require an active GCS/client heartbeat window for non-emergency commands.
 
 Verification:
 
@@ -463,12 +468,21 @@ Actions:
 - show command lifecycle and reject reasons;
 - separate normal pilot controls from maintenance/debug controls;
 - make dangerous actions visually distinct and confirmation-gated.
+- increase the number of visible dashboard logs/status messages;
+- keep a browser-side offline log/command backlog so the operator can review what happened while the network was gone;
+- resync and display missed firmware/autopilot events after reconnect where feasible.
 
 Verification:
 
 - UI can be operated under stress without ambiguity;
 - disabled/enabled state matches firmware gates;
 - mobile/tablet/desktop layouts tested.
+
+Logging requirement added after Phase 2 WiFi-loss test:
+
+- The dashboard must show more than the current small message window.
+- The operator should still see locally-known logs after WebSocket loss.
+- After reconnect, the UI should make it obvious which commands were sent before loss, which were not sent, and what firmware/autopilot events arrived after reconnection.
 
 ### Phase 7 — Simulation campaign
 

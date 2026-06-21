@@ -622,6 +622,15 @@ void FlightController::setSITLHost(const String& host) {
 void FlightController::maintainSitlConnection(uint32_t now) {
     if (!sitlHostConfigured) return;
 
+    if (WiFi.status() != WL_CONNECTED) {
+        if (sitlClient.connected()) {
+            sitlClient.stop();
+        }
+        mavlinkActive = false;
+        messageIntervalsSent = false;
+        return;
+    }
+
     if (!sitlClient.connected()) {
         mavlinkActive = false;
         messageIntervalsSent = false;
@@ -630,7 +639,7 @@ void FlightController::maintainSitlConnection(uint32_t now) {
         lastReconnectAttempt = now;
         logger.info("Attempting connection to SITL at " + sitlHost + ":" + String(sitlPort));
 
-        if (sitlClient.connect(sitlHost.c_str(), sitlPort)) {
+        if (sitlClient.connect(sitlHost.c_str(), sitlPort, SKYLINK_SITL_RECONNECT_TIMEOUT_MS)) {
             logger.info("Connected to ArduPilot SITL (TCP " + String(sitlPort) + ")");
             requestDataStreams();
             lastStreamRequest = now;

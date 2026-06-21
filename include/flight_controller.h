@@ -9,6 +9,7 @@
 #include "skylink_config.h"
 
 #ifdef SITL_MODE
+#include <WiFi.h>
 #include <WiFiClient.h>
 #endif
 

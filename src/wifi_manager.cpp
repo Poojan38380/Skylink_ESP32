@@ -126,7 +126,13 @@ void WiFiManager::begin() {
 
 void WiFiManager::handle() {
     if (isWiFiConnected()) {
-        connectState = WiFiConnectState::Idle;
+        const String connectedSSID = WiFi.SSID();
+        if (connectState != WiFiConnectState::Idle || currentSSID != connectedSSID) {
+            currentSSID = connectedSSID;
+            connectState = WiFiConnectState::Idle;
+            lastReconnectAttempt = millis();
+            logger.info("WiFi connected! SSID: " + currentSSID + " | IP: " + WiFi.localIP().toString());
+        }
         return;
     }
 

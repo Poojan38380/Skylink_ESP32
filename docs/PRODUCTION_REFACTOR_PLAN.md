@@ -474,6 +474,24 @@ Verification:
 - SITL tests for ACK accepted/denied/timeout;
 - wrong-source packet tests do not alter state.
 
+Status after Phase 4 slice 1:
+
+- [x] Autopilot heartbeat freshness is tracked separately from generic MAVLink traffic.
+- [x] Heartbeat telemetry now publishes `autopilot_heartbeat_fresh` and `autopilot_heartbeat_age_ms`.
+- [x] Command gate now requires a fresh autopilot heartbeat, not only a recently active MAVLink stream.
+- [x] Dashboard MAV chip distinguishes live MAVLink from stale autopilot heartbeat.
+- [x] Preflight MAV item requires fresh autopilot heartbeat.
+- [x] Status stream text shows autopilot heartbeat age/staleness.
+- [x] JS syntax check, SITL firmware build, hardware firmware build, and LittleFS build pass.
+
+Remaining Phase 4 work:
+
+- add a pending command table;
+- correlate `COMMAND_ACK` to sent commands;
+- expose command pending/accepted/denied/timeout lifecycle to the dashboard;
+- confirm state transitions after accepted ACKs;
+- add tests for wrong-source packets and ACK timeout behavior.
+
 ### Phase 5 — Security/authentication
 
 Goal: make command access safe enough for controlled network testing.

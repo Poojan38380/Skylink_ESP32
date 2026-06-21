@@ -626,7 +626,7 @@ function updatePreflight(d) {
   const minFix = CFG.preflightMinGpsFix || 3;
   const minBat = CFG.preflightMinBatteryPct || 20;
   const gpsOk = (Number(d.gps_fix) || 0) >= minFix;
-  const mavOk = d.mav_connected === true;
+  const mavOk = d.mav_connected === true && d.autopilot_heartbeat_fresh === true;
   const bat = Number(d.battery);
   const batOk = bat < 0 || bat >= minBat || d.simulation === true;
   syncFlightUiState(d);
@@ -737,7 +737,13 @@ function updateLinkChips(d) {
   );
 
   const mavOk = d.mav_connected === true;
-  setChip(document.getElementById('chip-mav'), mavOk ? 'ok' : 'bad', mavOk ? 'MAV ●' : 'MAV ○');
+  const hbFresh = d.autopilot_heartbeat_fresh === true;
+  const hbAgeS = Number(d.autopilot_heartbeat_age_ms || 0) / 1000;
+  setChip(
+    document.getElementById('chip-mav'),
+    mavOk && hbFresh ? 'ok' : (mavOk ? 'warn' : 'bad'),
+    mavOk && hbFresh ? 'MAV ●' : (mavOk ? ('MAV ◌ ' + hbAgeS.toFixed(1) + 's') : 'MAV ○')
+  );
 
   const safetyName = d.safety_state_name || 'SAFETY';
   const safetyOk = d.safety_state_name === 'READY_TO_ARM' ||
@@ -885,7 +891,10 @@ function updateTelemetry(d) {
     else sb.className = 'signal-bars s1';
   }
 
-  set('last-hb-text', (d.sitl_connected ? 'MAVLink live' : 'Waiting') + ' · ' + sats + ' sats');
+  const hbText = d.autopilot_heartbeat_fresh
+    ? ('Autopilot HB ' + (Number(d.autopilot_heartbeat_age_ms || 0) / 1000).toFixed(1) + 's')
+    : (d.mav_connected ? ('HB stale ' + (Number(d.autopilot_heartbeat_age_ms || 0) / 1000).toFixed(1) + 's') : 'Waiting');
+  set('last-hb-text', hbText + ' · ' + sats + ' sats');
 
   logNewStatusTexts(d.statustext);
   updateLinkChips(d);

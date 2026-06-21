@@ -43,6 +43,8 @@ struct FCTelemetry {
     bool home_valid = false;
     double home_latitude = 0.0;
     double home_longitude = 0.0;
+    bool autopilot_heartbeat_fresh = false;
+    uint32_t autopilot_heartbeat_age_ms = 0;
 };
 
 enum class FCEventType : uint8_t {
@@ -65,6 +67,7 @@ private:
     uint32_t lastReconnectAttempt = 0;
     uint32_t lastStreamRequest = 0;
     uint32_t lastMavlinkRx = 0;
+    uint32_t lastAutopilotHeartbeatRx = 0;
     uint32_t lastGuidedCmdMs = 0;
     bool mavlinkActive = false;
     bool messageIntervalsSent = false;
@@ -133,6 +136,7 @@ public:
 
     FCTelemetry getTelemetry();
     bool isConnected(TickType_t timeout = 10);
+    bool isAutopilotHeartbeatFresh(TickType_t timeout = 10);
     bool isSitlTcpConnected();
     bool popEvent(FCEvent& out);
     void appendStatusTexts(JsonArray arr);

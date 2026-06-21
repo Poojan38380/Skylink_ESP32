@@ -368,6 +368,11 @@ bool WebServerModule::isFlightCommandGateReady(String& reason) const {
         return false;
     }
 
+    if (!flightController.isAutopilotHeartbeatFresh(50)) {
+        reason = "autopilot heartbeat stale";
+        return false;
+    }
+
     reason = "ready";
     return true;
 }
@@ -488,6 +493,8 @@ void WebServerModule::sendHeartbeat() {
 
     doc["sitl_connected"] = flightController.isConnected();
     doc["mav_connected"] = flightController.isConnected();
+    doc["autopilot_heartbeat_fresh"] = fc.autopilot_heartbeat_fresh;
+    doc["autopilot_heartbeat_age_ms"] = fc.autopilot_heartbeat_age_ms;
     doc["sitl_tcp_connected"] = flightController.isSitlTcpConnected();
     doc["wifi_connected"] = wifiManager.isConnected();
     doc["wifi_rssi"] = wifiManager.getSignalStrength();

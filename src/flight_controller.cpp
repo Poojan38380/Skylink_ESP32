@@ -46,6 +46,7 @@ void FlightController::begin() {
     mavlinkActive = false;
     messageIntervalsSent = false;
     lastMavlinkRx = 0;
+    lastAutopilotHeartbeatRx = 0;
     lastStreamRequest = 0;
     lastGcsHeartbeat = 0;
     statusLineCount = 0;
@@ -562,6 +563,13 @@ FCTelemetry FlightController::getTelemetry() {
     FCTelemetry copy;
     if (takeMutex(10)) {
         copy = telemetry;
+        const uint32_t now = millis();
+        copy.autopilot_heartbeat_fresh =
+            mavlinkActive &&
+            lastAutopilotHeartbeatRx != 0 &&
+            (now - lastAutopilotHeartbeatRx <= SKYLINK_MAVLINK_TIMEOUT_MS);
+        copy.autopilot_heartbeat_age_ms =
+            lastAutopilotHeartbeatRx == 0 ? 0 : (now - lastAutopilotHeartbeatRx);
         giveMutex();
     }
     return copy;
@@ -574,6 +582,19 @@ bool FlightController::isConnected(TickType_t timeout) {
         giveMutex();
     }
     return connected;
+}
+
+bool FlightController::isAutopilotHeartbeatFresh(TickType_t timeout) {
+    bool fresh = false;
+    if (takeMutex(timeout)) {
+        const uint32_t now = millis();
+        fresh =
+            mavlinkActive &&
+            lastAutopilotHeartbeatRx != 0 &&
+            (now - lastAutopilotHeartbeatRx <= SKYLINK_MAVLINK_TIMEOUT_MS);
+        giveMutex();
+    }
+    return fresh;
 }
 
 bool FlightController::isSitlTcpConnected() {
@@ -614,6 +635,7 @@ void FlightController::setSITLHost(const String& host) {
         }
         mavlinkActive = false;
         messageIntervalsSent = false;
+        lastAutopilotHeartbeatRx = 0;
         lastReconnectAttempt = 0;
     }
     giveMutex();
@@ -628,12 +650,14 @@ void FlightController::maintainSitlConnection(uint32_t now) {
         }
         mavlinkActive = false;
         messageIntervalsSent = false;
+        lastAutopilotHeartbeatRx = 0;
         return;
     }
 
     if (!sitlClient.connected()) {
         mavlinkActive = false;
         messageIntervalsSent = false;
+        lastAutopilotHeartbeatRx = 0;
         if (now - lastReconnectAttempt < SKYLINK_SITL_RECONNECT_INTERVAL_MS) return;
 
         lastReconnectAttempt = now;
@@ -656,6 +680,7 @@ void FlightController::maintainSitlConnection(uint32_t now) {
         sitlClient.stop();
         mavlinkActive = false;
         messageIntervalsSent = false;
+        lastAutopilotHeartbeatRx = 0;
     }
 }
 #endif
@@ -759,6 +784,7 @@ void FlightController::handle() {
         mavlinkActive = false;
         messageIntervalsSent = false;
         lastStreamRequest = 0;
+        lastAutopilotHeartbeatRx = 0;
     }
 
     if (!takeMutex(0)) return;
@@ -806,6 +832,7 @@ void FlightController::processMavlinkMessage(mavlink_message_t* msg) {
                 break;
             }
             lastMavlinkRx = now;
+            lastAutopilotHeartbeatRx = now;
             if (!mavlinkActive) {
                 mavlinkActive = true;
                 logger.info("MAVLink link active — connection established");

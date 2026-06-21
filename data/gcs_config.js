@@ -33,6 +33,7 @@ const SKYLINK_GCS_CONFIG = {
   defaultTakeoffAltM: 2,
   takeoffAltMinM: 1,
   takeoffAltMaxM: 50,
+  takeoffGroundMaxAglM: 0.75,
 
   armModeDelayMs: 800,
   takeoffArmDelayMs: 800,
@@ -40,7 +41,7 @@ const SKYLINK_GCS_CONFIG = {
   clientFlightCommandMinIntervalMs: 650,
   commandAckTimeoutMs: 4000,
   stateConfirmTimeoutMs: 10000,
-  commandGateMaxAgeMs: 1200,
+  commandGateMaxAgeMs: 3000,
 
   movePresetsM: [1, 3, 5, 10],
   yawPresetsDeg: [45, 90, 180],

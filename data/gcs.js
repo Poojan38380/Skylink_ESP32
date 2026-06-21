@@ -16,6 +16,7 @@ let lastKeyMoveMs = 0;
 let lastStatusSnapshot = '';
 let pendingGoto = null;
 let lastHbForGoto = null;
+let lastTelemetry = null;
 let lastCommandGate = { ready: false, reason: 'Waiting for heartbeat', heartbeatMs: 0, commandPending: false, commandName: '' };
 let lastFlightCommandTxMs = 0;
 let activeTab = 'map';
@@ -403,8 +404,20 @@ function isClientFlightCommand(command) {
     command === 'RTL';
 }
 
+function ackTrackedCommandName(command) {
+  if (command === 'SET_FLIGHT_MODE') return 'SET_MODE';
+  if (command === 'ARM_DRONE') return 'ARM';
+  if (command === 'DISARM_DRONE') return 'DISARM';
+  if (command === 'TAKEOFF') return 'TAKEOFF';
+  if (command === 'YAW_RELATIVE') return 'YAW_RELATIVE';
+  if (command === 'LOITER_HERE') return 'LOITER';
+  if (command === 'LAND') return 'LAND';
+  if (command === 'RTL') return 'RTL';
+  return '';
+}
+
 function isCommandGateFresh() {
-  const maxAgeMs = CFG.commandGateMaxAgeMs || 1200;
+  const maxAgeMs = CFG.commandGateMaxAgeMs || 3000;
   return lastCommandGate.ready === true &&
     lastCommandGate.heartbeatMs > 0 &&
     Date.now() - lastCommandGate.heartbeatMs <= maxAgeMs;
@@ -429,10 +442,21 @@ function waitForCommandAck(commandId, timeoutMs) {
       reject,
       timer: setTimeout(() => {
         ackWaiters = ackWaiters.filter((w) => w !== waiter);
+        lastCommandGate.commandPending = false;
+        lastCommandGate.commandName = '';
         reject(new Error('ACK timeout for command ' + commandId));
       }, timeoutMs),
     };
     ackWaiters.push(waiter);
+  });
+}
+
+function cancelCommandAckWait(commandId) {
+  const matched = ackWaiters.filter((w) => w.commandId === commandId);
+  if (!matched.length) return;
+  ackWaiters = ackWaiters.filter((w) => w.commandId !== commandId);
+  matched.forEach((w) => {
+    clearTimeout(w.timer);
   });
 }
 
@@ -468,11 +492,15 @@ function waitForState(predicate, label, timeoutMs) {
 }
 
 async function sendCommandAndWaitAck(command, extra, mavCommandId, label) {
+  const ackTimeoutMs = CFG.commandAckTimeoutMs || 4000;
+  const ackPromise = waitForCommandAck(mavCommandId, ackTimeoutMs);
   if (!sendCmd(command, extra)) {
+    cancelCommandAckWait(mavCommandId);
+    lastCommandGate.commandPending = false;
+    lastCommandGate.commandName = '';
     throw new Error(label + ' command was not sent');
   }
-  const ackTimeoutMs = CFG.commandAckTimeoutMs || 4000;
-  await waitForCommandAck(mavCommandId, ackTimeoutMs);
+  await ackPromise;
 }
 
 function sendYawRelative(deg) {
@@ -887,6 +915,7 @@ function logNewStatusTexts(lines) {
 }
 
 function updateTelemetry(d) {
+  lastTelemetry = d;
   const alt = Number(d.altitude) || 0;
   const spd = Number(d.speed) || 0;
   const lat = Number(d.lat) || 0;
@@ -1065,6 +1094,11 @@ function sendCmd(command, extra) {
   }
   const msg = { v: CFG.protocolVersion || 1, type: 'command', command, ...(extra || {}) };
   ws.send(JSON.stringify(msg));
+  const pendingName = ackTrackedCommandName(command);
+  if (pendingName) {
+    lastCommandGate.commandPending = true;
+    lastCommandGate.commandName = pendingName;
+  }
   log('TX', 'tag-sys', command + (extra ? ' → ' + JSON.stringify(extra) : ''));
   return true;
 }
@@ -1125,6 +1159,15 @@ async function autonomousTakeoff() {
     return;
   }
 
+  const hb = lastTelemetry || {};
+  const currentlyArmed = hb.armed === true && flightUiState.armed === true;
+  const currentlyGuided = flightUiState.guided === true;
+  const relAlt = Number(hb.relative_alt) || 0;
+  if (currentlyArmed && relAlt >= (CFG.takeoffGroundMaxAglM || 0.75)) {
+    log('ERR', 'tag-err', 'Takeoff not started: vehicle already appears airborne.');
+    return;
+  }
+
   const alt = prompt('Takeoff altitude (meters)?', String(CFG.defaultTakeoffAltM || 5));
   if (alt === null) return;
   const meters = parseFloat(alt);
@@ -1140,20 +1183,25 @@ async function autonomousTakeoff() {
   try {
     const stateTimeoutMs = CFG.stateConfirmTimeoutMs || 10000;
 
-    flightUiState.guided = false;
-    flightUiState.armed = false;
-    flightUiState.stableCount = 0;
+    if (!currentlyGuided) {
+      log('SYS', 'tag-sys', '[TAKEOFF 1/6] Sending GUIDED mode…');
+      await sendCommandAndWaitAck('SET_FLIGHT_MODE', { mode: 'GUIDED' }, MAV_CMD.DO_SET_MODE, 'GUIDED');
+      log('SYS', 'tag-sys', '[TAKEOFF 2/6] GUIDED ACK accepted — waiting for GUIDED state…');
+      await waitForState(() => flightUiState.guided, 'GUIDED state confirmation', stateTimeoutMs);
+    } else {
+      log('SYS', 'tag-sys', '[TAKEOFF 1/6] Already in GUIDED — mode command skipped');
+    }
 
-    log('SYS', 'tag-sys', '[TAKEOFF 1/6] Sending GUIDED mode…');
-    await sendCommandAndWaitAck('SET_FLIGHT_MODE', { mode: 'GUIDED' }, MAV_CMD.DO_SET_MODE, 'GUIDED');
-    log('SYS', 'tag-sys', '[TAKEOFF 2/6] GUIDED ACK accepted — waiting for GUIDED state…');
-    await waitForState(() => flightUiState.guided, 'GUIDED state confirmation', stateTimeoutMs);
-
-    await sleep(CFG.takeoffArmDelayMs || 800);
-    log('SYS', 'tag-sys', '[TAKEOFF 3/6] GUIDED confirmed — sending ARM…');
-    await sendCommandAndWaitAck('ARM_DRONE', null, MAV_CMD.COMPONENT_ARM_DISARM, 'ARM');
-    log('SYS', 'tag-sys', '[TAKEOFF 4/6] ARM ACK accepted — waiting for ARMED state…');
-    await waitForState(() => flightUiState.armed && flightUiState.guided, 'ARMED GUIDED state confirmation', stateTimeoutMs);
+    if (!currentlyArmed) {
+      await sleep(CFG.takeoffArmDelayMs || 800);
+      log('SYS', 'tag-sys', '[TAKEOFF 3/6] GUIDED confirmed — sending ARM…');
+      await sendCommandAndWaitAck('ARM_DRONE', null, MAV_CMD.COMPONENT_ARM_DISARM, 'ARM');
+      log('SYS', 'tag-sys', '[TAKEOFF 4/6] ARM ACK accepted — waiting for ARMED state…');
+      await waitForState(() => flightUiState.armed && flightUiState.guided, 'ARMED GUIDED state confirmation', stateTimeoutMs);
+    } else {
+      log('SYS', 'tag-sys', '[TAKEOFF 3/6] Already armed in GUIDED — ARM command skipped');
+      await waitForState(() => flightUiState.armed && flightUiState.guided, 'ARMED GUIDED state confirmation', stateTimeoutMs);
+    }
 
     await sleep(CFG.takeoffCommandDelayMs || 800);
     log('SYS', 'tag-sys', '[TAKEOFF 5/6] Armed in GUIDED confirmed — sending TAKEOFF…');

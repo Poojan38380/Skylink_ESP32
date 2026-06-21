@@ -507,11 +507,21 @@ Status after Phase 4 slice 3:
 - [x] Autonomous takeoff now waits for SET_MODE ACK, GUIDED state confirmation, ARM ACK, ARMED+GUIDED state confirmation, TAKEOFF ACK.
 - [x] Removed the old timer-only takeoff state machine.
 
+Status after Phase 4 slice 4:
+
+- [x] Fixed a browser ACK race by registering ACK waiters before transmitting commands.
+- [x] Browser now marks ACK-capable commands locally pending immediately after TX, instead of waiting for the next heartbeat.
+- [x] Firmware command validation now rejects overlapping normal flight commands while an ACK-capable command is pending.
+- [x] Autonomous takeoff is state-aware: it skips redundant mode/arm commands when already GUIDED/armed on ground.
+- [x] Autonomous takeoff refuses to start if the vehicle already appears airborne.
+- [x] Browser command-gate staleness window is aligned to a realistic telemetry/UI window instead of a 1.2s false-failure window.
+- [x] `can_takeoff` now matches the autonomous takeoff behavior: allowed from disarmed ready-to-arm or armed-ground GUIDED states.
+- [x] Developer and indoor motor test docs now describe the ACK/state-driven 6-step takeoff flow.
+
 Remaining Phase 4 work:
 
 - replace the one-slot pending tracker with a small bounded pending command table if overlapping ACK-capable commands are needed;
 - extend ACK/state-driven sequencing to LAND/RTL/LOITER/mode changes where useful;
-- prevent command overwrite/race cases while one ACK-capable command is already pending;
 - add tests for wrong-source packets and ACK timeout behavior.
 
 ### Phase 5 — Security/authentication

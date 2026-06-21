@@ -345,6 +345,12 @@ bool WebServerModule::validateCommand(const String& command, AsyncWebSocketClien
         return false;
     }
 
+    const FCTelemetry fc = flightController.getTelemetry();
+    if (fc.command_pending) {
+        rejectCommand(client, command + " rejected: waiting for " + String(fc.command_name[0] ? fc.command_name : "pending command"));
+        return false;
+    }
+
     if (command == lastFlightCommand && now - lastSameCommandMs < SKYLINK_WS_FLIGHT_CMD_DEDUPE_MS) {
         rejectCommand(client, command + " rejected: duplicate command too soon");
         return false;
@@ -426,6 +432,7 @@ void WebServerModule::appendSafetyState(JsonDocument& doc, const FCTelemetry& fc
     const bool armed = fc.armed;
     const bool flying = (safety.state == SafetyState::Flying);
     const bool armedGround = (safety.state == SafetyState::ArmedGround);
+    const bool readyToArm = (safety.state == SafetyState::ReadyToArm);
     const bool landing = (safety.state == SafetyState::Landing);
 
     doc["safety_state"] = (uint8_t)safety.state;
@@ -436,7 +443,10 @@ void WebServerModule::appendSafetyState(JsonDocument& doc, const FCTelemetry& fc
     doc["can_set_mode"] = cmdGateReady;
     doc["can_arm"] = (safety.state == SafetyState::ReadyToArm);
     doc["can_disarm"] = cmdGateReady && armed;
-    doc["can_takeoff"] = armedGround && safety.guided && safety.gpsOk;
+    const bool canAutoTakeoffFromDisarmed = readyToArm && !armed;
+    const bool canTakeoffFromArmedGround = armedGround && safety.guided;
+    doc["can_takeoff"] = cmdGateReady && safety.gpsOk &&
+        (canAutoTakeoffFromDisarmed || canTakeoffFromArmedGround);
     doc["can_land"] = cmdGateReady && armed;
     doc["can_rtl"] = cmdGateReady && armed && !landing;
     doc["can_loiter"] = flying && safety.gpsOk;

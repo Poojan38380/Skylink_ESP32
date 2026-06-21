@@ -502,21 +502,51 @@ void FlightController::gotoAlt(float altRelMeters) {
 void FlightController::loiterHere() {
     if (!takeMutex()) return;
 
-    if (!mavlinkActive || !telemetry.armed) {
-        logger.warning("LOITER rejected (need armed + MAVLink)");
+    const uint32_t now = millis();
+    if (now - lastGuidedCmdMs < SKYLINK_CMD_DEBOUNCE_MS) {
         giveMutex();
         return;
     }
 
-    if (telemetry.gps_fix < 3) {
-        logger.warning("LOITER rejected (need GPS 3D)");
+    if (!canExecuteGuidedMoveUnlocked()) {
+        logger.warning("LOITER_HERE rejected (need armed GUIDED, GPS 3D, min AGL)");
         giveMutex();
         return;
     }
 
-    logger.info("Setting flight mode: LOITER");
-    setCopterMode(COPTER_MODE_LOITER);
-    startPendingCommandUnlocked("LOITER", MAV_CMD_DO_SET_MODE);
+    if (fabs(telemetry.latitude) < 1e-6 && fabs(telemetry.longitude) < 1e-6) {
+        logger.warning("LOITER_HERE rejected (no position)");
+        giveMutex();
+        return;
+    }
+
+    const uint16_t typeMask =
+        POSITION_TARGET_TYPEMASK_VX_IGNORE |
+        POSITION_TARGET_TYPEMASK_VY_IGNORE |
+        POSITION_TARGET_TYPEMASK_VZ_IGNORE |
+        POSITION_TARGET_TYPEMASK_AX_IGNORE |
+        POSITION_TARGET_TYPEMASK_AY_IGNORE |
+        POSITION_TARGET_TYPEMASK_AZ_IGNORE |
+        POSITION_TARGET_TYPEMASK_YAW_IGNORE |
+        POSITION_TARGET_TYPEMASK_YAW_RATE_IGNORE;
+
+    mavlink_message_t msg;
+    mavlink_msg_set_position_target_global_int_pack(
+        GCS_SYSID, GCS_COMPID, &msg,
+        millis(),
+        1, 1,
+        MAV_FRAME_GLOBAL_RELATIVE_ALT_INT,
+        typeMask,
+        (int32_t)(telemetry.latitude * 1e7),
+        (int32_t)(telemetry.longitude * 1e7),
+        telemetry.relative_alt,
+        0, 0, 0,
+        0, 0, 0,
+        0, 0
+    );
+    sendMavlinkPacket(&msg);
+    lastGuidedCmdMs = now;
+    logger.info("LOITER_HERE hold position @ " + String(telemetry.relative_alt) + "m");
     giveMutex();
 }
 

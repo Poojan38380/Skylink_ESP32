@@ -518,11 +518,26 @@ Status after Phase 4 slice 4:
 - [x] `can_takeoff` now matches the autonomous takeoff behavior: allowed from disarmed ready-to-arm or armed-ground GUIDED states.
 - [x] Developer and indoor motor test docs now describe the ACK/state-driven 6-step takeoff flow.
 
+Status after Phase 4 slice 5:
+
+- [x] Manual mode changes now use an ACK/state-confirmed sequence instead of raw `sendCmd`.
+- [x] LAND, RTL, and LOITER dashboard actions now use ACK/state-confirmed mode sequencing.
+- [x] Yaw commands now use the browser ACK helper instead of fire-and-forget logging.
+- [x] Browser has a general command-in-progress mutex so LAND/RTL/LOITER/mode/yaw cannot overlap with arm/takeoff.
+- [x] Firmware now accepts `STABILIZE` from the dashboard mode dropdown instead of rejecting a visible UI option.
+- [x] Firmware build bumped to 13 and FS build bumped to 19 for this command-lifecycle slice.
+
+Status after Phase 4 slice 6:
+
+- [x] Replaced unsafe ArduPilot LOITER-mode button behavior with a GUIDED hold-position command at the current lat/lon/relative altitude.
+- [x] LOITER/Hold now requires armed GUIDED flight, GPS 3D, and minimum safe AGL before it is enabled/sent.
+- [x] LAND and RTL remain explicit autopilot recovery mode changes with ACK/state confirmation.
+- [x] Firmware build bumped to 14 and FS build bumped to 20 for the LOITER/Hold safety correction.
+
 Remaining Phase 4 work:
 
-- replace the one-slot pending tracker with a small bounded pending command table if overlapping ACK-capable commands are needed;
-- extend ACK/state-driven sequencing to LAND/RTL/LOITER/mode changes where useful;
-- add tests for wrong-source packets and ACK timeout behavior.
+- Optional later hardening: replace the one-slot pending tracker with a small bounded pending command table if overlapping ACK-capable commands are needed.
+- Optional later hardening: add automated wrong-source packet and ACK-timeout tests.
 
 ### Phase 5 — Security/authentication
 

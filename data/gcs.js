@@ -20,6 +20,7 @@ let lastTelemetry = null;
 let lastCommandGate = { ready: false, reason: 'Waiting for heartbeat', heartbeatMs: 0, commandPending: false, commandName: '' };
 let lastFlightCommandTxMs = 0;
 let activeTab = 'map';
+let _commandInProgress = false;
 let _armInProgress = false;
 let _takeoffInProgress = false;
 let lastLoggedState = { armed: null, mode: null, gps: null, connected: null, commandKey: null };
@@ -31,6 +32,7 @@ const MAV_CMD = {
   DO_SET_MODE: 176,
   COMPONENT_ARM_DISARM: 400,
   NAV_TAKEOFF: 22,
+  CONDITION_YAW: 115,
 };
 
 const flightUiState = {
@@ -410,7 +412,6 @@ function ackTrackedCommandName(command) {
   if (command === 'DISARM_DRONE') return 'DISARM';
   if (command === 'TAKEOFF') return 'TAKEOFF';
   if (command === 'YAW_RELATIVE') return 'YAW_RELATIVE';
-  if (command === 'LOITER_HERE') return 'LOITER';
   if (command === 'LAND') return 'LAND';
   if (command === 'RTL') return 'RTL';
   return '';
@@ -504,9 +505,77 @@ async function sendCommandAndWaitAck(command, extra, mavCommandId, label) {
 }
 
 function sendYawRelative(deg) {
-  if (sendCmd('YAW_RELATIVE', { deg })) {
-    log('SYS', 'tag-sys', 'YAW_RELATIVE ' + deg + '°');
+  runAckCommand('YAW_RELATIVE', { deg }, MAV_CMD.CONDITION_YAW, 'YAW_RELATIVE ' + deg + '°');
+}
+
+async function runAckCommand(command, extra, mavCommandId, label) {
+  if (_commandInProgress || _armInProgress || _takeoffInProgress) {
+    log('ERR', 'tag-err', 'Command already in progress.');
+    return false;
   }
+
+  try {
+    _commandInProgress = true;
+    log('SYS', 'tag-sys', label);
+    await sendCommandAndWaitAck(command, extra, mavCommandId, label);
+    return true;
+  } catch (err) {
+    log('ERR', 'tag-err', '[' + label + ' ABORTED] ' + (err && err.message ? err.message : String(err)));
+    return false;
+  } finally {
+    _commandInProgress = false;
+  }
+}
+
+async function setModeSequence(modeName, label) {
+  if (_commandInProgress || _armInProgress || _takeoffInProgress) {
+    log('ERR', 'tag-err', 'Command already in progress.');
+    return false;
+  }
+
+  try {
+    _commandInProgress = true;
+    const stateTimeoutMs = CFG.stateConfirmTimeoutMs || 10000;
+    const expectedMode = modeName;
+    log('SYS', 'tag-sys', '[' + label + ' 1/2] Sending ' + modeName + ' mode…');
+    await sendCommandAndWaitAck('SET_FLIGHT_MODE', { mode: modeName }, MAV_CMD.DO_SET_MODE, label);
+    log('SYS', 'tag-sys', '[' + label + ' 2/2] ACK accepted — waiting for ' + modeName + ' state…');
+    await waitForState(() => {
+      const hb = lastTelemetry || {};
+      return (hb.flight_mode_name || '') === expectedMode;
+    }, modeName + ' state confirmation', stateTimeoutMs);
+    return true;
+  } catch (err) {
+    log('ERR', 'tag-err', '[' + label + ' ABORTED] ' + (err && err.message ? err.message : String(err)));
+    return false;
+  } finally {
+    _commandInProgress = false;
+  }
+}
+
+function applyFlightMode(selectId = 'mode-select') {
+  const val = document.getElementById(selectId)?.value;
+  if (val) setModeSequence(val, 'MODE ' + val);
+}
+
+function loiterSequence() {
+  if (_commandInProgress || _armInProgress || _takeoffInProgress) {
+    log('ERR', 'tag-err', 'Command already in progress.');
+    return false;
+  }
+  if (sendCmd('LOITER_HERE')) {
+    log('SYS', 'tag-sys', 'LOITER_HERE hold position');
+    return true;
+  }
+  return false;
+}
+
+function landSequence() {
+  return setModeSequence('LAND', 'LAND');
+}
+
+function rtlSequence() {
+  return setModeSequence('RTL', 'RTL');
 }
 
 function closeGotoSheet() {
@@ -632,16 +701,13 @@ function initMapGoto() {
   document.getElementById('goto-cancel')?.addEventListener('click', closeGotoSheet);
   document.getElementById('goto-confirm')?.addEventListener('click', confirmGoto);
   document.getElementById('btn-map-loiter')?.addEventListener('click', () => {
-    sendCmd('LOITER_HERE');
-    log('SYS', 'tag-sys', 'LOITER_HERE');
+    loiterSequence();
   });
   document.getElementById('btn-map-land')?.addEventListener('click', () => {
-    sendCmd('LAND');
-    log('SYS', 'tag-sys', 'LAND');
+    landSequence();
   });
   document.getElementById('btn-map-rtl')?.addEventListener('click', () => {
-    sendCmd('RTL');
-    log('SYS', 'tag-sys', 'RTL');
+    rtlSequence();
   });
 }
 
@@ -1103,14 +1169,9 @@ function sendCmd(command, extra) {
   return true;
 }
 
-function applyFlightMode(selectId = 'mode-select') {
-  const val = document.getElementById(selectId)?.value;
-  if (val) sendCmd('SET_FLIGHT_MODE', { mode: val });
-}
-
 async function armSequence(selectId = 'mode-select') {
-  if (_armInProgress || _takeoffInProgress) {
-    log('ERR', 'tag-err', 'Arm/takeoff sequence already in progress.');
+  if (_commandInProgress || _armInProgress || _takeoffInProgress) {
+    log('ERR', 'tag-err', 'Command already in progress.');
     return;
   }
 
@@ -1148,8 +1209,8 @@ async function autonomousTakeoff() {
   // FIX: Mutex — prevent multiple concurrent takeoff state machines.
   // Each call creates new setInterval instances; without this guard, rapid
   // button clicks stack up and race each other to ARM + TAKEOFF.
-  if (_armInProgress || _takeoffInProgress) {
-    log('ERR', 'tag-err', 'Arm/takeoff sequence already in progress — wait or disarm first.');
+  if (_commandInProgress || _armInProgress || _takeoffInProgress) {
+    log('ERR', 'tag-err', 'Command already in progress — wait or disarm first.');
     return;
   }
 

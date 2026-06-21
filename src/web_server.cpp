@@ -12,6 +12,10 @@
 namespace {
 
 bool parseFlightMode(const String& modeName, uint8_t& mode) {
+    if (modeName == "STABILIZE") {
+        mode = COPTER_MODE_STABILIZE;
+        return true;
+    }
     if (modeName == "GUIDED") {
         mode = COPTER_MODE_GUIDED;
         return true;
@@ -449,7 +453,7 @@ void WebServerModule::appendSafetyState(JsonDocument& doc, const FCTelemetry& fc
         (canAutoTakeoffFromDisarmed || canTakeoffFromArmedGround);
     doc["can_land"] = cmdGateReady && armed;
     doc["can_rtl"] = cmdGateReady && armed && !landing;
-    doc["can_loiter"] = flying && safety.gpsOk;
+    doc["can_loiter"] = flying && safety.guided && safety.gpsOk;
     doc["can_move"] = flying && safety.guided && safety.gpsOk;
     doc["can_goto"] = flying && safety.guided && safety.gpsOk && fc.home_valid;
     doc["can_emergency_stop"] = getWsClientCount() > 0 && armed;

@@ -158,8 +158,8 @@
             <button type="button" class="qc-btn qc-btn-emergency" id="qc-btn-emergency" disabled onclick="triggerEmergencyDisarm(this)">Emergency Disarm</button>
             <button type="button" class="qc-btn qc-btn-primary" id="qc-btn-liftoff" disabled onclick="autonomousTakeoff()">Takeoff</button>
             <div class="qc-btn-group">
-              <button type="button" class="qc-btn qc-btn-danger" id="qc-btn-land" disabled onclick="sendCmd('LAND')">Land</button>
-              <button type="button" class="qc-btn qc-btn-danger" id="qc-btn-rtl" disabled onclick="sendCmd('RTL')">RTL</button>
+              <button type="button" class="qc-btn qc-btn-danger" id="qc-btn-land" disabled onclick="landSequence()">Land</button>
+              <button type="button" class="qc-btn qc-btn-danger" id="qc-btn-rtl" disabled onclick="rtlSequence()">RTL</button>
             </div>
           </div>
         </div>
@@ -320,8 +320,8 @@
           <p class="section-desc">Takeoff climbs in GUIDED. Land and RTL are safe recovery options.</p>
           <button type="button" class="btn btn-primary btn-block" id="btn-liftoff" disabled onclick="autonomousTakeoff()">Takeoff…</button>
           <div class="btn-grid-2" style="margin-top:16px">
-            <button type="button" class="btn btn-secondary" id="btn-land" disabled onclick="sendCmd('LAND')">Land</button>
-            <button type="button" class="btn btn-secondary" id="btn-rtl" disabled onclick="sendCmd('RTL')">Return home</button>
+            <button type="button" class="btn btn-secondary" id="btn-land" disabled onclick="landSequence()">Land</button>
+            <button type="button" class="btn btn-secondary" id="btn-rtl" disabled onclick="rtlSequence()">Return home</button>
           </div>
         </div>
 
@@ -396,9 +396,9 @@
   </main>
 
   <script src="/lib/leaflet/leaflet.js"></script>
-  <script src="/gcs_config.js?v=18"></script>
+  <script src="/gcs_config.js?v=20"></script>
   <script src="/gcs_map.js"></script>
-  <script src="/gcs.js?v=18"></script>
+  <script src="/gcs.js?v=20"></script>
 </body>
 
 </html>

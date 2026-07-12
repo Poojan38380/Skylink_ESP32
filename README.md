@@ -233,7 +233,7 @@ Example serial output:
 ## 📊 Memory Usage
 
 Current build (Phase 4):
-- **RAM**: ~51KB / 327KB (15.5%)
+- **Free RAM (Min. Heap)**: ~130KB / 327KB (39.8%)
 - **Flash**: ~860KB / 1.3MB (65.6%)
 
 ## 🔄 Development Roadmap

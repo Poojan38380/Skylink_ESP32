@@ -105,6 +105,7 @@ void loop() {
         logger.info("Heartbeat | Time: " + timeStr +
                    " | WiFi: " + wifiManager.getSSID() + 
                    " | IP: " + wifiManager.getIPAddress() + 
-                   " | Signal: " + String(wifiManager.getSignalStrength()) + " dBm");
+                   " | Signal: " + String(wifiManager.getSignalStrength()) + " dBm" +
+                   " | Heap Free: " + String(ESP.getFreeHeap()) + " B | Min Free: " + String(ESP.getMinFreeHeap()) + " B");
     }
 }

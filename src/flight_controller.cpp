@@ -598,6 +598,52 @@ void FlightController::emergencyStop() {
     giveMutex();
 }
 
+void FlightController::motorTest(uint8_t motor, float throttlePct, uint16_t durationSec) {
+    if (!takeMutex()) return;
+
+    if (!mavlinkActive) {
+        rejectCommandUnlocked("MOTOR_TEST rejected: no MAVLink link to autopilot");
+        giveMutex();
+        return;
+    }
+
+    if (motor < 1 || motor > 8) {
+        rejectCommandUnlocked("MOTOR_TEST rejected: motor must be 1–8");
+        giveMutex();
+        return;
+    }
+
+    if (throttlePct < 0.0f || throttlePct > SKYLINK_MOTOR_TEST_MAX_THROTTLE_PCT) {
+        rejectCommandUnlocked("MOTOR_TEST rejected: throttle exceeds bench cap");
+        giveMutex();
+        return;
+    }
+
+    if (durationSec == 0 || durationSec > SKYLINK_MOTOR_TEST_MAX_DURATION_S) {
+        rejectCommandUnlocked("MOTOR_TEST rejected: duration exceeds bench cap");
+        giveMutex();
+        return;
+    }
+
+    logger.info("MOTOR_TEST motor " + String(motor) + " @ " + String(throttlePct) + "% for " + String(durationSec) + "s");
+
+    mavlink_message_t msg;
+    mavlink_msg_command_long_pack(
+        GCS_SYSID, GCS_COMPID, &msg,
+        1, 1,
+        MAV_CMD_DO_MOTOR_TEST,
+        0,
+        (float)motor,
+        0.0f,  // throttle type: percent
+        throttlePct,
+        (float)durationSec,
+        0, 0, 0
+    );
+    sendMavlinkPacket(&msg);
+    startPendingCommandUnlocked("MOTOR_TEST", MAV_CMD_DO_MOTOR_TEST);
+    giveMutex();
+}
+
 FCTelemetry FlightController::getTelemetry() {
     FCTelemetry copy;
     if (takeMutex(10)) {
@@ -771,10 +817,40 @@ void FlightController::pushStatusLine(const char* text, uint8_t severity) {
     (void)severity;
 }
 
+void FlightController::evictOneStatusTextUnlocked() {
+    if (eventQueueHead == eventQueueTail) return;
+
+    int idx = eventQueueHead;
+    while (idx != eventQueueTail) {
+        if (eventQueue[idx].type == FCEventType::StatusText) {
+            FCEvent temp[SKYLINK_FC_EVENT_QUEUE_SIZE];
+            int count = 0;
+            int scan = eventQueueHead;
+            while (scan != eventQueueTail) {
+                if (scan != idx) temp[count++] = eventQueue[scan];
+                scan = (scan + 1) % SKYLINK_FC_EVENT_QUEUE_SIZE;
+            }
+            eventQueueHead = 0;
+            eventQueueTail = count;
+            for (int i = 0; i < count; ++i) eventQueue[i] = temp[i];
+            return;
+        }
+        idx = (idx + 1) % SKYLINK_FC_EVENT_QUEUE_SIZE;
+    }
+
+    eventQueueHead = (eventQueueHead + 1) % SKYLINK_FC_EVENT_QUEUE_SIZE;
+}
+
 void FlightController::pushEvent(const FCEvent& event) {
     int nextTail = (eventQueueTail + 1) % SKYLINK_FC_EVENT_QUEUE_SIZE;
     if (nextTail == eventQueueHead) {
-        eventQueueHead = (eventQueueHead + 1) % SKYLINK_FC_EVENT_QUEUE_SIZE;
+        if (event.type == FCEventType::Ack) {
+            evictOneStatusTextUnlocked();
+            nextTail = (eventQueueTail + 1) % SKYLINK_FC_EVENT_QUEUE_SIZE;
+        }
+        if (nextTail == eventQueueHead) {
+            eventQueueHead = (eventQueueHead + 1) % SKYLINK_FC_EVENT_QUEUE_SIZE;
+        }
     }
     eventQueue[eventQueueTail] = event;
     eventQueueTail = nextTail;
@@ -833,6 +909,43 @@ void FlightController::failPendingCommandUnlocked(const char* reason) {
     pendingCommand.status = FCCommandStatus::Timeout;
     pendingCommand.result = MAV_RESULT_FAILED;
     logger.warning("Command " + String(pendingCommand.name) + " failed: " + String(reason ? reason : "link unavailable"));
+}
+
+bool FlightController::popEventByType(FCEventType type, FCEvent& out) {
+    if (!takeMutex(5)) return false;
+    if (eventQueueHead == eventQueueTail) {
+        giveMutex();
+        return false;
+    }
+
+    int found = -1;
+    int idx = eventQueueHead;
+    while (idx != eventQueueTail) {
+        if (eventQueue[idx].type == type) {
+            found = idx;
+            break;
+        }
+        idx = (idx + 1) % SKYLINK_FC_EVENT_QUEUE_SIZE;
+    }
+
+    if (found < 0) {
+        giveMutex();
+        return false;
+    }
+
+    out = eventQueue[found];
+    FCEvent temp[SKYLINK_FC_EVENT_QUEUE_SIZE];
+    int count = 0;
+    idx = eventQueueHead;
+    while (idx != eventQueueTail) {
+        if (idx != found) temp[count++] = eventQueue[idx];
+        idx = (idx + 1) % SKYLINK_FC_EVENT_QUEUE_SIZE;
+    }
+    eventQueueHead = 0;
+    eventQueueTail = count;
+    for (int i = 0; i < count; ++i) eventQueue[i] = temp[i];
+    giveMutex();
+    return true;
 }
 
 bool FlightController::popEvent(FCEvent& out) {

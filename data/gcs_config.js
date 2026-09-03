@@ -4,7 +4,7 @@
  */
 const SKYLINK_GCS_CONFIG = {
   protocolVersion: 1,
-  fsBuild: 22,  // Must match data/skylink_build.json — bump before uploadfs
+  fsBuild: 23,  // Must match data/skylink_build.json — bump before uploadfs
   moveMinM: 0.5,
   moveMaxM: 2,
   geofenceRadiusM: 10,
@@ -40,7 +40,14 @@ const SKYLINK_GCS_CONFIG = {
   takeoffArmDelayMs: 800,
   takeoffCommandDelayMs: 800,
   clientFlightCommandMinIntervalMs: 650,
-  commandAckTimeoutMs: 4000,
+  commandAckTimeoutMs: 8000,
+  benchAckTimeoutMs: 8000,
+  benchPingBurstCount: 10,
+  benchPingIntervalMs: 150,
+  benchMotorThrottlePct: 10,
+  benchMotorDurationS: 2,
+  benchCommandSpacingMs: 1700,
+  benchMotorSpacingMs: 800,
   stateConfirmTimeoutMs: 10000,
   commandGateMaxAgeMs: 3000,
 

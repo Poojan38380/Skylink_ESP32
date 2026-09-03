@@ -26,6 +26,7 @@ let _takeoffInProgress = false;
 let lastLoggedState = { armed: null, mode: null, gps: null, connected: null, commandKey: null };
 let emergencyConfirmTimeout = null;
 let lastEscapePressMs = 0;
+let pongWaiters = [];
 let ackWaiters = [];
 let logHistory = [];
 let logsRestored = false;
@@ -37,6 +38,7 @@ const MAV_CMD = {
   COMPONENT_ARM_DISARM: 400,
   NAV_TAKEOFF: 22,
   CONDITION_YAW: 115,
+  DO_MOTOR_TEST: 209,
 };
 
 const flightUiState = {
@@ -66,6 +68,9 @@ function initTabs() {
   const panels = document.querySelectorAll('.tab-panel');
 
   function showTab(name) {
+    if (activeTab === 'bench' && name !== 'bench' && typeof SkylinkBench !== 'undefined') {
+      SkylinkBench.onTabChange(name);
+    }
     activeTab = name;
     buttons.forEach((btn) => {
       const on = btn.dataset.tab === name;
@@ -77,6 +82,11 @@ function initTabs() {
       panel.classList.toggle('active', on);
       panel.hidden = !on;
     });
+    const benchBanner = document.getElementById('bench-banner');
+    if (benchBanner) benchBanner.hidden = name !== 'bench';
+    if (name === 'bench' && typeof SkylinkBench !== 'undefined') {
+      SkylinkBench.onTabChange('bench');
+    }
     if (name === 'map' && typeof SkylinkMap !== 'undefined' && window.L) {
       setTimeout(() => window.dispatchEvent(new Event('resize')), 120);
     }
@@ -407,7 +417,8 @@ function isClientFlightCommand(command) {
     command === 'GOTO_LATLON' ||
     command === 'LOITER_HERE' ||
     command === 'LAND' ||
-    command === 'RTL';
+    command === 'RTL' ||
+    command === 'MOTOR_TEST';
 }
 
 function ackTrackedCommandName(command) {
@@ -418,6 +429,7 @@ function ackTrackedCommandName(command) {
   if (command === 'YAW_RELATIVE') return 'YAW_RELATIVE';
   if (command === 'LAND') return 'LAND';
   if (command === 'RTL') return 'RTL';
+  if (command === 'MOTOR_TEST') return 'MOTOR_TEST';
   return '';
 }
 
@@ -462,6 +474,35 @@ function cancelCommandAckWait(commandId) {
   ackWaiters = ackWaiters.filter((w) => w.commandId !== commandId);
   matched.forEach((w) => {
     clearTimeout(w.timer);
+  });
+}
+
+function resolvePong(rttMs) {
+  const matched = pongWaiters.splice(0, pongWaiters.length);
+  matched.forEach((w) => {
+    clearTimeout(w.timer);
+    w.resolve(rttMs);
+  });
+}
+
+function pingOnce(timeoutMs) {
+  return new Promise((resolve, reject) => {
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      reject(new Error('WebSocket disconnected'));
+      return;
+    }
+    const t0 = performance.now();
+    const waiter = {
+      resolve,
+      reject,
+      timer: setTimeout(() => {
+        pongWaiters = pongWaiters.filter((w) => w !== waiter);
+        resolve(null);
+      }, timeoutMs || 3000),
+    };
+    pongWaiters.push(waiter);
+    pingTimestamp = t0;
+    sendCmd('PING');
   });
 }
 
@@ -933,11 +974,19 @@ function updateLinkChips(d) {
   setChip(document.getElementById('chip-ws'), wsOk ? 'ok' : 'warn', wsOk ? 'WS ●' : 'WS ○');
 
   const tcpOk = d.sitl_tcp_connected === true;
-  setChip(
-    document.getElementById('chip-sitl'),
-    tcpOk ? 'ok' : (d.sitl_host_ready ? 'warn' : 'bad'),
-    tcpOk ? 'SITL ●' : (d.sitl_host_ready ? 'SITL ◌' : 'SITL ○')
-  );
+  const sitlChip = document.getElementById('chip-sitl');
+  if (sitlChip) {
+    if (d.simulation) {
+      sitlChip.hidden = false;
+      setChip(
+        sitlChip,
+        tcpOk ? 'ok' : (d.sitl_host_ready ? 'warn' : 'bad'),
+        tcpOk ? 'SITL ●' : (d.sitl_host_ready ? 'SITL ◌' : 'SITL ○')
+      );
+    } else {
+      sitlChip.hidden = true;
+    }
+  }
 
   const mavOk = d.mav_connected === true;
   const hbFresh = d.autopilot_heartbeat_fresh === true;
@@ -1126,6 +1175,11 @@ function updateTelemetry(d) {
   updateMapFlightActions(d);
 
   if (typeof SkylinkMap !== 'undefined') SkylinkMap.updateFromTelemetry(d);
+
+  if (typeof SkylinkBench !== 'undefined') {
+    SkylinkBench.showTabForHardware(d.simulation !== true);
+    if (activeTab === 'bench') SkylinkBench.onTelemetry(d);
+  }
 }
 
 function persistLogs() {
@@ -1370,8 +1424,12 @@ function connect() {
           break;
         }
         case 'PONG': {
-          const latency = pingTimestamp ? Math.round(performance.now() - pingTimestamp) : '?';
-          log('PING', 'tag-ping', 'Round-trip ' + latency + ' ms');
+          const latency = pingTimestamp ? Math.round(performance.now() - pingTimestamp) : null;
+          if (pongWaiters.length && latency != null) {
+            resolvePong(latency);
+          } else if (latency != null) {
+            log('PING', 'tag-ping', 'Round-trip ' + latency + ' ms');
+          }
           break;
         }
         case 'ERROR':
@@ -1403,6 +1461,33 @@ function connect() {
 restoreLogs();
 connect();
 initMapGoto();
+
+function waitForCommandIdle(timeoutMs) {
+  return new Promise((resolve, reject) => {
+    const deadline = Date.now() + (timeoutMs || 8000);
+    const timer = setInterval(() => {
+      const pending =
+        lastCommandGate.commandPending ||
+        (lastTelemetry && lastTelemetry.command_pending === true);
+      if (!pending) {
+        clearInterval(timer);
+        resolve();
+      } else if (Date.now() > deadline) {
+        clearInterval(timer);
+        reject(new Error('Timed out waiting for pending command to clear'));
+      }
+    }, 100);
+  });
+}
+
+window.SkylinkGcs = {
+  sendCmd,
+  waitForCommandAck,
+  cancelCommandAckWait,
+  waitForCommandIdle,
+  pingOnce,
+  isWsConnected: () => wsConnected && ws && ws.readyState === WebSocket.OPEN,
+};
 
 function playWarningSound(type = 'alarm') {
   try {

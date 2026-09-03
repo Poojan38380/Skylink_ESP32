@@ -159,6 +159,26 @@ void handlePing(JsonDocument& doc, AsyncWebSocketClient* client) {
     wsSendJson(client, response);
 }
 
+void handleBenchModeOn(JsonDocument& doc, AsyncWebSocketClient* client) {
+    (void)doc;
+    (void)client;
+    webServerModule.setBenchMode(true);
+}
+
+void handleBenchModeOff(JsonDocument& doc, AsyncWebSocketClient* client) {
+    (void)doc;
+    (void)client;
+    webServerModule.setBenchMode(false);
+}
+
+void handleMotorTest(JsonDocument& doc, AsyncWebSocketClient* client) {
+    (void)client;
+    const uint8_t motor = doc["motor"] | 1;
+    const float throttle = doc["throttle_pct"] | 10.0f;
+    const uint16_t duration = doc["duration_s"] | 2;
+    flightController.motorTest(motor, throttle, duration);
+}
+
 struct WsCommandEntry {
     const char* name;
     WsCommandHandler handler;
@@ -181,6 +201,9 @@ const WsCommandEntry kCommands[] = {
     {"LOITER_HERE", handleLoiterHere},
     {"RC_OVERRIDE", handleRcOverride},
     {"PING", handlePing},
+    {"BENCH_MODE_ON", handleBenchModeOn},
+    {"BENCH_MODE_OFF", handleBenchModeOff},
+    {"MOTOR_TEST", handleMotorTest},
 };
 
 bool isFlightCommand(const String& command) {
@@ -195,7 +218,8 @@ bool isFlightCommand(const String& command) {
            command == "GOTO_LATLON" ||
            command == "GOTO_ALT" ||
            command == "LOITER_HERE" ||
-           command == "RC_OVERRIDE";
+           command == "RC_OVERRIDE" ||
+           command == "MOTOR_TEST";
 }
 
 enum class SafetyState : uint8_t {
@@ -309,6 +333,9 @@ void WebServerModule::handleWebSocketMessage(void *arg, uint8_t *data, size_t le
     }
 
     if (dispatchCommand(command, doc, client)) {
+        if (isFlightCommand(command)) {
+            webServerModule.flushFcEventsAfterCommand();
+        }
         return;
     }
 
@@ -328,8 +355,19 @@ void WebServerModule::rejectCommand(AsyncWebSocketClient* client, const String& 
 
 bool WebServerModule::validateCommand(const String& command, AsyncWebSocketClient* client) {
     if (command == "EMERGENCY_STOP" || command == "PING" ||
-        command == "LED_SET" || command == "LED_TOGGLE") {
+        command == "LED_SET" || command == "LED_TOGGLE" ||
+        command == "BENCH_MODE_ON" || command == "BENCH_MODE_OFF") {
         return true;
+    }
+
+    if (benchModeActive && isBenchBlockedCommand(command)) {
+        rejectCommand(client, command + " rejected: bench mode — flight commands disabled");
+        return false;
+    }
+
+    if (command == "MOTOR_TEST" && !benchModeActive) {
+        rejectCommand(client, "MOTOR_TEST rejected: activate bench mode first");
+        return false;
     }
 
     if (!isFlightCommand(command)) {
@@ -398,6 +436,33 @@ bool WebServerModule::isFlightCommandGateReady(String& reason) const {
     return true;
 }
 
+bool WebServerModule::isBenchBlockedCommand(const String& command) const {
+    return command == "TAKEOFF" ||
+           command == "LAND" ||
+           command == "RTL" ||
+           command == "MOVE_BODY" ||
+           command == "YAW_RELATIVE" ||
+           command == "GOTO_LATLON" ||
+           command == "GOTO_ALT" ||
+           command == "LOITER_HERE" ||
+           command == "RC_OVERRIDE";
+}
+
+void WebServerModule::setBenchMode(bool active) {
+    benchModeActive = active;
+    logger.info(active ? "Bench mode ON — GPS not required for arm/motor test" : "Bench mode OFF");
+}
+
+bool WebServerModule::isBenchModeActive() const {
+    return benchModeActive;
+}
+
+void WebServerModule::flushFcEventsAfterCommand() {
+    for (int i = 0; i < 3; ++i) {
+        sendPendingFcEvents();
+    }
+}
+
 void WebServerModule::appendSafetyState(JsonDocument& doc, const FCTelemetry& fc, bool cmdGateReady, const String& cmdGateReason) {
     SafetySnapshot safety;
     safety.gateReady = cmdGateReady;
@@ -423,9 +488,14 @@ void WebServerModule::appendSafetyState(JsonDocument& doc, const FCTelemetry& fc
     } else if (fc.armed) {
         safety.state = SafetyState::ArmedGround;
         safety.reason = safety.guided ? "Armed on ground in GUIDED" : "Armed on ground outside GUIDED";
-    } else if (!safety.gpsOk) {
+    } else if (!safety.gpsOk && !benchModeActive) {
         safety.state = SafetyState::Preflight;
         safety.reason = "Waiting for GPS 3D fix";
+    } else if (benchModeActive && !fc.armed) {
+        safety.state = SafetyState::ReadyToArm;
+        safety.reason = safety.guided
+            ? "Bench mode — ready to arm (GPS not required)"
+            : "Bench mode — set GUIDED to arm";
     } else {
         safety.state = SafetyState::ReadyToArm;
         safety.reason = safety.guided ? "Ready to arm" : "Ready; GUIDED required before arm/takeoff";
@@ -444,18 +514,21 @@ void WebServerModule::appendSafetyState(JsonDocument& doc, const FCTelemetry& fc
     doc["safety_reason"] = safety.reason;
     doc["cmd_gate_ready"] = cmdGateReady;
     doc["cmd_gate_reason"] = cmdGateReason;
+    doc["bench_mode_active"] = benchModeActive;
     doc["can_set_mode"] = cmdGateReady;
-    doc["can_arm"] = (safety.state == SafetyState::ReadyToArm);
+    const bool benchArmOk = benchModeActive && cmdGateReady && !armed;
+    doc["can_arm"] = benchArmOk || (safety.state == SafetyState::ReadyToArm && !benchModeActive);
     doc["can_disarm"] = cmdGateReady && armed;
-    const bool canAutoTakeoffFromDisarmed = readyToArm && !armed;
-    const bool canTakeoffFromArmedGround = armedGround && safety.guided;
-    doc["can_takeoff"] = cmdGateReady && safety.gpsOk &&
+    const bool canAutoTakeoffFromDisarmed = readyToArm && !armed && !benchModeActive;
+    const bool canTakeoffFromArmedGround = armedGround && safety.guided && !benchModeActive;
+    doc["can_takeoff"] = cmdGateReady && safety.gpsOk && !benchModeActive &&
         (canAutoTakeoffFromDisarmed || canTakeoffFromArmedGround);
-    doc["can_land"] = cmdGateReady && armed;
-    doc["can_rtl"] = cmdGateReady && armed && !landing;
-    doc["can_loiter"] = flying && safety.guided && safety.gpsOk;
-    doc["can_move"] = flying && safety.guided && safety.gpsOk;
-    doc["can_goto"] = flying && safety.guided && safety.gpsOk && fc.home_valid;
+    doc["can_land"] = cmdGateReady && armed && !benchModeActive;
+    doc["can_rtl"] = cmdGateReady && armed && !landing && !benchModeActive;
+    doc["can_loiter"] = flying && safety.guided && safety.gpsOk && !benchModeActive;
+    doc["can_move"] = flying && safety.guided && safety.gpsOk && !benchModeActive;
+    doc["can_goto"] = flying && safety.guided && safety.gpsOk && fc.home_valid && !benchModeActive;
+    doc["can_motor_test"] = benchModeActive && cmdGateReady && !fc.command_pending;
     doc["can_emergency_stop"] = getWsClientCount() > 0 && armed;
 }
 
@@ -532,6 +605,8 @@ void WebServerModule::sendHeartbeat() {
     doc["wifi_rssi"] = wifiManager.getSignalStrength();
     doc["ws_connected"] = (getWsClientCount() > 0);
     doc["ws_clients"] = getWsClientCount();
+    doc["free_heap"] = ESP.getFreeHeap();
+    doc["min_free_heap"] = ESP.getMinFreeHeap();
     appendSafetyState(doc, fc, cmdGateReady, cmdGateReason);
 #ifdef SITL_MODE
     doc["sitl_host"] = flightController.getSitlHost();
@@ -562,6 +637,24 @@ void WebServerModule::sendPendingFcEvents() {
 
     FCEvent ev;
     int sent = 0;
+    while (sent < SKYLINK_WS_MAX_EVENTS_PER_LOOP && flightController.popEventByType(FCEventType::Ack, ev)) {
+        JsonDocument doc;
+        doc["v"] = SKYLINK_PROTOCOL_VERSION;
+        doc["type"] = "event";
+        doc["timestamp"] = timeSync.getCurrentTime();
+        doc["event"] = "ACK";
+        doc["command"] = ev.ack_command;
+        doc["result"] = ev.ack_result;
+        doc["result_name"] = mavResultName(ev.ack_result);
+        doc["ok"] = (ev.ack_result == MAV_RESULT_ACCEPTED);
+
+        if (wsBroadcastJson(ws, doc)) {
+            sent++;
+        } else {
+            break;
+        }
+    }
+
     while (sent < SKYLINK_WS_MAX_EVENTS_PER_LOOP && flightController.popEvent(ev)) {
         JsonDocument doc;
         doc["v"] = SKYLINK_PROTOCOL_VERSION;

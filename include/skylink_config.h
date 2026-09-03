@@ -14,7 +14,7 @@
 // --- WebSocket / dashboard telemetry ---
 #define SKYLINK_WS_TELEMETRY_INTERVAL_MS  200   // 5 Hz to browser (avoids AsyncWS queue overflow)
 #define SKYLINK_WS_TELEMETRY_HZ           5
-#define SKYLINK_WS_MAX_EVENTS_PER_LOOP    3
+#define SKYLINK_WS_MAX_EVENTS_PER_LOOP    8
 #define SKYLINK_STATUSTEXT_RING_LINES     5
 #define SKYLINK_STATUSTEXT_MAX_LEN        50
 #define SKYLINK_FC_EVENT_QUEUE_SIZE       6
@@ -61,9 +61,13 @@
 
 // --- Build identity (bump when flashing; see CONFIG_REFERENCE.md) ---
 // FIRMWARE: increment before `pio run --target upload`
-#define SKYLINK_FIRMWARE_BUILD          15
+#define SKYLINK_FIRMWARE_BUILD          16
 // FS: increment before `pio run --target uploadfs` (must match data/skylink_build.json + gcs_config.js)
-#define SKYLINK_FS_BUILD                22
+#define SKYLINK_FS_BUILD                23
+
+// --- Bench motor test caps (props-off ground test only) ---
+#define SKYLINK_MOTOR_TEST_MAX_THROTTLE_PCT  15
+#define SKYLINK_MOTOR_TEST_MAX_DURATION_S    3
 
 #ifdef SITL_MODE
 constexpr bool SKYLINK_SIMULATION = true;

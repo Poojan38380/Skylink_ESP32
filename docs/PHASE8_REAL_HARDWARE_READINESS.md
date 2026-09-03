@@ -21,7 +21,9 @@ Phase 5 authentication is deferred for local WiFi testing only. Do not expose Sk
   - ESP32 TX2 GPIO17 sends to Pixhawk RX
   - common ground required
 - Confirm dashboard receives real MAVLink heartbeat, attitude, GPS, battery, mode, and arm state.
+- Run the **Bench** tab Group A (link/comms) and Group B (arm/disarm/motor test) checklists; export CSV. See [INDOOR_MOTOR_TEST.md](INDOOR_MOTOR_TEST.md).
 - Confirm emergency disarm sends the force-disarm path.
+- **Takeoff is not part of bench testing** — use Fly tab only outdoors with GPS for takeoff.
 
 ### 3. Pixhawk/ArduPilot parameters
 

@@ -14,8 +14,10 @@ private:
     uint32_t lastFlightCommandMs = 0;
     uint32_t lastSameCommandMs = 0;
     String lastFlightCommand;
-    
+    bool benchModeActive = false;
+
     void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len);
+    bool isBenchBlockedCommand(const String& command) const;
     void handleWebSocketMessage(void *arg, uint8_t *data, size_t len, AsyncWebSocketClient *client);
     bool validateCommand(const String& command, AsyncWebSocketClient* client);
     void rejectCommand(AsyncWebSocketClient* client, const String& message);
@@ -28,6 +30,9 @@ public:
     void sendAppState();
     void sendHeartbeat();
     void sendPendingFcEvents();
+    void flushFcEventsAfterCommand();
+    void setBenchMode(bool active);
+    bool isBenchModeActive() const;
     int getWsClientCount() const;
 };
 

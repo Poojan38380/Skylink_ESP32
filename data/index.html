@@ -53,6 +53,10 @@
     Simulation mode — SITL only. Do not use on real aircraft without hardware checks.
   </div>
 
+  <div class="bench-banner" id="bench-banner" hidden>
+    BENCH TEST — PROPS OFF. Testing only. No takeoff. No flight commands. Restore ARMING_CHECK before outdoor flight.
+  </div>
+
   <nav class="tab-bar" role="tablist" aria-label="Main sections">
     <button type="button" class="tab-btn active" role="tab" aria-selected="true" data-tab="map" id="tab-btn-map">
       <span class="tab-label">Map</span>
@@ -69,6 +73,10 @@
     <button type="button" class="tab-btn" role="tab" aria-selected="false" data-tab="log" id="tab-btn-log">
       <span class="tab-label">Log</span>
       <span class="tab-hint">Messages</span>
+    </button>
+    <button type="button" class="tab-btn" role="tab" aria-selected="false" data-tab="bench" id="tab-btn-bench" hidden>
+      <span class="tab-label">Bench</span>
+      <span class="tab-hint">Props-off test</span>
     </button>
   </nav>
 
@@ -393,12 +401,75 @@
       </div>
     </section>
 
+    <!-- BENCH (hardware only) -->
+    <section class="tab-panel" id="tab-bench" role="tabpanel" aria-labelledby="tab-btn-bench" hidden>
+      <div class="panel-scroll bench-panel">
+        <div class="bench-intro">
+          <h2 class="section-title">Bench test dashboard</h2>
+          <p class="section-desc">Structured props-off ground testing indoors. <strong>Takeoff is not part of bench testing.</strong> Set <code>ARMING_CHECK=0</code> in Mission Planner for indoor arm without GPS if needed.</p>
+        </div>
+
+        <div class="section-block bench-metrics">
+          <h2 class="section-title">Live metrics</h2>
+          <div class="bench-metrics-grid">
+            <div class="bench-metric"><span class="bench-metric-k">WS RTT p50/p95</span><span class="bench-metric-val" id="bench-metric-ping">—</span></div>
+            <div class="bench-metric"><span class="bench-metric-k">Telemetry rate</span><span class="bench-metric-val" id="bench-metric-rate">—</span></div>
+            <div class="bench-metric"><span class="bench-metric-k">MAVLink HB age</span><span class="bench-metric-val" id="bench-metric-hb">—</span></div>
+            <div class="bench-metric"><span class="bench-metric-k">Wi‑Fi RSSI</span><span class="bench-metric-val" id="bench-metric-rssi">—</span></div>
+            <div class="bench-metric"><span class="bench-metric-k">Min free heap</span><span class="bench-metric-val" id="bench-metric-heap">—</span></div>
+            <div class="bench-metric bench-metric-wide"><span class="bench-metric-k">GPS</span><span class="bench-gps-chip bench-gps-neutral" id="bench-gps-chip">—</span></div>
+          </div>
+        </div>
+
+        <div class="section-block">
+          <h2 class="section-title">Group A — Link &amp; comms</h2>
+          <p class="section-desc">No GPS required. PING burst, MAVLink link, mode changes (STABILIZE → GUIDED → LAND).</p>
+          <button type="button" class="btn btn-primary" id="bench-run-group-a">Run Group A checklist</button>
+        </div>
+
+        <div class="section-block">
+          <h2 class="section-title">Group B — Props-off mechanical</h2>
+          <p class="section-desc">ARM, DISARM, and per-motor spin via <code>MOTOR_TEST</code>. No GPS required. Hold the drone firmly.</p>
+          <ul class="bench-confirm-list">
+            <li><label><input type="checkbox" id="bench-confirm-props"> Propellers removed</label></li>
+            <li><label><input type="checkbox" id="bench-confirm-hold"> Drone held firmly / restrained</label></li>
+            <li><label><input type="checkbox" id="bench-confirm-arming"> <code>ARMING_CHECK</code> set for bench (Mission Planner)</label></li>
+            <li><label><input type="checkbox" id="bench-confirm-notest"> I understand takeoff is not part of bench testing</label></li>
+          </ul>
+          <div class="btn-grid-2 bench-manual-btns">
+            <button type="button" class="btn btn-arm" id="bench-btn-arm" disabled>Arm</button>
+            <button type="button" class="btn btn-disarm" id="bench-btn-disarm" disabled>Disarm</button>
+          </div>
+          <div class="bench-motor-row">
+            <span class="preset-label">Motor test (10%, 2s)</span>
+            <button type="button" class="btn btn-secondary" data-bench-motor="1" disabled>Motor A</button>
+            <button type="button" class="btn btn-secondary" data-bench-motor="2" disabled>Motor B</button>
+            <button type="button" class="btn btn-secondary" data-bench-motor="3" disabled>Motor C</button>
+            <button type="button" class="btn btn-secondary" data-bench-motor="4" disabled>Motor D</button>
+          </div>
+          <button type="button" class="btn btn-primary btn-block" id="bench-run-group-b" disabled style="margin-top:16px">Run Group B checklist</button>
+        </div>
+
+        <div class="section-block">
+          <h2 class="section-title">Results</h2>
+          <div class="bench-table-wrap">
+            <table class="bench-table">
+              <thead><tr><th>Step</th><th>Command</th><th>ACK ms</th><th>Result</th><th>Notes</th></tr></thead>
+              <tbody id="bench-checklist-body"></tbody>
+            </table>
+          </div>
+          <button type="button" class="btn btn-secondary" id="bench-export-csv" style="margin-top:12px">Export CSV</button>
+        </div>
+      </div>
+    </section>
+
   </main>
 
   <script src="/lib/leaflet/leaflet.js"></script>
-  <script src="/gcs_config.js?v=22"></script>
+  <script src="/gcs_config.js?v=23"></script>
   <script src="/gcs_map.js"></script>
-  <script src="/gcs.js?v=22"></script>
+  <script src="/gcs.js?v=23"></script>
+  <script src="/gcs_bench.js?v=23"></script>
 </body>
 
 </html>

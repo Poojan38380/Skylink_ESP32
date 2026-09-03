@@ -1,124 +1,116 @@
-# Skylink Indoor Motor Spin Test — No Props
+# Skylink Indoor Motor Test — No Props (Bench Tab)
 
-**Purpose:** Verify all 4 motors spin correctly and respond to throttle when the drone attempts takeoff, without risk of flight. Run this BEFORE any outdoor test.
+**Purpose:** Verify MAVLink link, arm/disarm, and per-motor spin on the bench **without propellers**. This is **testing only** — takeoff is **not** part of bench testing.
 
----
-
-## Safety Rules (Read First)
-
-> ⚠️ Even without props, spinning motors can suck in wires/fingers and generate heat.
-> 1. Remove ALL propellers before starting.
-> 2. Have one person hold the drone firmly flat on a table or floor — do NOT let go.
-> 3. Keep loose wires, clothing, and fingers well away from motors.
-> 4. Have a second person at the keyboard/dashboard ready to cut power immediately.
-> 5. Keep the test under 5 seconds of motor spin.
-> 6. If any motor spins unevenly, rattles, or smells hot — kill power immediately.
+Use the dashboard **Bench** tab (hardware builds only). Takeoff remains on the **Fly** tab for outdoor flight with GPS.
 
 ---
 
-## What You're Testing
+## Safety rules
 
-| Check | Pass criteria |
+> Even without props, spinning motors can pull in wires or fingers and generate heat.
+
+1. Remove **all** propellers before starting.
+2. Hold the drone firmly on a table — do not let go during ARM tests.
+3. Keep fingers, clothing, and loose wires away from motor bells.
+4. Have a second person ready to disarm or cut power.
+5. Limit each motor test to **2–3 seconds** at **≤10% throttle** (dashboard caps at 15% / 3 s).
+6. Restore **`ARMING_CHECK=1`** before any outdoor flight.
+
+---
+
+## Pixhawk bench setup (Mission Planner)
+
+Indoor bench tests do **not** require GPS in Skylink, but Pixhawk may still block arm until checks are relaxed:
+
+| Parameter | Bench value | Notes |
+|---|---|---|
+| `ARMING_CHECK` | `0` (or exclude GPS/compass) | Restore before outdoor flight |
+| `SERIAL2_PROTOCOL` | `2` (MAVLink2) | TELEM2 to ESP32 |
+| `SERIAL2_BAUD` | `115200` | Match ESP32 UART2 |
+
+Wiring: ESP32 RX2 (GPIO16) ← Pixhawk TELEM2 TX; ESP32 TX2 (GPIO17) → Pixhawk TELEM2 RX; common ground.
+
+---
+
+## What the Bench tab tests
+
+### Group A — Link & comms (no GPS gate)
+
+- WebSocket connected
+- Bench mode activated (`BENCH_MODE_ON`)
+- PING burst → RTT p50/p95
+- MAVLink heartbeat fresh
+- Telemetry fields present
+- `SET_FLIGHT_MODE`: STABILIZE → GUIDED → LAND (ACK each)
+
+### Group B — Props-off mechanical (no GPS gate)
+
+After ticking all four confirmations:
+
+1. `ARM_DRONE` → hold drone
+2. `DISARM_DRONE`
+3. `MOTOR_TEST` motors A–D (MAV_CMD_DO_MOTOR_TEST @ 10%, 2 s)
+
+**Excluded from bench:** TAKEOFF, MOVE_BODY, GOTO, RTL, LOITER, RC_OVERRIDE.
+
+---
+
+## Operator procedure
+
+1. Remove props. Power Pixhawk + ESP32 (LiPo for ESCs if testing motors).
+2. Set `ARMING_CHECK=0` in Mission Planner if indoor arm without GPS is needed.
+3. Open dashboard → **Bench** tab (activates bench mode automatically).
+4. **Run Group A** → review metrics and checklist table → **Export CSV**.
+5. Tick all props-off confirmations.
+6. **Run Group B** (or use manual Arm / Disarm / Motor buttons).
+7. Export CSV for latency evidence (paper / lab log).
+8. **Disarm**, leave bench tab (deactivates bench mode), restore `ARMING_CHECK=1`.
+
+---
+
+## Pass criteria
+
+| Check | Pass |
 |---|---|
-| All 4 motors arm | Motors give a beep sequence when armed |
-| All 4 motors spin on throttle | All visibly spin after takeoff command |
-| Motor direction | Each motor spins in the correct direction (CW/CCW per frame layout) |
-| ESC calibration | All motors spin at roughly the same speed at same throttle |
-| No vibration from imbalance | Drone doesn't shake excessively |
-| ArduPilot accepts the takeoff command | Dashboard shows no FAILED/DENIED ACK |
+| Group A completes without FAIL rows | All link/comms steps PASS |
+| ARM ACK accepted | `Command 400: ACCEPTED` in log |
+| DISARM ACK accepted | Vehicle disarmed in telemetry |
+| Each MOTOR_TEST ACK | `Command 209: ACCEPTED`; motor spins ~2 s |
+| No unexpected STATUSTEXT errors | No persistent prearm failures |
 
 ---
 
-## Setup
+## Troubleshooting
 
-1. **Remove all propellers.** Double-check. Triple-check.
-2. Power FC + ESCs + motors via normal LiPo (NOT just USB).
-3. Connect ESP32 to WiFi, open dashboard.
-4. Make sure Serial monitor (`pio device monitor`) is running in another terminal.
-5. Place drone on a hard flat surface. Have someone firmly hold it down from the top frame — not touching motor bells.
-6. In Mission Planner (or dashboard Status tab), confirm:
-   - GPS 3D fix acquired (or accept that it may not arm without GPS if ARMING_CHECK is not 0)
-   - ARMING_CHECK parameter = 0 (set via Mission Planner → Config → Full Parameter List → search ARMING_CHECK → set to 0)
+### ARM denied (STATUSTEXT)
 
----
+- Pixhawk pre-arm still blocking (GPS, compass, throttle) — adjust `ARMING_CHECK` or fix hardware.
+- Safety switch not pressed (if fitted).
 
-## Test Procedure
+### MOTOR_TEST FAILED/DENIED
 
-### Step 1 — Manual arm from dashboard
-1. Open the **Fly** tab.
-2. Click **"Set Mode: GUIDED"** manually first.
-3. Wait for Mode chip to show GUIDED in the live strip.
-4. Click **"ARM"**.
-5. **Expected:** Motors give arming beep sequence. All 4 ESCs armed.
-6. If armed: motors should be at idle (just barely spinning or stationary — depends on ESC config).
+- FC firmware may require disarmed state for motor test.
+- Motor channel mapping wrong — verify in Mission Planner Motor Test page.
 
-### Step 2 — Autonomous takeoff (low altitude)
-1. Ensure someone is holding the drone firmly.
-2. Click **Takeoff** in the Fly tab, enter **1 m**.
-3. **Expected serial log sequence:**
-   ```
-   [INFO] Setting flight mode: 4
-   [INFO] Sending command: ARM Drone
-   [INFO] Sending command: TAKEOFF to 1.00m
-   ```
-4. **Expected dashboard log:**
-   ```
-   SYS  [TAKEOFF 1/6] Sending GUIDED mode…
-   ACK  Command 176: ACCEPTED
-   SYS  [TAKEOFF 2/6] GUIDED ACK accepted — waiting for GUIDED state…
-   SYS  [TAKEOFF 3/6] GUIDED confirmed — sending ARM…
-   ACK  Command 400: ACCEPTED
-   SYS  [TAKEOFF 4/6] ARM ACK accepted — waiting for ARMED state…
-   SYS  [TAKEOFF 5/6] Armed in GUIDED confirmed — sending TAKEOFF…
-   ACK  Command 22: ACCEPTED
-   SYS  [TAKEOFF 6/6] TAKEOFF ACK accepted for 1 m
-   ```
-5. **Expected motor behaviour:** All 4 motors spin up significantly and sustain — the FC is trying to climb to 1m.
-6. Hold the drone for 3–5 seconds to observe.
-7. Click **LAND** or **DISARM** to stop.
+### ACK timeout in UI but serial shows ACK
+
+- Reflash firmware FS build ≥23 (ACK prioritization + post-command flush).
+- Reduce STATUSTEXT flood from FC if possible.
+
+### Mission Planner motor test (fallback)
+
+Config → Optional Hardware → Motor Test — 5% throttle, 2 s, test A–D individually. Bypasses Skylink; useful to isolate ESC wiring.
 
 ---
 
-## Diagnosing Motor Issues
+## What to log
 
-### Only some motors spin
-- ESC not calibrated for that motor
-- Motor wire loose or broken
-- ESC output channel wrong in ArduPilot Motor Test (Config → Optional Hardware → Motor Test)
+Export CSV from Bench tab and note:
 
-### Motors spin but unevenly
-- ESC calibration drift — recalibrate all ESCs together
-- Throttle curve issue
+- Date, FW/FS build, Wi‑Fi RSSI, min heap
+- PING p50/p95, per-step ACK ms
+- ARM / DISARM / motor results
+- Any FC STATUSTEXT warnings
 
-### Drone tries to roll/flip immediately
-- Wrong motor direction on one or more motors (swap any 2 wires on the motor to reverse)
-- Wrong prop direction assigned in ArduPilot (motor numbering mismatch)
-
-### No motors spin at all after ARM
-- ARMING_CHECK blocking it (look at STATUSTEXT in dashboard Status tab)
-- Safety switch not pressed (if your FC has one)
-- ESC not powered from LiPo
-
-### ACK Command 22 FAILED/DENIED
-- FC is not in GUIDED mode at the time TAKEOFF is sent
-- GPS fix type < 3 AND ARMING_CHECK != 0
-
----
-
-## Motor Test via Mission Planner (Alternative)
-If the above fails, use Mission Planner's built-in motor test:
-1. Connect FC to Mission Planner via USB.
-2. Go to **Config → Optional Hardware → Motor Test**.
-3. Set throttle % to 5% and duration to 2 seconds.
-4. Click Test Motor A, B, C, D individually.
-5. This bypasses arming entirely — useful for isolating which motor/ESC has issues.
-
----
-
-## What to Log
-After the test, note in your test log:
-- Did all 4 motors arm? Y/N
-- Did all 4 spin on takeoff command? Y/N
-- Were any motors noticeably slower/faster? Which?
-- Any STATUSTEXT messages from FC during the test?
-- Any ACK FAILED or DENIED in dashboard log?
+**Takeoff is never part of this procedure.**

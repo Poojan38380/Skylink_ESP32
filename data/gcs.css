@@ -1220,3 +1220,116 @@ body {
     width: 100%;
   }
 }
+
+/* ── Bench test tab ───────────────────────────────── */
+.bench-banner {
+  background: rgba(248, 81, 73, 0.15);
+  border-bottom: 1px solid var(--red);
+  color: var(--red);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px 24px;
+  text-align: center;
+}
+
+.bench-panel .section-block { margin-bottom: 28px; }
+
+.bench-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.bench-metric {
+  background: var(--surface-solid);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+}
+
+.bench-metric-wide { grid-column: 1 / -1; }
+
+.bench-metric-k {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 6px;
+}
+
+.bench-metric-val {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.bench-gps-chip {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border2);
+}
+
+.bench-gps-ok { color: var(--green); border-color: var(--green); }
+.bench-gps-warn { color: var(--orange); border-color: var(--orange); }
+.bench-gps-neutral { color: var(--muted); }
+
+.bench-confirm-list {
+  list-style: none;
+  margin: 12px 0 16px;
+  padding: 0;
+}
+
+.bench-confirm-list li {
+  margin-bottom: 10px;
+  font-size: 14px;
+}
+
+.bench-confirm-list label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.bench-motor-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.bench-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.bench-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.bench-table th,
+.bench-table td {
+  padding: 8px 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+.bench-table th {
+  background: var(--surface-solid);
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.bench-table tr.pass td:nth-child(4) { color: var(--green); }
+.bench-table tr.fail td:nth-child(4) { color: var(--red); }
+
+.bench-manual-btns { max-width: 360px; margin-top: 8px; }
+

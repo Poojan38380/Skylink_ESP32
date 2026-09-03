@@ -126,6 +126,7 @@ private:
     bool canExecuteGuidedMoveUnlocked() const;
     void pushStatusLine(const char* text, uint8_t severity);
     void pushEvent(const FCEvent& event);
+    void evictOneStatusTextUnlocked();
     void rejectCommandUnlocked(const char* text);
     void startPendingCommandUnlocked(const char* name, uint16_t mavCommand, uint32_t timeoutMs = SKYLINK_MAVLINK_COMMAND_ACK_TIMEOUT_MS);
     void completePendingCommandUnlocked(uint16_t mavCommand, uint8_t result);
@@ -162,12 +163,14 @@ public:
     void sendRCOverride(uint16_t roll, uint16_t pitch, uint16_t throttle, uint16_t yaw);
     void sendHeartbeat();
     void emergencyStop();
+    void motorTest(uint8_t motor, float throttlePct, uint16_t durationSec);
 
     FCTelemetry getTelemetry();
     bool isConnected(TickType_t timeout = 10);
     bool isAutopilotHeartbeatFresh(TickType_t timeout = 10);
     bool isSitlTcpConnected();
     bool popEvent(FCEvent& out);
+    bool popEventByType(FCEventType type, FCEvent& out);
     void appendStatusTexts(JsonArray arr);
     static const char* flightModeName(uint8_t customMode);
 

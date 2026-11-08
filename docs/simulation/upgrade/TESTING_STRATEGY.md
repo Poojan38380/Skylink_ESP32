@@ -48,7 +48,11 @@
 ```yaml
 # .github/workflows/ci.yml (planned)
 - checkout
-- pip install platformio
+- uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+  with:
+    version: "0.13.7"
+    enable-cache: false
+- run: uv tool install platformio
 - pio run -e esp32dev
 - pio run -e esp32dev -t buildfs
 - pio test -e native   # when native tests exist
